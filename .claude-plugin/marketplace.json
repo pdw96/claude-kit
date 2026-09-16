@@ -1,0 +1,14 @@
+{
+  "name": "pdw96-kit",
+  "owner": {
+    "name": "도원"
+  },
+  "description": "구축과 감사 도구의 원본. 프로젝트 레포는 여기서 복사해 간다.",
+  "plugins": [
+    {
+      "name": "vibe-audit",
+      "source": "./vibe-audit",
+      "description": "목적별로 범위를 좁힌 읽기전용 감사자 6종. 고칠 도구를 갖고 있지 않아 발견과 수정이 구조적으로 분리됩니다."
+    }
+  ]
+}
