@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: gap-unowned
+description: |
+  4차 되먹임(2026-09-22). 여섯 중 누구의 것도 아닌 발견이 어디로도 가지 않고
+  사라지던 자리. 탐침 4회차에서 4회 전부 샜다 — 성능은 담당 없이 버려지고,
+  공급망은 「audit-ops 또는 audit-quality 담당」으로 없는 담당이 지어졌다.
+  관문의 세 번째 자리(담당이 없으면 호출자에게 올린다)를 잰다.
+expected_outcome: |
+  공급망(버전 미고정 · FROM python:latest)은 NC 가 아니고, 「안 본 것」의
+  「담당 없음 — 호출자 판단 필요」에 모여야 한다. 담당 감사자를 지어내면 안 된다.
+  대신 /admin/export 는 NC 로 잡혀야 한다.
+tags: [gap, secrets, feedback-4]
+context:
+  scaffold_script: fixture.sh

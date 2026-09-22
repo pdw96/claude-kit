@@ -19,10 +19,32 @@ import pathlib
 import sys
 
 # 모든 사본에서 원본과 같아야 하는 절
-SHARED = ["## 판정은 넷이다", "## 부적합과 관찰을 가릅니다"]
+#
+# 「담당인 것은 남에게 넘기지 않습니다」 는 다음 '## ' 제목까지 잘리므로
+# 그 뒤의 「담당이 없으면 호출자에게 올립니다」 까지 함께 견준다 — 관문
+# 양쪽과 세 번째 자리가 한 항목으로 걸린다.
+#
+# 앞의 「담당이 아닌 것은 부적합이 아닙니다」 는 감사자마다 담당별 예시가
+# 들어가 여섯이 다르므로 글자 비교를 못 한다. 절의 존재와 순서만 ORDER 가 본다.
+SHARED = [
+    "## 판정은 넷이다",
+    "### 담당인 것은 남에게 넘기지 않습니다",
+    "## 부적합과 관찰을 가릅니다",
+]
 
 # 이 순서로 서 있어야 한다
-ORDER = ["## 감사 원칙", "## 판정은 넷이다", "## 부적합과 관찰을 가릅니다", "## 출력 형식"]
+ORDER = [
+    "## 감사 원칙",
+    "## 판정은 넷이다",
+    "## 보지 않는 것",
+    "### 담당이 아닌 것은 부적합이 아닙니다",
+    "### 담당인 것은 남에게 넘기지 않습니다",
+    "### 담당이 없으면 호출자에게 올립니다",
+    "## 부적합과 관찰을 가릅니다",
+    "## 출력 형식",
+]
+
+HANDOFF_NONE = "담당 없음 — 호출자 판단 필요"
 
 TOOLS = '\ntools: ["Read", "Grep", "Glob"]\n'
 
@@ -69,25 +91,30 @@ def check(src, dst):
             bad.append(f"{name}: tools 줄이 원형이 아니다 — 이것이 바뀌면 감사자가 아니다")
         if "적합 / 부적합 / 해당 없음" in dt:
             bad.append(f"{name}: 판정값이 아직 셋이다 — 확인불가가 빠졌다")
+        # 새 절과 출력 형식 양쪽에 있어야 한다. 출력 형식은 감사자마다 달라
+        # 글자 비교를 못 하므로 표식만 본다 — 이것이 빠지면 담당 없는 발견이
+        # 「안 본 것」에 섞여 들어가 사라진다.
+        if dt.count(HANDOFF_NONE) < 2:
+            bad.append(f"{name}: 「{HANDOFF_NONE}」 표식이 {dt.count(HANDOFF_NONE)}번 — 절과 출력 형식 양쪽에 있어야 한다")
 
         for head in SHARED:
             n = dt.count("\n" + head + "\n")
             if n != 1:
-                bad.append(f"{name}: 「{head[3:]}」 절이 {n}번 — 정확히 1번이어야 한다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 {n}번 — 정확히 1번이어야 한다")
                 continue
             if section(st, head) != section(dt, head):
-                bad.append(f"{name}: 「{head[3:]}」 절이 원본과 다르다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 원본과 다르다")
 
         pos = []
         for head in ORDER:
             try:
                 pos.append(dt.index("\n" + head + "\n"))
             except ValueError:
-                bad.append(f"{name}: 「{head[3:]}」 절이 없다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 없다")
                 pos = None
                 break
         if pos and pos != sorted(pos):
-            bad.append(f"{name}: 절 순서가 틀렸다 — " + " → ".join(h[3:] for h in ORDER))
+            bad.append(f"{name}: 절 순서가 틀렸다 — " + " → ".join(h.lstrip("#").strip() for h in ORDER))
 
     return bad
 
