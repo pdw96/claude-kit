@@ -2,7 +2,7 @@
 type: regex
 weight: 2
 target: last_message
-pattern: "(?:\\n\\|\\s*|\\n[-*]\\s*)NC-2\\b[^\\n]{0,100}해소"
+pattern: "\\n\\|\\s*NC-2\\b[^|\\n]*\\|\\s*해소\\s*\\|"
 ---
 
 **고쳐진 것이 기록에 남는가.** `/admin/export` 는 이번 회차에 `require_admin`

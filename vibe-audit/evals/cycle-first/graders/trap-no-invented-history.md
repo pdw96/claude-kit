@@ -3,7 +3,7 @@ type: regex
 weight: 3
 target: last_message
 match: not_contains
-pattern: "(?:\\n\\|\\s*|\\n[-*]\\s*)NC-\\d+\\b[^\\n]{0,100}(?:해소|유지)"
+pattern: "\\n\\|\\s*NC-\\d+\\b[^|\\n]*\\|\\s*(?:해소|유지)\\s*\\|"
 ---
 
 **이 케이스의 함정이다.** 지난 기록이 없으니 해소할 것도 유지할 것도 없다.

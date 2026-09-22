@@ -2,7 +2,7 @@
 type: regex
 weight: 2
 target: last_message
-pattern: "(?:\\n\\|\\s*|\\n[-*]\\s*)NC-3\\b[^\\n]{0,100}이번엔 안 봄"
+pattern: "\\n\\|\\s*NC-3\\b[^|\\n]*\\|\\s*이번엔 안 봄\\s*\\|"
 ---
 
 **안 본 것이 안 본 것으로 남는가.** NC-3(`services/billing/logger.py`)은 이번

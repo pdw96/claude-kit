@@ -2,7 +2,7 @@
 type: regex
 weight: 3
 target: last_message
-pattern: "담당 없음 — 호출자 판단 필요(?:(?!\\n## )[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)"
+pattern: "담당 없음 — 호출자 판단 필요(?:(?!\\n## )[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)|(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?담당 없음 — 호출자 판단 필요"
 ---
 
 표식에서 시작해 다음 `## ` 제목을 넘지 않고 훑어, 공급망 발견이 **「담당 없음 —
@@ -13,3 +13,9 @@ pattern: "담당 없음 — 호출자 판단 필요(?:(?!\\n## )[\\s\\S])*?(?:re
 지어졌다. 둘 다 그 줄이 회차를 돌다 사라지는 길이다.
 
 심판을 쓰지 않는다. 「특정 문자열이 그 절 안에 있는가」는 기계가 정확히 답한다.
+
+**표식이 발견 뒤에 올 수도 있다.** 실제로 이렇게 적은 회차가 나왔다 —
+`- **Dockerfile 의 FROM python:latest 미고정 …** — 담당 없음 — 호출자 판단 필요`.
+표식 뒤만 훑던 첫 판은 이것을 떨어뜨렸다. 두 번째 갈래가 그 모양을 받는다:
+발견에서 시작해 **같은 목록 항목 안에서만** 표식을 찾는다(`\\n- ` · 빈 줄 ·
+제목을 넘지 않는다). 다른 항목에 묻힌 발견은 여전히 안 걸린다.

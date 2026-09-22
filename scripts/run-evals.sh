@@ -17,7 +17,15 @@
 # 임시 디렉터리는 지워진다. 그래서 **실패가 났는데 무엇이 샜는지 볼 수 없는**
 # 일이 실제로 생겼다(gate-out-of-scope, 12회차 중 1회). 못 여는 발견은 닫을
 # 수도 없다. 이 스크립트가 실패한 회차의 트레이스만 골라 결과 폴더에 옮긴다.
+#
+# **본문이 main() 안에 있는 이유.** bash 는 스크립트를 조금씩 읽어 가며 돈다.
+# 돌고 있는 동안 이 파일을 고치면, 이어 읽는 자리가 어긋나 엉뚱한 줄을 명령으로
+# 실행한다. 실제로 두 번 났다 — `line 48: -keep-temp: command not found` 와
+# `line 52: jflag: unbound variable`. 둘 다 재현이 안 돼 한참 못 찾았다.
+# 전체를 함수 하나로 감싸면 bash 가 **끝까지 읽은 뒤** 실행하므로 이 일이 없다.
 set -euo pipefail
+
+main() {
 
 cd "$(dirname "$0")/.."
 
@@ -73,6 +81,15 @@ if not res.exists():
     print(f"\n결과 파일이 없다: {res}"); raise SystemExit(0)
 
 d = json.loads(res.read_text(encoding="utf-8"))
+
+# 한 케이스도 안 돌았으면 실패다. `--case` 가 아무것도 못 맞히면 하네스는
+# 조용히 exit 0 으로 끝난다 — 이 저장소가 막으려는 바로 그 모양이다.
+# 실제로 `--case '{a,b}'` 로 났다. 중괄호는 글롭이 아니다.
+if not d.get("cases"):
+    print("\nFAIL 한 케이스도 안 돌았다 — --case 가 아무것도 못 맞혔을 수 있다.")
+    print("     안 돌린 것을 통과로 세지 않는다.")
+    raise SystemExit(3)
+
 kept, temps = 0, set()
 
 # 케이스별 점수부터 찍는다. 이게 없으면 result.json 을 매번 손으로 파야 한다.
@@ -131,4 +148,7 @@ print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))
 PY
 
-exit $status
+  exit $status
+}
+
+main "$@"

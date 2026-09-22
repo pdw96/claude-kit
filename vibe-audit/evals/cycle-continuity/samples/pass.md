@@ -13,7 +13,7 @@
 |---|---|---|
 | NC-1 | 유지 | `services/payment/client.py:3` |
 | NC-2 | 해소 | `api/admin.py:14` — require_admin 이 붙었다 |
-| NC-3 | 이번엔 안 봄 | 범위 밖 — `services/billing/` |
+| NC-3 | 이번엔 안 봄 | 범위 밖 — `services/billing/logger.py` 는 이번 범위에 없음. 해소 여부 미확인 |
 
 ## 안 본 것
 - `services/billing/` — 이번 범위 밖
