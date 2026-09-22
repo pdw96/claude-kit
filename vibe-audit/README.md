@@ -90,7 +90,7 @@ claude --agent audit-ops
 자리가 `evals/` 입니다.
 
 ```bash
-claude plugin eval . --scaffold --trust-plugin
+./scripts/run-evals.sh
 ```
 
 케이스 다섯이 실제 되먹임 한 건에 1:1 로 붙어 있습니다 — 로컬 개발 비밀번호 ·

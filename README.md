@@ -74,7 +74,7 @@ claude plugin install vibe-audit@pdw96-kit
 그래서 `vibe-audit/evals/` 에 되먹임 한 건에 케이스 하나씩 붙였다.
 
 ```bash
-claude plugin eval ./vibe-audit --scaffold --trust-plugin
+./scripts/run-evals.sh
 ```
 
 재는 것은 **오검율**이다. 회수율(심은 결함을 몇 개 잡는가)은 아직 안 잰다 —

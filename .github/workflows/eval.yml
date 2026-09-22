@@ -89,8 +89,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # --judge-model sonnet 은 선택이 아니다. 기본 심판(haiku)은 이 수트의
+          # 감사 기록에서 아홉 번 어긋나는 동안 한 번도 맞지 않았다 —
+          # trap-rollback-unproven 이 haiku 0.278 / sonnet 1.000 이다.
           claude plugin eval ./vibe-audit \
             --scaffold --trust-plugin --no-publish \
+            --judge-model sonnet \
             --runs 3 --threshold 0.8 --max-cost-usd 10 \
             --json eval-result.json
 
