@@ -1,13 +1,16 @@
-# 주의 예산 스냅숏. `python3 scripts/verify-budget.py --write` 로 갱신한다.
+# 주의 예산 스냅숏 — 단위는 **문자**. 어디서 재도 같은 값이다.
+# `python3 scripts/verify-budget.py --write` 로 갱신한다.
 # 이 파일이 바뀌는 커밋은 「이번에 주의 예산을 얼마나 더 썼는가」를 밝히는 커밋이다.
-# 단위는 토큰. `claude plugin details` 의 추정치이고 반올림되어 있다.
+#
+# 상시   프론트매터. 감사를 안 돌리는 세션도 낸다
+# 호출시 파일 전체. 그 감사자가 뜰 때마다 내고, 감사 대상 코드와 같은 창을 쓴다
 
 [vibe-audit]
-always-on-total  3449
-skill  audit-brief         190    2400
-agent  audit-contract      560    7900
-agent  audit-data          550    7700
-agent  audit-internal      590    8400
-agent  audit-ops           490    8200
-agent  audit-quality       530    8500
-agent  audit-secrets       550    7800
+agent  audit-contract      766    8891
+agent  audit-data          763    8634
+agent  audit-internal      804    9459
+agent  audit-ops           686    9156
+agent  audit-quality       735    9452
+agent  audit-secrets       752    8727
+skill  audit-brief         304    2790
+       — 상시 합계            4810
