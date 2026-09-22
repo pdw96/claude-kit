@@ -43,6 +43,12 @@ jobs:
       - name: 그레이더가 가르는가
         run: python3 scripts/verify-graders.py
 
+      # 되먹임을 메울 때마다 감사자 문구가 자란다. 자란 것이 값을 하는지는
+      # 수트가 재지만, 얼마나 썼는지는 아무도 안 세고 있었다. 스냅숏이 한
+      # 토큰이라도 달라지면 실패하므로, 자란 만큼이 커밋 diff 에 남는다.
+      - name: 주의 예산
+        run: python3 scripts/verify-budget.py
+
       # 브리핑 커맨드가 내는 파일이 감사자가 쓸 수 있는 모양인가.
       # 픽스처가 진짜 git 저장소를 만들어 실제로 브리핑을 생성하므로,
       # 커맨드가 적어 둔 형식과 어긋나면 여기서 걸린다.
@@ -92,7 +98,18 @@ jobs:
             echo "::error::verify-graders.py 가 못 무는 그레이더를 통과시켰다"; exit 1
           fi
 
-          echo "넷 다 변조본에서 실패 확인"
+          # verify-budget.py — 문구가 자란 사본은 실패해야 한다
+          u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
+          python3 -c "
+          import pathlib
+          p = pathlib.Path('$u/vibe-audit/agents/audit-secrets.md')
+          p.write_text(p.read_text() + '\n' + '규칙을 더 붙인다. ' * 200)
+          "
+          if python3 "$u/scripts/verify-budget.py" >/dev/null 2>&1; then
+            echo "::error::verify-budget.py 가 자란 문구를 통과시켰다"; exit 1
+          fi
+
+          echo "다섯 다 변조본에서 실패 확인"
 
       - name: 키가 있는가
         id: key
