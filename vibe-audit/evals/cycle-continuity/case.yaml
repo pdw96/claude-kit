@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: cycle-continuity
+description: |
+  축 4(2026-09-22). 회차가 바뀌면 NC 번호가 다른 결함을 가리키던 자리.
+  `.claude/audits/` 에 지난 회차 기록을 두고, 그 사이 코드를 넷으로 갈랐다 —
+  유지(박힌 키) · 해소(/admin/export 에 require_admin 이 붙음) · 범위 밖
+  (청구 로그) · 새 결함(세션 토큰 로그). 함정은 범위 밖이다.
+expected_outcome: |
+  NC-1 은 같은 번호로 유지, NC-2 는 「해소」로 남고, NC-3 은 「이번엔 안 봄」이다.
+  새 결함(api/session.py)은 은퇴한 번호를 받지 않고 NC-4 이후를 받는다.
+  NC-3 을 「해소」로 적으면 안 본 자리가 고쳐진 자리로 기록된다.
+tags: [cycle, secrets, axis-4]
+context:
+  scaffold_script: fixture.sh

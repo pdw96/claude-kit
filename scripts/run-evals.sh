@@ -28,8 +28,9 @@ for a in "$@"; do
   esac
 done
 
-# 돌기 전에 수트가 물 수 있는 모양인지부터 본다.
+# 돌기 전에 수트가 물 수 있는 모양인지, 그레이더가 가르기는 하는지부터 본다.
 python3 scripts/verify-evals.py
+python3 scripts/verify-graders.py
 
 OUT="vibe-audit/evals/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 mkdir -p "$OUT"

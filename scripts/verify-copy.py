@@ -30,6 +30,7 @@ SHARED = [
     "## 판정은 넷이다",
     "### 담당인 것은 남에게 넘기지 않습니다",
     "## 부적합과 관찰을 가릅니다",
+    "## 회차를 잇습니다",
 ]
 
 # 이 순서로 서 있어야 한다
@@ -41,10 +42,12 @@ ORDER = [
     "### 담당인 것은 남에게 넘기지 않습니다",
     "### 담당이 없으면 호출자에게 올립니다",
     "## 부적합과 관찰을 가릅니다",
+    "## 회차를 잇습니다",
     "## 출력 형식",
 ]
 
 HANDOFF_NONE = "담당 없음 — 호출자 판단 필요"
+ROUND_HEAD = "## 지난 회차"
 
 TOOLS = '\ntools: ["Read", "Grep", "Glob"]\n'
 
@@ -96,6 +99,11 @@ def check(src, dst):
         # 「안 본 것」에 섞여 들어가 사라진다.
         if dt.count(HANDOFF_NONE) < 2:
             bad.append(f"{name}: 「{HANDOFF_NONE}」 표식이 {dt.count(HANDOFF_NONE)}번 — 절과 출력 형식 양쪽에 있어야 한다")
+        # 회차를 잇는 절은 SHARED 가 글자로 견주지만, 그 결과를 적을 자리는
+        # 출력 형식 안에 있고 감사자마다 앞뒤가 다르다. 표식만 본다 — 이것이
+        # 빠지면 지난 회차의 처분을 적을 곳이 없어 규칙이 종이로만 남는다.
+        if ROUND_HEAD not in dt:
+            bad.append(f"{name}: 출력 형식에 「{ROUND_HEAD}」 가 없다 — 회차 처분을 적을 자리가 없다")
 
         for head in SHARED:
             n = dt.count("\n" + head + "\n")
