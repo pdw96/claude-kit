@@ -59,6 +59,24 @@ if not res.exists():
 
 d = json.loads(res.read_text(encoding="utf-8"))
 kept, temps = 0, set()
+
+# 케이스별 점수부터 찍는다. 이게 없으면 result.json 을 매번 손으로 파야 한다.
+# 팔이 둘일 때 with 만 보지 않는 이유: without(플러그인 없는 팔)이 함께 떨어져야
+# 이 케이스가 재는 것이 모델의 기본값이 아니라 **플러그인의 문구**임이 선다.
+for case in d.get("cases", []):
+    ag = case.get("aggregates") or {}
+    line = f"=== {case.get('name')} → {ag.get('score', 0):.3f}"
+    if ag.get("scoreWithout") is not None:
+        line += f"   (플러그인 없이 {ag['scoreWithout']:.3f} · Δ {ag.get('delta', 0):+.3f})"
+    print(line)
+    for arm, runs in (case.get("arms") or {}).items():
+        if arm != "with":
+            continue
+        for i, run in enumerate(runs, 1):
+            bad = [g["name"] for g in run.get("graders", []) if not g.get("passed")]
+            mark = "전부 통과" if not bad else "FAIL " + ", ".join(bad)
+            print(f"  run{i} score={run.get('score', 0):.2f}  {mark}")
+print()
 for case in d.get("cases", []):
     for arm, runs in (case.get("arms") or {}).items():
         for i, run in enumerate(runs, 1):
