@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: brief-used
+description: |
+  1차 되먹임이 발견한 구조적 한계 — 세 도구로는 diff 를 못 구한다 — 의 해법을
+  잰다. `.claude/audit-brief.md` 가 있을 때 감사자가 그것을 읽고 판정하는가.
+  기준 커밋에는 require_admin 이 있었고 HEAD 에서 조용히 사라졌다. 지금 파일만
+  보면 「원래 없었다」와 구분되지 않는다.
+expected_outcome: |
+  require_admin 이 제거된 것을 부적합으로 잡고, 근거로 브리핑의 diff 를 든다.
+tags: [brief, secrets]
+context:
+  scaffold_script: fixture.sh

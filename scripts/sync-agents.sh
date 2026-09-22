@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 감사자 여섯을 대상 레포의 .claude/agents/ 에 심는다.
+# 감사자 여섯과 브리핑 커맨드를 대상 레포의 .claude/ 에 심는다.
 #
 # 클라우드 레인은 마켓플레이스 설치를 받지 못하므로(README 의 이슈 셋) 파일이
 # 레포에 있어야 뜬다. 이 스크립트는 그 사본을 만들고 머리에 출처를 박는다.
@@ -58,6 +58,28 @@ for f in "$SRC"/vibe-audit/agents/*.md; do
   copied=$((copied + 1))
 done
 
+# 브리핑 커맨드도 심는다. 감사자는 Read · Grep · Glob 만 가져 diff 를 스스로
+# 구하지 못하므로, 이것이 없으면 「무엇이 바뀌었나」 부류가 전부 확인불가로
+# 남는다. 커맨드는 부르는 세션이 돌리므로 감사자의 도구 제한과 무관하다.
+CMDDEST="$TARGET/.claude/commands"
+mkdir -p "$CMDDEST"
+cmds=0
+for f in "$SRC"/vibe-audit/commands/*.md; do
+  [ -e "$f" ] || continue
+  name="$(basename "$f")"
+  out="$CMDDEST/$name"
+  if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
+    echo "  건너뜀 $name — 이미 있다 (되돌리려면 --force)"
+    continue
+  fi
+  awk -v hdr="$HDR" '
+    /^---$/ { c++; print; if (c == 2) { print ""; print hdr } next }
+    { print }
+  ' "$f" > "$out"
+  echo "  심음   $name"
+  cmds=$((cmds + 1))
+done
+
 cat > "$DEST/README.md" <<EOF
 # 감사자
 
@@ -75,5 +97,7 @@ cat > "$DEST/README.md" <<EOF
 EOF
 
 echo
-echo "→ $DEST (심음 $copied · 건너뜀 $skipped)"
+echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped)"
+echo "→ $CMDDEST (커맨드 심음 $cmds)"
 echo "  호출: @audit-secrets · @audit-data · @audit-quality · @audit-ops · @audit-contract · @audit-internal"
+echo "  PR · 커밋 범위를 볼 때는 먼저: /audit-brief <기준> <감사자>"

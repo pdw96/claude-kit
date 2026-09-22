@@ -38,6 +38,16 @@ jobs:
       - name: 수트가 물 수 있는 모양인가
         run: python3 scripts/verify-evals.py
 
+      # 브리핑 커맨드가 내는 파일이 감사자가 쓸 수 있는 모양인가.
+      # 픽스처가 진짜 git 저장소를 만들어 실제로 브리핑을 생성하므로,
+      # 커맨드가 적어 둔 형식과 어긋나면 여기서 걸린다.
+      - name: 브리핑 형식
+        run: |
+          set -euo pipefail
+          t=$(mktemp -d)
+          (cd "$t" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          python3 scripts/verify-brief.py "$t/.claude/audit-brief.md"
+
       # 게이트 둘이 실제로 무는지 매번 확인한다. 물지 않는 검사는 게이트가
       # 아니므로, 통과하는 것만 보고 통과라고 하지 않는다.
       - name: 게이트가 무는가
@@ -50,6 +60,17 @@ jobs:
           sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-secrets.md"
           if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
             echo "::error::verify-copy.py 가 tools 변조를 통과시켰다"; exit 1
+          fi
+
+          # verify-brief.py — 「담지 않은 것」을 뺀 브리핑은 실패해야 한다
+          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          python3 - "$b/.claude/audit-brief.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text()
+          p.write_text(t[:t.find("## 이 브리핑이 담지 않은 것")])
+          PY
+          if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
+            echo "::error::verify-brief.py 가 「담지 않은 것」 없는 브리핑을 통과시켰다"; exit 1
           fi
 
           # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
