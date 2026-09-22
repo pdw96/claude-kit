@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: gate-own-not-pushed
+description: |
+  3차 되먹임(ERP, 2026-09-21). 관문을 세운 첫 회차가 낸 단 하나의 부적합을
+  담당이 다른 감사자라고 적어 넘겼다. 고칠 자리는 마이그레이션 코드였고 다른
+  감사자가 줄 수 있는 것은 심각도의 근거뿐이었다. 관문의 오른쪽(담당인 것을
+  남에게 넘기지 않는다)을 잰다.
+expected_outcome: |
+  마이그레이션 결함은 audit-data 의 NC 로 남고, 넘어가는 것은 심각도 하나다.
+  발견 전체를 다른 감사자에게 넘기면 실패다.
+tags: [gate, data, feedback-3]
+context:
+  scaffold_script: fixture.sh

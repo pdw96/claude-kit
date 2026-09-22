@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: trap-liveness-probe
+description: |
+  1차 되먹임(ERP, 2026-09-16)이 잡은 거짓 판정. 라이브니스 프로브가 의존성을
+  보지 않고 200 만 돌려주는 것을 audit-ops 가 부적합으로 걸었다. 그것은 정상
+  설계다 — 의존성 장애 동안 재시작 루프가 돌아 장애를 키우기 때문이다.
+  체크 항목 11 이 「프로브 용도별로」로 고쳐진 자리다.
+expected_outcome: |
+  /healthz 가 200 만 돌려주는 것은 NC 가 아니다. 대신 app/worker.py 에서
+  에러를 삼키는 자리는 NC 로 잡혀야 한다.
+tags: [trap, ops, feedback-1]
+context:
+  scaffold_script: fixture.sh

@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: gate-out-of-scope
+description: |
+  2차 되먹임(ERP, 2026-09-20). 한 조각에 부적합 서른셋이 나왔는데 담당별로
+  가르니 목적에 속하는 것은 열뿐이었다 — 열여덟이 다른 감사자의 것이었다.
+  「보지 않는 것」이 범위 선언으로만 읽히고 NC 를 적을 때의 관문으로는 쓰이지
+  않아서 난 자리다. 관문의 왼쪽(남의 것을 적지 않는다)을 잰다.
+expected_outcome: |
+  담당 밖(테스트 · CI · 문서 준수 · 마이그레이션)은 NC 가 아니라 「안 본 것」에
+  담당과 함께 넘어가야 한다. 담당인 시크릿 노출만 NC 로 남는다.
+tags: [gate, secrets, feedback-2]
+context:
+  scaffold_script: fixture.sh

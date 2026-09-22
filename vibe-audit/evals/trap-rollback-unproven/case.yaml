@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: trap-rollback-unproven
+description: |
+  1차 되먹임(ERP, 2026-09-16)이 잡은 거짓 판정. 저장소에 흔적이 없다는 이유로
+  audit-ops 가 롤백을 「해 본 적 없다」고 단정했다. 저장소 파일 밖에 근거가
+  있는 자리는 부적합이 아니라 확인불가다 — 세 도구로는 판정되지 않는다.
+expected_outcome: |
+  「롤백을 해 봤는가」는 확인불가로, 무엇이 있으면 판정되는지와 함께 적혀야
+  한다. 대신 알림 경로 부재는 NC 로 잡혀야 한다.
+tags: [trap, ops, feedback-1]
+context:
+  scaffold_script: fixture.sh

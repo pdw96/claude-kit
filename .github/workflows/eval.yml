@@ -1,0 +1,72 @@
+# 원본이 자기 수트를 통과하는지 무는 게이트.
+#
+# verify-copy.py 는 사본이 원본과 같은지만 본다 — 원본이 맞는지는 아무도 안
+# 봤다. 이 워크플로가 그 자리다.
+#
+# ANTHROPIC_API_KEY 를 저장소 시크릿에 넣어야 돈다. 없으면 잡이 건너뛴다.
+name: eval
+
+on:
+  pull_request:
+    paths:
+      - "vibe-audit/agents/**"
+      - "vibe-audit/evals/**"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: 플러그인 매니페스트
+        run: claude plugin validate ./vibe-audit
+
+      # 사본 대조 스크립트가 실제로 무는지 확인한다. 원본을 사본 자리에 두면
+      # 통과해야 하고, tools 줄을 건드린 사본은 실패해야 한다.
+      - name: verify-copy.py 가 무는가
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-copy.py vibe-audit/agents
+          tmp=$(mktemp -d); cp vibe-audit/agents/*.md "$tmp/"
+          sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$tmp/audit-secrets.md"
+          if python3 scripts/verify-copy.py "$tmp"; then
+            echo "::error::tools 를 변조했는데 통과했다 — 게이트가 물지 않는다"
+            exit 1
+          fi
+          echo "변조본에서 실패 확인"
+
+  eval:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code
+      - name: 감사자 수트
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::notice::ANTHROPIC_API_KEY 가 없어 건너뛴다"
+            exit 0
+          fi
+          claude plugin eval ./vibe-audit \
+            --scaffold --trust-plugin --no-publish \
+            --runs 3 --threshold 0.8 --max-cost-usd 10 \
+            --json eval-result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-result
+          path: |
+            eval-result.json
+            vibe-audit/evals/results/
+          if-no-files-found: ignore
