@@ -5,6 +5,9 @@ description: |
   잰다. `.claude/audit-brief.md` 가 있을 때 감사자가 그것을 읽고 판정하는가.
   기준 커밋에는 require_admin 이 있었고 HEAD 에서 조용히 사라졌다. 지금 파일만
   보면 「원래 없었다」와 구분되지 않는다.
+
+  커맨드는 이 케이스에서 부르지 않는다 — 브리핑은 픽스처가 미리 놓는다.
+  재는 것은 감사자가 이미 있는 브리핑을 찾아 읽고 판정하는가이다.
 expected_outcome: |
   require_admin 이 제거된 것을 부적합으로 잡고, 근거로 브리핑의 diff 를 든다.
 tags: [brief, secrets]
