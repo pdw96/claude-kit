@@ -21,12 +21,26 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# 부르는 쪽이 -j 를 줬는지 본다. 안 줬으면 아래에서 기본값을 박는다.
+jflag=1
 for a in "$@"; do
   case "$a" in
     --json|--json=*)
       echo "--json 은 이 스크립트가 쓴다. 결과 경로는 끝에 찍힌다." >&2; exit 2 ;;
+    -j|-j=*|--concurrency|--concurrency=*)
+      jflag=0 ;;
   esac
 done
+
+# `claude plugin eval` 의 기본 동시성은 **1** 이다. 한 회차가 감사 한 번
+# 전체(최대 60턴 · 파일 전수 · 250줄짜리 기록)라서, 13 케이스 × 3회를 직렬로
+# 돌리면 두 시간이 든다. 실제로 그렇게 돌린 뒤에야 알았다.
+#
+# 넷으로 두는 이유: 같은 자격을 나눠 쓰므로 한 요금 한도에 걸리고, 여덟은
+# 한도에 부딪혀 오히려 느려질 수 있다. 결과와 보고서는 케이스 순서를 지키므로
+# 점수에는 영향이 없다. 재고 싶으면 -j 를 직접 줘라 — 그러면 이 기본값은 안 박는다.
+CONC=()
+if [ "$jflag" = 1 ]; then CONC=(-j 4); fi
 
 # 돌기 전에 수트가 물 수 있는 모양인지, 그레이더가 가르기는 하는지부터 본다.
 python3 scripts/verify-evals.py
@@ -44,6 +58,7 @@ claude plugin eval ./vibe-audit \
   --keep-temp \
   --output-dir "$OUT" \
   --json "$OUT/result.json" \
+  "${CONC[@]}" \
   "$@"
 status=$?
 set -e
