@@ -1,0 +1,7 @@
+---
+type: tool_used
+weight: 3
+tool: Agent
+input_match: audit-contract
+min: 1
+---

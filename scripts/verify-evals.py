@@ -10,9 +10,22 @@
 `fixture.sh` 가 실행 권한을 잃어도 초록이 난다. 물지 않는 검사는 게이트가
 아니다.
 
-특히 보는 것은 **대조군**이다. 함정 그레이더만 있는 케이스는 아무것도 안 내는
-망가진 감사자에게 만점을 준다 — 함정을 안 걸었으니까. 그래서 케이스마다
+케이스는 두 모양이다. 이름의 앞머리로 가른다.
+
+- `trap-*` · `gate-*` — **판정**을 잰다. 감사자를 이름으로 불러 놓고, 그 기록이
+  함정을 밟았는지 본다
+- `route-*` — **트리거**를 잰다. 감사자를 지목하지 않은 자연스러운 말에 맞는
+  감사자가 뜨는가. 프론트매터 `description` 이 시험 대상이다
+
+판정 케이스에서 특히 보는 것은 **대조군**이다. 함정 그레이더만 있는 케이스는
+아무것도 안 내는 망가진 감사자에게 만점을 준다 — 함정을 안 걸었으니까. 그래서
 `real-nc-found` 를 요구한다.
+
+트리거 케이스에서 같은 자리에 서는 것은 **음성 그레이더**(`route-not-*`)다.
+여섯을 전부 띄우는 세션도 「맞는 감사자가 떴다」로는 통과하기 때문이다.
+
+트리거 케이스의 `prompt.md` 는 감사자를 **지목하면 안 된다.** 지목하면 재는
+것이 트리거가 아니라 복종이 된다.
 
 표준 라이브러리만 쓴다.
 """
@@ -23,6 +36,7 @@ import sys
 GRADER_TYPES = {"regex", "tool_used", "tool_order", "file_exists", "llm", "baseline"}
 CONTROL = "real-nc-found"
 PURPOSE_PREFIXES = ("trap-", "gate-")
+ROUTE_PREFIX = "route-"
 
 
 def frontmatter(path):
@@ -118,12 +132,19 @@ def check(suite, agents_dir):
                 if subprocess.run(["bash", "-n", str(f)]).returncode != 0:
                     bad.append(f"{name}: {script} 가 bash 문법 검사에서 깨진다")
 
+        route = name.startswith(ROUTE_PREFIX)
+
         # 부르는 감사자가 실재하는가
         body = pm.read_text(encoding="utf-8")
         called = set(re.findall(r"audit-[a-z]+", body))
         for a in sorted(called - known):
             bad.append(f"{name}: prompt.md 가 없는 감사자 {a} 를 부른다")
-        if not called:
+        if route and called:
+            bad.append(
+                f"{name}: 트리거 케이스인데 prompt.md 가 {sorted(called)} 를 지목한다 — "
+                "재는 것이 트리거가 아니라 복종이 된다"
+            )
+        if not route and not called:
             bad.append(f"{name}: prompt.md 가 어떤 감사자도 지목하지 않는다")
 
         graders = sorted(gd.glob("*.md"))
@@ -132,6 +153,7 @@ def check(suite, agents_dir):
             continue
 
         names, purpose_weight, has_control = set(), 0, False
+        route_target, route_negatives = None, []
         for g in graders:
             fm = frontmatter(g)
             if fm is None:
@@ -147,6 +169,23 @@ def check(suite, agents_dir):
                 has_control = True
                 if fm.get("arm"):
                     bad.append(f"{name}/{CONTROL}: arm 이 붙어 점수에서 빠진다 — 대조군은 점수에 들어가야 한다")
+            if route and g.stem.startswith(("route-correct", "route-not-")):
+                if t_ := fm.get("type"):
+                    if t_ != "tool_used":
+                        bad.append(f"{name}/{g.stem}: type 이 tool_used 여야 한다 — 트리거는 심판이 필요 없다")
+                if fm.get("tool") != "Agent":
+                    bad.append(f"{name}/{g.stem}: tool 이 Agent 여야 한다")
+                im = fm.get("input_match", "")
+                if im not in known:
+                    bad.append(f"{name}/{g.stem}: input_match {im!r} 가 실재하는 감사자가 아니다")
+                elif g.stem == "route-correct":
+                    route_target = im
+                    if fm.get("min", "1") in ("0",):
+                        bad.append(f"{name}/route-correct: min 이 0 이다 — 아무것도 요구하지 않는다")
+                else:
+                    route_negatives.append(im)
+                    if not (fm.get("min") == "0" and fm.get("max") == "0"):
+                        bad.append(f"{name}/{g.stem}: 음성 그레이더는 min 0 · max 0 이어야 한다")
             if g.stem == "auditor-fired":
                 if fm.get("arm") != "with-only":
                     bad.append(f"{name}/auditor-fired: arm 이 with-only 여야 한다 (점수가 아니라 표시)")
@@ -156,15 +195,29 @@ def check(suite, agents_dir):
                 elif im not in called:
                     bad.append(f"{name}/auditor-fired: {im} 를 요구하는데 prompt.md 는 {sorted(called)} 를 부른다")
 
-        if purpose_weight == 0:
-            bad.append(f"{name}: trap-* · gate-* 그레이더가 없다 — 이 케이스의 목적이 없다")
-        if not has_control:
-            bad.append(
-                f"{name}: {CONTROL} 대조군이 없다 — "
-                "아무것도 안 내는 감사자가 함정을 안 걸었다는 이유로 만점을 받는다"
-            )
-        if "auditor-fired" not in names:
-            bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
+        if route:
+            if not route_target:
+                bad.append(f"{name}: route-correct 그레이더가 없다 — 어느 감사자가 떠야 하는지 없다")
+            if not route_negatives:
+                bad.append(
+                    f"{name}: route-not-* 음성 그레이더가 없다 — "
+                    "여섯을 전부 띄우는 세션도 통과한다"
+                )
+            for neg in route_negatives:
+                if neg == route_target:
+                    bad.append(f"{name}: route-not-{neg} 가 route-correct 와 같은 감사자다")
+            if CONTROL in names:
+                bad.append(f"{name}: 트리거 케이스에 {CONTROL} 이 있다 — 판정은 여기서 재지 않는다")
+        else:
+            if purpose_weight == 0:
+                bad.append(f"{name}: trap-* · gate-* 그레이더가 없다 — 이 케이스의 목적이 없다")
+            if not has_control:
+                bad.append(
+                    f"{name}: {CONTROL} 대조군이 없다 — "
+                    "아무것도 안 내는 감사자가 함정을 안 걸었다는 이유로 만점을 받는다"
+                )
+            if "auditor-fired" not in names:
+                bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
 
     return bad
 
@@ -186,8 +239,13 @@ def main(argv):
             print("FAIL " + line)
         print(f"\n{len(bad)}건. 수트: {suite}")
         return 1
-    n = len([d for d in suite.iterdir() if d.is_dir() and d.name != "results"])
-    print(f"PASS 케이스 {n}개 — 목적 그레이더 · 대조군 · 감사자 지목이 다 서 있다")
+    cases = [d for d in suite.iterdir() if d.is_dir() and d.name != "results"]
+    routes = [d for d in cases if d.name.startswith(ROUTE_PREFIX)]
+    print(
+        f"PASS 케이스 {len(cases)}개 — "
+        f"판정 {len(cases) - len(routes)}(목적 그레이더 · 대조군 · 감사자 지목), "
+        f"트리거 {len(routes)}(route-correct · 음성 그레이더 · 지목 없음)"
+    )
     print(f"     수트 {suite}")
     return 0
 

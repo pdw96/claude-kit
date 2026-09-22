@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: route-quality
+description: |
+  프론트매터 description 이 자연스러운 말에 반응하는지 잰다. 감사자를 이름으로
+  지목하지 않는다 — 검사 장치 이야기를 꺼냈을 때 audit-quality 가 떠야 하고,
+  문서 이야기로 오인해 audit-internal 이 뜨면 안 된다.
+expected_outcome: audit-quality 가 뜬다. audit-internal 은 안 뜬다.
+tags: [route]
+context:
+  scaffold_script: fixture.sh
