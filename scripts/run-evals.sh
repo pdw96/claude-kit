@@ -29,14 +29,17 @@ main() {
 
 cd "$(dirname "$0")/.."
 
-# 부르는 쪽이 -j 를 줬는지 본다. 안 줬으면 아래에서 기본값을 박는다.
+# 부르는 쪽이 -j · --model 을 줬는지 본다. 안 줬으면 아래에서 기본값을 박는다.
 jflag=1
+mflag=1
 for a in "$@"; do
   case "$a" in
     --json|--json=*)
       echo "--json 은 이 스크립트가 쓴다. 결과 경로는 끝에 찍힌다." >&2; exit 2 ;;
     -j|-j=*|--concurrency|--concurrency=*)
       jflag=0 ;;
+    --model|--model=*)
+      mflag=0 ;;
   esac
 done
 
@@ -49,6 +52,14 @@ done
 # 점수에는 영향이 없다. 재고 싶으면 -j 를 직접 줘라 — 그러면 이 기본값은 안 박는다.
 CONC=()
 if [ "$jflag" = 1 ]; then CONC=(-j 4); fi
+
+# **모델을 박는다.** 안 박으면 회차는 돌리는 사람 계정의 기본 모델로 돈다 —
+# 사람마다, 요금제마다, CI 와 로컬이 서로 다른 모델을 재게 된다. 이 수트의
+# 트리거 숫자(README 「트리거 정확도」)는 전부 claude-sonnet-5 로 쟀으므로
+# 같은 모델로 재야 견줄 수 있다. 다른 모델로 재고 싶으면 --model 을 직접 줘라.
+# 실제로 그 모델로 돌았는지는 아래 결과 정리에서 트레이스를 읽어 찍는다.
+MODEL=()
+if [ "$mflag" = 1 ]; then MODEL=(--model claude-sonnet-5); fi
 
 # 돌기 전에 수트가 물 수 있는 모양인지, 그레이더가 가르기는 하는지부터 본다.
 python3 scripts/verify-evals.py
@@ -67,6 +78,7 @@ claude plugin eval ./vibe-audit \
   --output-dir "$OUT" \
   --json "$OUT/result.json" \
   "${CONC[@]}" \
+  "${MODEL[@]}" \
   "$@"
 status=$?
 set -e
@@ -91,6 +103,30 @@ if not d.get("cases"):
     raise SystemExit(3)
 
 kept, temps = 0, set()
+
+# 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
+# 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
+# 감사자(`model: inherit`)가 부른 모델도 같은 modelUsage 에 잡힌다.
+import collections
+models = collections.Counter()
+for case in d.get("cases", []):
+    for runs in (case.get("arms") or {}).values():
+        for run in runs:
+            tp = run.get("tracePath")
+            seen = set()
+            try:
+                for line in open(tp, encoding="utf-8"):
+                    if '"modelUsage"' not in line:
+                        continue
+                    try:
+                        seen |= set((json.loads(line).get("modelUsage") or {}).keys())
+                    except ValueError:
+                        pass
+            except (OSError, TypeError):
+                seen = {"(트레이스 없음)"}
+            for m in (seen or {"(기록 없음)"}):
+                models[m] += 1
+print("모델: " + " · ".join(f"{m} {n}회" for m, n in models.most_common()))
 
 # 케이스별 점수부터 찍는다. 이게 없으면 result.json 을 매번 손으로 파야 한다.
 # 팔이 둘일 때 with 만 보지 않는 이유: without(플러그인 없는 팔)이 함께 떨어져야
