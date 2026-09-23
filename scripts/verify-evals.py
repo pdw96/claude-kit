@@ -22,6 +22,8 @@
 `real-nc-found` 를 요구한다.
 
 트리거 케이스에서 같은 자리에 서는 것은 **음성 그레이더**(`route-not-*`)다.
+감사와 무관한 말에는 **아무도 뜨면 안 된다** — 그 모양은 `route-quiet` 하나로
+적고, 그때는 `route-correct` 를 두지 않는다.
 여섯을 전부 띄우는 세션도 「맞는 감사자가 떴다」로는 통과하기 때문이다.
 
 트리거 케이스의 `prompt.md` 는 감사자를 **지목하면 안 된다.** 지목하면 재는
@@ -153,7 +155,7 @@ def check(suite, agents_dir):
             continue
 
         names, purpose_weight, has_control = set(), 0, False
-        route_target, route_negatives = None, []
+        route_target, route_negatives, route_quiet = None, [], False
         for g in graders:
             fm = frontmatter(g)
             if fm is None:
@@ -169,7 +171,23 @@ def check(suite, agents_dir):
                 has_control = True
                 if fm.get("arm"):
                     bad.append(f"{name}/{CONTROL}: arm 이 붙어 점수에서 빠진다 — 대조군은 점수에 들어가야 한다")
-            if route and g.stem.startswith(("route-correct", "route-not-")):
+            # 트리거 케이스의 또 한 모양 — **아무도 뜨면 안 되는** 말이다.
+            # `route-not-*` 는 「이 하나가 뜨면 안 된다」만 보므로, 여섯을 전부
+            # 띄우는 것과 엉뚱한 자리에서 뜨는 것은 그것으로 안 잡힌다.
+            if route and g.stem == "route-quiet":
+                route_quiet = True
+                if fm.get("type") != "tool_used":
+                    bad.append(f"{name}/route-quiet: type 이 tool_used 여야 한다")
+                if fm.get("tool") != "Agent":
+                    bad.append(f"{name}/route-quiet: tool 이 Agent 여야 한다")
+                if fm.get("input_match"):
+                    bad.append(
+                        f"{name}/route-quiet: input_match 가 붙어 있다 — "
+                        "하나를 짚으면 나머지 다섯이 떠도 통과한다"
+                    )
+                if not (fm.get("min") == "0" and fm.get("max") == "0"):
+                    bad.append(f"{name}/route-quiet: min 0 · max 0 이어야 한다")
+            elif route and g.stem.startswith(("route-correct", "route-not-")):
                 if t_ := fm.get("type"):
                     if t_ != "tool_used":
                         bad.append(f"{name}/{g.stem}: type 이 tool_used 여야 한다 — 트리거는 심판이 필요 없다")
@@ -195,7 +213,13 @@ def check(suite, agents_dir):
                 elif im not in called:
                     bad.append(f"{name}/auditor-fired: {im} 를 요구하는데 prompt.md 는 {sorted(called)} 를 부른다")
 
-        if route:
+        if route and route_quiet:
+            if route_target or route_negatives:
+                bad.append(
+                    f"{name}: route-quiet 과 route-correct/route-not-* 이 같이 있다 — "
+                    "아무도 뜨면 안 되는 말인지 누가 떠야 하는 말인지 둘 중 하나다"
+                )
+        elif route:
             if not route_target:
                 bad.append(f"{name}: route-correct 그레이더가 없다 — 어느 감사자가 떠야 하는지 없다")
             if not route_negatives:
