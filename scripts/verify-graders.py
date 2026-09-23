@@ -17,7 +17,8 @@
 그래서 케이스가 표본 두 벌을 함께 두게 한다.
 
   <케이스>/samples/pass.md   — 바르게 쓴 기록. 모든 정규식 그레이더가 통과해야 한다
-  <케이스>/samples/fail.md   — 함정을 밟은 기록. 첫 줄에 물어야 할 그레이더를 적는다
+  <케이스>/samples/fail*.md  — 함정을 밟은 기록. 첫 줄에 물어야 할 그레이더를 적는다
+                             (정규식 하나가 선택지를 여럿 담고 있으면 여러 벌 둔다)
 
 `fail.md` 첫 줄:
 
@@ -71,28 +72,40 @@ def check(suite):
         d for d in suite.iterdir()
         if d.is_dir() and d.name != "results" and not d.name.startswith(".")
     )
-    bad, covered, uncovered = [], [], []
+    bad, covered, uncovered, nothing = [], [], [], []
 
     for case in cases:
-        samples = case / "samples"
-        if not samples.is_dir():
-            uncovered.append(case.name)
-            continue
-
         graders = {}
         for g in sorted((case / "graders").glob("*.md")):
             got = grader(g)
             if got:
                 graders[g.stem] = got
+
+        samples = case / "samples"
         if not graders:
-            bad.append(f"{case.name}: samples/ 가 있는데 정규식 그레이더가 없다")
+            # 정규식 그레이더가 하나도 없으면 표본으로 견줄 것이 없다. 이것은
+            # 안 덮인 것과 다르다 — 표본을 써도 이 검사는 못 본다. 둘을 같은
+            # 줄에 세면 덮을 수 있는 자리가 몇인지 흐려진다.
+            if samples.is_dir():
+                bad.append(f"{case.name}: samples/ 가 있는데 정규식 그레이더가 없다")
+            else:
+                nothing.append(case.name)
+            continue
+        if not samples.is_dir():
+            uncovered.append(case.name)
             continue
 
-        ok_file, ng_file = samples / "pass.md", samples / "fail.md"
-        for f in (ok_file, ng_file):
-            if not f.exists():
-                bad.append(f"{case.name}: samples/{f.name} 이 없다 — 한 벌로는 가르는지 알 수 없다")
-        if not (ok_file.exists() and ng_file.exists()):
+        ok_file = samples / "pass.md"
+        # 함정 표본은 여러 벌 둘 수 있다. 정규식 하나가 선택지를 여럿 담고
+        # 있으면(`migrations/|ci\\.yml|test_invoices|…`) 한 벌로는 하나씩 못
+        # 가른다 — 넷 중 셋을 지워도 표본은 여전히 물어서, 좁아진 것을 못 본다.
+        # 실제로 `gate-holds` 를 `ci.yml` 하나로 좁혀 봤더니 안 물었다.
+        ng_files = sorted(samples.glob("fail*.md"))
+        if not ok_file.exists():
+            bad.append(f"{case.name}: samples/pass.md 이 없다 — 한 벌로는 가르는지 알 수 없다")
+        if not ng_files:
+            bad.append(f"{case.name}: samples/fail*.md 이 하나도 없다 — 한 벌로는 가르는지 알 수 없다")
+        if not (ok_file.exists() and ng_files):
             continue
 
         ok_text = ok_file.read_text(encoding="utf-8")
@@ -103,29 +116,42 @@ def check(suite):
                     "정규식이 좁거나 출력 형식과 어긋난다"
                 )
 
-        ng_text = ng_file.read_text(encoding="utf-8")
-        m = DECL.search(ng_text.split("\n", 1)[0])
-        if not m:
-            bad.append(
-                f"{case.name}: samples/fail.md 첫 줄에 "
-                "<!-- 무는 그레이더: ... --> 가 없다 — 무엇이 물어야 하는지 없으면 검사가 아니다"
-            )
-            continue
-        want = m.group(1).split()
-        unknown = [w for w in want if w not in graders]
-        if unknown:
-            bad.append(f"{case.name}: samples/fail.md 가 없는 그레이더 {unknown} 를 적었다")
-        if not any(w.startswith(("trap-", "gate-")) for w in want):
-            bad.append(f"{case.name}: samples/fail.md 가 목적 그레이더를 하나도 안 적었다")
-        for name in want:
-            if name in graders and hits(graders[name], ng_text):
+        aims = [n for n in graders if n.startswith(("trap-", "gate-"))]
+        for ng_file in ng_files:
+            tag = f"samples/{ng_file.name}"
+            ng_text = ng_file.read_text(encoding="utf-8")
+            m = DECL.search(ng_text.split("\n", 1)[0])
+            if not m:
                 bad.append(
-                    f"{case.name}/{name}: 함정을 밟은 기록(samples/fail.md)에서 통과한다 — "
-                    "물지 않는 그레이더는 게이트가 아니다"
+                    f"{case.name}: {tag} 첫 줄에 "
+                    "<!-- 무는 그레이더: ... --> 가 없다 — 무엇이 물어야 하는지 없으면 검사가 아니다"
                 )
+                continue
+            want = m.group(1).split()
+            unknown = [w for w in want if w not in graders]
+            if unknown:
+                bad.append(f"{case.name}: {tag} 가 없는 그레이더 {unknown} 를 적었다")
+            # 목적 그레이더를 적으라는 요구는 **정규식 목적 그레이더가 있을 때만**
+            # 건다. `brief-absent` 처럼 목적 그레이더가 전부 심판이면 표본으로 볼
+            # 수 있는 것은 대조군뿐이고, 대조군이 가르는지 보는 것도 검사다.
+            if aims and not any(w.startswith(("trap-", "gate-")) for w in want):
+                bad.append(f"{case.name}: {tag} 가 목적 그레이더를 하나도 안 적었다")
+            for name, g in sorted(graders.items()):
+                bites = not hits(g, ng_text)
+                if name in want and not bites:
+                    bad.append(
+                        f"{case.name}/{name}: 함정을 밟은 기록({tag})에서 통과한다 — "
+                        "물지 않는 그레이더는 게이트가 아니다"
+                    )
+                # 적지 않은 것까지 물면 표본이 무엇을 가르는지 흐려진다.
+                if name not in want and bites:
+                    bad.append(
+                        f"{case.name}/{name}: {tag} 가 적지 않았는데 이것도 문다 — "
+                        "선언이 실제와 다르면 어느 그레이더가 가르는지 알 수 없다"
+                    )
         covered.append(f"{case.name}({len(graders)})")
 
-    return bad, covered, uncovered
+    return bad, covered, uncovered, nothing
 
 
 def main(argv):
@@ -138,7 +164,7 @@ def main(argv):
         print(f"FAIL 수트 디렉터리가 없다: {suite}")
         return 1
 
-    bad, covered, uncovered = check(suite)
+    bad, covered, uncovered, nothing = check(suite)
     for line in bad:
         print("FAIL " + line)
     if bad:
@@ -150,6 +176,9 @@ def main(argv):
     print(f"PASS 표본으로 견딘 케이스 {len(covered)}개 — {' · '.join(covered)}")
     if uncovered:
         print(f"     표본 없음 {len(uncovered)}개(이 검사가 안 본 것) — {' · '.join(uncovered)}")
+    if nothing:
+        print(f"     정규식 그레이더가 없어 표본으로 볼 것이 없음 {len(nothing)}개 — "
+              f"{' · '.join(nothing)}")
     print(f"     수트 {suite}")
     return 0
 
