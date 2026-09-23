@@ -11,10 +11,16 @@ name: eval
 
 on:
   pull_request:
+    # gate 가 읽는 루트 파일도 넣는다. 빠지면 그 파일만 고친 PR 에서 워크플로가
+    # 아예 안 떠, verify-manifest.py(LICENSE · marketplace.json)와
+    # verify-copies.py(copies.json)가 **바로 그 변경을** 못 본다(Codex 리뷰).
     paths:
       - "vibe-audit/**"
       - "scripts/**"
       - ".github/workflows/eval.yml"
+      - ".claude-plugin/**"
+      - "LICENSE"
+      - "copies.json"
   push:
     branches: [main]
   workflow_dispatch:

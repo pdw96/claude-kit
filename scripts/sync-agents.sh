@@ -64,12 +64,14 @@ done
 CMDDEST="$TARGET/.claude/commands"
 mkdir -p "$CMDDEST"
 cmds=0
+cskipped=0
 for f in "$SRC"/vibe-audit/commands/*.md; do
   [ -e "$f" ] || continue
   name="$(basename "$f")"
   out="$CMDDEST/$name"
   if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
     echo "  건너뜀 $name — 이미 있다 (되돌리려면 --force)"
+    cskipped=$((cskipped + 1))
     continue
   fi
   awk -v hdr="$HDR" '
@@ -79,6 +81,19 @@ for f in "$SRC"/vibe-audit/commands/*.md; do
   echo "  심음   $name"
   cmds=$((cmds + 1))
 done
+
+# **하나라도 건너뛰었으면 출처를 다시 적지 않는다.** 건너뛴 파일은 예전 원본에서
+# 온 그대로인데 README 와 대장에 지금 HEAD 를 적으면, 원본이 앞서 나간 뒤에도
+# 사본이 「지금 것」으로 적힌다. CI 에서는 사본 경로가 안 닿아 verify-copies.py 가
+# 대조를 못 하므로 그 거짓 출처를 그대로 믿고 거리 0 을 찍는다(Codex 리뷰).
+# 출처는 전부 새로 심었을 때만 옮긴다 — 그 사본이 정말 이 커밋의 것일 때만.
+if [ "$skipped" -gt 0 ] || [ "$cskipped" -gt 0 ]; then
+  echo
+  echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped, 커맨드 심음 $cmds · 건너뜀 $cskipped)"
+  echo "  건너뛴 것이 있어 출처를 옮기지 않았다 — README · copies.json 은 그대로다."
+  echo "  사본을 따라잡았으면 verify-copy.py 로 PASS 를 확인한 뒤 출처를 손으로 옮긴다."
+  exit 0
+fi
 
 cat > "$DEST/README.md" <<EOF
 # 감사자

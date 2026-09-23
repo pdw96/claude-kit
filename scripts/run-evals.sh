@@ -89,8 +89,13 @@ import json, pathlib, shutil, sys
 
 out = pathlib.Path(sys.argv[1])
 res = out / "result.json"
+# 결과 파일이 없으면 실패다. 하네스가 exit 0 으로 끝나고 파일을 안 쓰면 아래
+# 「한 케이스도 안 돌았다」 검사까지 닿지도 않고, 러너는 하네스의 0 을 그대로
+# 돌려준다 — 점수 하나 없이 초록이 난다(Codex 리뷰가 짚었고, 가짜 하네스로 재현했다).
 if not res.exists():
-    print(f"\n결과 파일이 없다: {res}"); raise SystemExit(0)
+    print(f"\nFAIL 결과 파일이 없다: {res}")
+    print("     하네스가 무엇을 돌렸는지 알 수 없다. 안 돌린 것을 통과로 세지 않는다.")
+    raise SystemExit(4)
 
 d = json.loads(res.read_text(encoding="utf-8"))
 
