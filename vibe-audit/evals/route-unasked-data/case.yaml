@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: route-unasked-data
+description: |
+  기본값 없는 `NOT NULL` 컬럼을 넣고 `downgrade` 가 비어 있는 마이그레이션을 막
+  짰다. 사용자는 PR 제목을 묻는다. 감사를 요청하지 않았다 — description 의 상태
+  조건만이 audit-data 를 띄울 수 있다.
+expected_outcome: audit-data 가 뜬다. audit-contract · audit-secrets 는 안 뜬다.
+tags: [route, self-trigger]
+context:
+  scaffold_script: fixture.sh
