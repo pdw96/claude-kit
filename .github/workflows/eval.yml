@@ -128,16 +128,19 @@ jobs:
 
           echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · brief · evals · graders · budget"
 
+      # 자격은 둘 중 하나다 — 구독 토큰(`claude setup-token` 이 만든
+      # CLAUDE_CODE_OAUTH_TOKEN) 또는 API 키(ANTHROPIC_API_KEY). 저자는 구독을 쓴다.
       - name: 키가 있는가
         id: key
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+          if [ -n "${OAUTH:-}" ] || [ -n "${API_KEY:-}" ]; then
             echo "has_key=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_key=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::ANTHROPIC_API_KEY 가 없어 감사자 수트가 돌지 않는다 — eval 잡은 Skipped 로 뜬다. 초록이 통과를 뜻하지 않는다"
+            echo "::warning::CLAUDE_CODE_OAUTH_TOKEN 도 ANTHROPIC_API_KEY 도 없어 감사자 수트가 돌지 않는다 — eval 잡은 Skipped 로 뜬다. 초록이 통과를 뜻하지 않는다"
           fi
 
   # 키가 있어야 도는 것. 없으면 Skipped 로 뜬다 — 초록이 아니다.
@@ -169,11 +172,31 @@ jobs:
           node-version: "22"
       - run: npm install -g @anthropic-ai/claude-code
 
+      # **하나만 내보낸다.** 둘 다 env 에 두면 비어 있는 쪽도 「설정됨」으로 읽혀
+      # 다른 쪽을 가릴 수 있다 — CLI 는 ANTHROPIC_API_KEY 를 먼저 본다. 둘 다
+      # 있으면 구독 토큰을 쓴다.
+      #
+      # **먼저 한 턴으로 자격을 확인한다.** 자격이 안 먹으면 수트는 회차마다
+      # 오류로 0 점을 내고, 그것은 「감사자가 안 떴다」와 모양이 같다. 여기서
+      # 먼저 떨어지면 원인이 자격이라는 것이 로그 첫 줄에 남는다.
       - name: 감사자 수트
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FULL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
+          if [ -n "${OAUTH:-}" ]; then
+            export CLAUDE_CODE_OAUTH_TOKEN="$OAUTH"; echo "자격: 구독 토큰"
+          else
+            export ANTHROPIC_API_KEY="$API_KEY"; echo "자격: API 키"
+          fi
+          unset OAUTH API_KEY
+
+          if ! out=$(claude -p "OK 한 단어로만 답하라" --max-turns 1 2>&1); then
+            echo "::error::자격 확인 실패 — 수트를 돌리지 않는다: ${out:0:300}"; exit 1
+          fi
+          echo "자격 확인: ${out:0:40}"
+
           if [ "$FULL" = "true" ]; then
             ./scripts/run-evals.sh --ablation none --runs 3 --threshold 0.8 --max-cost-usd 40
           else
