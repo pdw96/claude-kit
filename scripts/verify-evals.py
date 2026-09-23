@@ -29,6 +29,15 @@
 트리거 케이스의 `prompt.md` 는 감사자를 **지목하면 안 된다.** 지목하면 재는
 것이 트리거가 아니라 복종이 된다.
 
+**`input_match` 는 이름이 아니라 `subagent_type` 에 건다.** 하네스는
+`input_match` 를 정규식으로, Agent 호출 입력을 **공백 없는 JSON 으로 편 글**에
+댄다. 이름만 적으면 그 글 **어디에든** 이름이 있으면 「떴다」로 센다 — 세션이
+감사 기록을 `general-purpose` 에게 저장하라고 넘기고 그 기록이 다른 감사자
+이름을 적고 있으면, 음성 그레이더는 뜨지 않은 감사자를 떴다고 세고 양성
+그레이더는 뜨지 않은 감사자를 떴다고 통과시킨다. 실제로 전자가 났다(18 회차 중
+2). `"subagent_type":"vibe-audit:<이름>"` 은 문자열 값 안에서는 만들어질 수
+없다 — 값 안의 `"` 는 `\\"` 로 펴지기 때문이다. 일회용 탐침으로 확인했다.
+
 표준 라이브러리만 쓴다.
 """
 import pathlib
@@ -39,6 +48,9 @@ GRADER_TYPES = {"regex", "tool_used", "tool_order", "file_exists", "llm", "basel
 CONTROL = "real-nc-found"
 PURPOSE_PREFIXES = ("trap-", "gate-")
 ROUTE_PREFIX = "route-"
+
+# Agent 호출 입력은 공백 없는 JSON 으로 펴져서 input_match 에 닿는다.
+FIRED = re.compile(r'"subagent_type":"(?P<plugin>[\w.-]+):(?P<agent>audit-[a-z]+)"')
 
 
 def frontmatter(path):
@@ -64,8 +76,36 @@ def frontmatter(path):
         if val == "":
             stack.append((indent, key))
         else:
-            out[path_key] = val.strip("\"'")
+            out[path_key] = unquote(val)
     return out
+
+
+def unquote(val):
+    """따옴표 **한 겹**만 벗긴다. 여러 겹을 벗기면 `'"subagent_type":"…"'` 의
+    안쪽 따옴표까지 먹어서 다른 문자열이 된다."""
+    if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+        return val[1:-1]
+    return val
+
+
+def fired(im, plugin):
+    """input_match 가 가리키는 감사자. `subagent_type` 에 걸려 있지 않으면 None."""
+    m = FIRED.fullmatch(im or "")
+    if not m or m["plugin"] != plugin:
+        return None
+    return m["agent"]
+
+
+def why_not_fired(im, plugin):
+    if im in ("", None):
+        return "input_match 가 없다"
+    if FIRED.fullmatch(im) is None:
+        return (
+            f"input_match {im!r} 가 subagent_type 에 걸려 있지 않다 — "
+            "이름이 입력 어디에 **적혀 있기만** 해도 뜬 것으로 센다. "
+            f"'\"subagent_type\":\"{plugin}:<감사자>\"' 로 적어라"
+        )
+    return f"input_match {im!r} 가 이 플러그인({plugin})이 아니다"
 
 
 def yaml_shallow(path):
@@ -95,6 +135,13 @@ def check(suite, agents_dir):
     known = {p.stem for p in agents_dir.glob("audit-*.md")}
     if not known:
         return [f"감사자를 못 찾았다: {agents_dir}"]
+    import json
+    manifest = agents_dir.parent / ".claude-plugin" / "plugin.json"
+    try:
+        plugin = json.loads(manifest.read_text(encoding="utf-8"))["name"]
+    except (OSError, ValueError, KeyError):
+        return [f"플러그인 이름을 못 읽었다: {manifest}"]
+    any_auditor = f'"subagent_type":"{plugin}:'
 
     cases = sorted(
         d for d in suite.iterdir()
@@ -180,10 +227,13 @@ def check(suite, agents_dir):
                     bad.append(f"{name}/route-quiet: type 이 tool_used 여야 한다")
                 if fm.get("tool") != "Agent":
                     bad.append(f"{name}/route-quiet: tool 이 Agent 여야 한다")
-                if fm.get("input_match"):
+                # 감사자 **아무나** 짚어야 한다. 하나를 짚으면 나머지 다섯이 떠도
+                # 통과하고, 안 짚으면 감사자가 아닌 Agent(Explore 등)도 오탐으로 센다.
+                if fm.get("input_match") != any_auditor:
                     bad.append(
-                        f"{name}/route-quiet: input_match 가 붙어 있다 — "
-                        "하나를 짚으면 나머지 다섯이 떠도 통과한다"
+                        f"{name}/route-quiet: input_match 가 {fm.get('input_match')!r} — "
+                        f"{any_auditor!r} 여야 한다. 하나를 짚으면 나머지 다섯이 떠도 "
+                        "통과하고, 비우면 감사자가 아닌 Agent 도 오탐으로 센다"
                     )
                 if not (fm.get("min") == "0" and fm.get("max") == "0"):
                     bad.append(f"{name}/route-quiet: min 0 · max 0 이어야 한다")
@@ -193,9 +243,11 @@ def check(suite, agents_dir):
                         bad.append(f"{name}/{g.stem}: type 이 tool_used 여야 한다 — 트리거는 심판이 필요 없다")
                 if fm.get("tool") != "Agent":
                     bad.append(f"{name}/{g.stem}: tool 이 Agent 여야 한다")
-                im = fm.get("input_match", "")
-                if im not in known:
-                    bad.append(f"{name}/{g.stem}: input_match {im!r} 가 실재하는 감사자가 아니다")
+                im = fired(fm.get("input_match"), plugin)
+                if im is None:
+                    bad.append(f"{name}/{g.stem}: {why_not_fired(fm.get('input_match'), plugin)}")
+                elif im not in known:
+                    bad.append(f"{name}/{g.stem}: input_match 의 {im} 가 실재하는 감사자가 아니다")
                 elif g.stem == "route-correct":
                     route_target = im
                     if fm.get("min", "1") in ("0",):
@@ -207,9 +259,11 @@ def check(suite, agents_dir):
             if g.stem == "auditor-fired":
                 if fm.get("arm") != "with-only":
                     bad.append(f"{name}/auditor-fired: arm 이 with-only 여야 한다 (점수가 아니라 표시)")
-                im = fm.get("input_match", "")
-                if im not in known:
-                    bad.append(f"{name}/auditor-fired: input_match {im!r} 가 실재하는 감사자가 아니다")
+                im = fired(fm.get("input_match"), plugin)
+                if im is None:
+                    bad.append(f"{name}/auditor-fired: {why_not_fired(fm.get('input_match'), plugin)}")
+                elif im not in known:
+                    bad.append(f"{name}/auditor-fired: input_match 의 {im} 가 실재하는 감사자가 아니다")
                 elif im not in called:
                     bad.append(f"{name}/auditor-fired: {im} 를 요구하는데 prompt.md 는 {sorted(called)} 를 부른다")
 
