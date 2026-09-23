@@ -18,10 +18,12 @@
 
 표준 라이브러리만 쓴다.
 """
+import importlib.util
 import json
 import pathlib
 import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "copies.json"
@@ -34,6 +36,33 @@ def git(*args):
         ["git", "-C", str(ROOT), *args],
         capture_output=True, text=True,
     )
+
+
+_spec = importlib.util.spec_from_file_location("verify_copy", ROOT / "scripts" / "verify-copy.py")
+CURRENT = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(CURRENT)
+
+
+def against_commit(sha, copy):
+    """sha 의 원본 감사자와 그 커밋의 verify-copy.py 로 사본을 견준다.
+    (True/False, 첫 줄) · 그 커밋에 검사기나 원본이 없으면 (None, 까닭)."""
+    names = git("ls-tree", "--name-only", sha, "vibe-audit/agents/").stdout.split()
+    names = [n for n in names if pathlib.PurePosixPath(n).name.startswith("audit-")]
+    checker = git("show", f"{sha}:scripts/verify-copy.py")
+    if not names or checker.returncode != 0:
+        return None, f"{sha[:7]} 에 원본 감사자나 검사기가 없어 못 봤다"
+    with tempfile.TemporaryDirectory() as tmp:
+        src = pathlib.Path(tmp) / "agents"
+        src.mkdir()
+        for n in names:
+            (src / pathlib.PurePosixPath(n).name).write_text(
+                git("show", f"{sha}:{n}").stdout, encoding="utf-8")
+        chk = pathlib.Path(tmp) / "verify-copy.py"
+        chk.write_text(checker.stdout, encoding="utf-8")
+        p = subprocess.run([sys.executable, str(chk), str(src), str(copy)],
+                           capture_output=True, text=True)
+    lines = (p.stdout or p.stderr).strip().splitlines()
+    return p.returncode == 0, (lines[0] if lines else "(말이 없다)")
 
 
 def main():
@@ -84,16 +113,23 @@ def main():
             continue
 
         reachable += 1
-        p = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "verify-copy.py"), str(path)],
-            capture_output=True, text=True,
-        )
-        head = (p.stdout or p.stderr).strip().splitlines()
-        head = head[0] if head else "(말이 없다)"
-        if p.returncode != 0:
-            bad.append(f"{who}: 공통 절이 원본과 다르다 — {head}")
+
+        # **읽기 전용은 지금 규칙으로 본다.** 이것은 판이 달라도 변하지 않는 불변식이다.
+        for f in sorted(path.glob("audit-*.md")):
+            if CURRENT.frontmatter_tools(f.read_text(encoding="utf-8")) != [CURRENT.TOOLS]:
+                bad.append(f"{who}: {f.name} 의 프론트매터 tools 가 원형이 아니다 — 감사자가 아니다")
+
+        # **공통 절은 적힌 커밋의 원본과, 그 커밋의 검사기로 견준다.** 지금 HEAD 와
+        # 견주면 원본이 앞서 나간 것만으로 손대지 않은 사본이 실패한다 — 갈림은
+        # 실패가 아니라고 적어 놓고(루트 README) 게이트는 그것을 실패로 셌다(Codex
+        # 리뷰). 규칙도 판마다 자랐으므로 그 판의 규칙으로 잰다. 앞선 만큼은 drift 로 찍는다.
+        ok, head = against_commit(sha, path)
+        if ok is None:
+            notes.append(f"{who}: {head} (원본은 그 뒤 {drift} 커밋 움직임)")
+        elif not ok:
+            bad.append(f"{who}: 공통 절이 {sha[:7]} 의 원본과 다르다 — {head}")
         else:
-            notes.append(f"{who}: 공통 절 같음 (원본은 그 뒤 {drift} 커밋 움직임)")
+            notes.append(f"{who}: 공통 절이 {sha[:7]} 의 원본과 같음 (원본은 그 뒤 {drift} 커밋 움직임)")
 
     if bad:
         print("FAIL\n  - " + "\n  - ".join(bad))

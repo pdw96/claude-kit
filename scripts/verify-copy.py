@@ -49,7 +49,19 @@ ORDER = [
 HANDOFF_NONE = "담당 없음 — 호출자 판단 필요"
 ROUND_HEAD = "## 지난 회차"
 
-TOOLS = '\ntools: ["Read", "Grep", "Glob"]\n'
+TOOLS = 'tools: ["Read", "Grep", "Glob"]'
+
+
+def frontmatter_tools(text):
+    """프론트매터 안의 tools 줄들. 본문에 같은 글자가 있어도 세지 않는다 —
+    전에는 파일 전체에서 찾아, 머리말엔 Edit 를 넣고 본문에 원형 줄을 적어 두면
+    쓰기 도구를 가진 감사자가 통과했다(Codex 리뷰)."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 3)
+    if end == -1:
+        return None
+    return [l.strip() for l in text[4:end].splitlines() if l.startswith("tools:")]
 
 
 def section(text, head):
@@ -80,6 +92,16 @@ def check(src, dst):
         return [f"원본 {src} 에 감사자가 {len(names)}개다 — 6이어야 한다"]
 
     bad = []
+    # **원본 여섯끼리도 공통 절이 같아야 한다.** gates.sh 는 원본을 원본과 견주므로
+    # 파일마다 자기 자신과 비교해 늘 같다 — 한 감사자만 공통 규율을 고쳐도 PASS 였고,
+    # sync 가 그 갈림을 사본으로 퍼뜨린다(Codex 리뷰). 첫 감사자를 기준으로 견준다.
+    base = names[0]
+    for head in SHARED:
+        ref = section((src / base).read_text(encoding="utf-8"), head)
+        for name in names[1:]:
+            if section((src / name).read_text(encoding="utf-8"), head) != ref:
+                bad.append(f"원본 {name}: 「{head.lstrip('#').strip()}」 절이 원본 {base} 와 다르다 — 공통 절이 갈렸다")
+
     for name in names:
         d = dst / name
         if not d.exists():
@@ -90,8 +112,8 @@ def check(src, dst):
 
         if not dt.startswith("---\n"):
             bad.append(f"{name}: 첫 줄이 --- 가 아니다 — 프론트매터가 안 읽힌다")
-        if TOOLS not in dt:
-            bad.append(f"{name}: tools 줄이 원형이 아니다 — 이것이 바뀌면 감사자가 아니다")
+        if frontmatter_tools(dt) != [TOOLS]:
+            bad.append(f"{name}: 프론트매터의 tools 가 원형이 아니다 — 이것이 바뀌면 감사자가 아니다")
         if "적합 / 부적합 / 해당 없음" in dt:
             bad.append(f"{name}: 판정값이 아직 셋이다 — 확인불가가 빠졌다")
         # 새 절과 출력 형식 양쪽에 있어야 한다. 출력 형식은 감사자마다 달라

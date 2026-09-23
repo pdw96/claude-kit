@@ -59,6 +59,12 @@ ROUTE_PREFIX = "route-"
 
 # Agent 호출 입력은 공백 없는 JSON 으로 펴져서 input_match 에 닿는다.
 FIRED = re.compile(r'"subagent_type":"(?P<plugin>[\w.-]+):(?P<agent>audit-[a-z]+)"')
+# `route-not-others` — 적은 감사자 **말고는 아무도** 뜨면 안 된다. 부정 전방탐색이라
+# 하네스(`new RegExp(input_match)`)가 그대로 먹는다.
+OTHERS = re.compile(
+    r'"subagent_type":"(?P<plugin>[\w.-]+):\(\?!(?P<ex>audit-[a-z]+"(?:\|audit-[a-z]+")*)\)'
+)
+ALLOW = re.compile(r"^같이 떠도 되는 감사자:\s*(.+)$", re.M)
 
 
 def frontmatter(path):
@@ -212,6 +218,7 @@ def check(suite, agents_dir):
         names, purpose_weight, has_control = set(), 0, False
         route_target, route_negatives, route_quiet = None, [], False
         route_weights = {}
+        route_others = None  # (제외 목록, 본문이 선언한 허용 목록)
         for g in graders:
             fm = frontmatter(g)
             if fm is None:
@@ -253,6 +260,32 @@ def check(suite, agents_dir):
                     )
                 if not (fm.get("min") == "0" and fm.get("max") == "0"):
                     bad.append(f"{name}/route-quiet: min 0 · max 0 이어야 한다")
+            elif route and g.stem == "route-not-others":
+                route_weights[g.stem] = float(fm.get("weight", 1))
+                if fm.get("type") != "tool_used" or fm.get("tool") != "Agent":
+                    bad.append(f"{name}/route-not-others: type tool_used · tool Agent 여야 한다")
+                if not (fm.get("min") == "0" and fm.get("max") == "0"):
+                    bad.append(f"{name}/route-not-others: min 0 · max 0 이어야 한다")
+                m = OTHERS.fullmatch(fm.get("input_match") or "")
+                if not m or m["plugin"] != plugin:
+                    bad.append(
+                        f"{name}/route-not-others: input_match 가 "
+                        f"'\"subagent_type\":\"{plugin}:(?!audit-a\"|audit-b\")' 모양이 아니다"
+                    )
+                else:
+                    excluded = set(re.findall(r"audit-[a-z]+", m["ex"]))
+                    for a in sorted(excluded - known):
+                        bad.append(f"{name}/route-not-others: 없는 감사자 {a} 를 뺐다")
+                    body = g.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+                    dm = ALLOW.search(body)
+                    declared = set() if not dm or dm.group(1).strip() == "없음" \
+                        else set(re.findall(r"audit-[a-z]+", dm.group(1)))
+                    if not dm:
+                        bad.append(
+                            f"{name}/route-not-others: 본문에 「같이 떠도 되는 감사자: …」 줄이 없다 — "
+                            "허용한 곁불과 빠뜨린 감사자를 가를 수 없다(없으면 「없음」)"
+                        )
+                    route_others = (excluded, declared)
             elif route and g.stem.startswith(("route-correct", "route-not-")):
                 route_weights[g.stem] = float(fm.get("weight", 1))
                 if t_ := fm.get("type"):
@@ -301,6 +334,24 @@ def check(suite, agents_dir):
             for neg in route_negatives:
                 if neg == route_target:
                     bad.append(f"{name}: route-not-{neg} 가 route-correct 와 같은 감사자다")
+            # **목표가 아닌 감사자는 전부 어딘가에서 막히거나, 허용한다고 적혀야 한다.**
+            # 음성 그레이더를 하나만 두면 나머지 넷이 같이 떠도 점수가 안 깎인다 —
+            # route-quiet 은 다른 말이라 이 맥락의 과잉 트리거를 못 잡는다(Codex 리뷰).
+            if route_others is None:
+                bad.append(
+                    f"{name}: route-not-others 가 없다 — 목표와 음성 그레이더 밖의 감사자가 "
+                    "같이 떠도 점수가 안 깎인다"
+                )
+            elif route_target:
+                excluded, declared = route_others
+                if route_target not in excluded:
+                    bad.append(f"{name}/route-not-others: 목표 {route_target} 를 안 뺐다 — 옳게 떠도 실패한다")
+                allowed = excluded - {route_target} - set(route_negatives)
+                if allowed != declared:
+                    bad.append(
+                        f"{name}/route-not-others: 뺀 것 중 허용한 곁불은 {sorted(allowed) or '없음'} 인데 "
+                        f"본문은 {sorted(declared) or '없음'} 을 적었다 — 둘이 같아야 한다"
+                    )
             # **어느 그레이더 하나만 떨어져도 회차가 문턱 아래로 가야 한다.** 옳은
             # 감사자 3 · 음성 1 · 1 이면 금지한 감사자가 같이 떠도 4/5 = 0.8 로 문턱을
             # 넘었다 — 과잉 트리거가 PR CI 를 초록으로 지나간다(Codex 리뷰).

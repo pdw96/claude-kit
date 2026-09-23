@@ -102,7 +102,14 @@ def main():
             else:
                 mark = LICENSE_MARK.get(lic)
                 text = files[0].read_text(encoding="utf-8")
-                if mark and mark not in text:
+                # 모르는 식별자는 **견줄 수 없는 것**이지 통과가 아니다. 전에는 건너뛰어
+                # `GPL-3.0` 이라 선언하고 MIT 파일을 둔 채 PASS 가 났다(Codex 리뷰).
+                if not mark:
+                    bad.append(
+                        f"{name}: license {lic!r} 를 이 검사가 모른다 — 파일과 견줄 수 없다. "
+                        f"LICENSE_MARK 에 그 라이선스의 표식을 더하라"
+                    )
+                elif mark not in text:
                     bad.append(
                         f"{name}: {files[0].relative_to(ROOT)} 안에 {mark!r} 가 없다 "
                         f"— 선언({lic})과 파일이 다른 것을 말한다"

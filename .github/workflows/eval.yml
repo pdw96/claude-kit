@@ -162,6 +162,42 @@ jobs:
             echo "::error::verify-graders.py 가 무엇에나 맞는 대조군을 통과시켰다"; exit 1
           fi
 
+          # verify-copy.py — 원본 여섯 가운데 하나만 공통 절이 갈리면 실패해야 한다
+          # (gates.sh 는 원본을 원본과 견주므로 파일마다 자기 자신과 같다)
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-secrets.md"
+          if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 원본끼리 갈린 공통 절을 통과시켰다"; exit 1
+          fi
+
+          # verify-copy.py — 머리말에 Edit 를 넣고 본문에 원형 tools 줄을 적어 두면 실패해야 한다
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-ops.md"
+          printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
+          if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 본문의 원형 줄에 속아 쓰기 도구를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          rm "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 route-not-others 없는 route 케이스를 통과시켰다"; exit 1
+          fi
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
+            "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 허용 선언과 어긋난 route-not-others 를 통과시켰다"; exit 1
+          fi
+
+          # verify-manifest.py — 검사가 모르는 라이선스 선언은 실패해야 한다
+          m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
+          sed -i 's/"license": "MIT"/"license": "GPL-3.0"/' "$m/vibe-audit/.claude-plugin/plugin.json"
+          if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
+            echo "::error::verify-manifest.py 가 견줄 수 없는 라이선스 선언을 통과시켰다"; exit 1
+          fi
+
           echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · brief · evals · graders · budget"
 
           # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
@@ -299,7 +335,12 @@ jobs:
           if [ "$FULL" = "true" ]; then
             ./scripts/run-evals.sh --ablation none --runs 3 --threshold 0.8 --max-cost-usd 40
           else
-            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 0.8 --max-cost-usd 10
+            # route 는 문턱 1.0 — 세 회차 **전부** 맞아야 한다. 문턱은 회차 평균에 걸리므로
+            # 0.8 이면 한 회차의 과잉 트리거가 (1 + 1 + 0.67) / 3 = 0.89 로 지나가고, 그
+            # 입력이 캐시에 「통과」로 남는다(Codex 리뷰). route 는 심판 없는 결정론 채점이고
+            # 실측이 여러 번 24/24 라 흔들림 여유를 둘 까닭이 없다. 판정 케이스(전수)는 심판이
+            # 갈리므로 0.8 을 둔다.
+            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 1.0 --max-cost-usd 10
           fi
 
       # 통과한 입력만 적어 둔다. 지문은 이 잡에서 다시 낸다 — gate 잡과 CLI 가

@@ -1,6 +1,6 @@
 ---
 type: tool_used
-weight: 1
+weight: 3
 tool: Agent
 input_match: '"subagent_type":"vibe-audit:audit-internal"'
 min: 0
