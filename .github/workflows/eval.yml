@@ -32,41 +32,9 @@ jobs:
           node-version: "22"
       - run: npm install -g @anthropic-ai/claude-code
 
-      - name: 플러그인 매니페스트
-        run: claude plugin validate ./vibe-audit
+      - name: 키 없이 도는 게이트
+        run: ./scripts/gates.sh
 
-      - name: 선언과 파일이 맞는가
-        run: python3 scripts/verify-manifest.py
-
-      - name: 사본 대장이 성한가
-        run: python3 scripts/verify-copies.py
-
-      - name: 수트가 물 수 있는 모양인가
-        run: python3 scripts/verify-evals.py
-
-      # 모양이 맞아도 아무것도 가르지 못하는 정규식은 쓸 수 있다. 케이스가
-      # 둔 표본 두 벌로 그레이더가 실제로 가르는지 본다.
-      - name: 그레이더가 가르는가
-        run: python3 scripts/verify-graders.py
-
-      # 되먹임을 메울 때마다 감사자 문구가 자란다. 자란 것이 값을 하는지는
-      # 수트가 재지만, 얼마나 썼는지는 아무도 안 세고 있었다. 스냅숏이 한
-      # 토큰이라도 달라지면 실패하므로, 자란 만큼이 커밋 diff 에 남는다.
-      - name: 주의 예산
-        run: python3 scripts/verify-budget.py
-
-      # 브리핑 커맨드가 내는 파일이 감사자가 쓸 수 있는 모양인가.
-      # 픽스처가 진짜 git 저장소를 만들어 실제로 브리핑을 생성하므로,
-      # 커맨드가 적어 둔 형식과 어긋나면 여기서 걸린다.
-      - name: 브리핑 형식
-        run: |
-          set -euo pipefail
-          t=$(mktemp -d)
-          (cd "$t" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
-          python3 scripts/verify-brief.py "$t/.claude/audit-brief.md"
-
-      # 게이트 둘이 실제로 무는지 매번 확인한다. 물지 않는 검사는 게이트가
-      # 아니므로, 통과하는 것만 보고 통과라고 하지 않는다.
       - name: 게이트가 무는가
         run: |
           set -euo pipefail
