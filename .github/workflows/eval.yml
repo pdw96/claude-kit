@@ -141,10 +141,27 @@ jobs:
           fi
 
   # 키가 있어야 도는 것. 없으면 Skipped 로 뜬다 — 초록이 아니다.
+  #
+  # **무엇을 얼마나 돌리나 — 저자가 정했다(2026-09-23).** PR 과 push 는
+  # 트리거 케이스(`route-*`)만, 판정 케이스까지 도는 전수는 workflow_dispatch
+  # 로 사람이 부를 때만. 트리거는 문구를 고친 PR 에서 가장 자주 깨지는 축이고
+  # 심판을 안 써서 싸다(여섯 × 3회, 약 $5). 전수는 심판(sonnet)까지 불러
+  # 열 배쯤 든다.
+  #
+  # **러너를 부르는 이유.** 전에는 여기서 `claude plugin eval` 을 직접 불렀다.
+  # 그러면 러너가 박아 둔 것이 전부 빠진다 — 동시성(기본 1 이라 전수가 두
+  # 시간), 케이스 0개면 실패, 실패 트레이스 보존. 그리고 플러그인 없는 팔이
+  # 기본으로 붙어 비용이 두 배가 되어, 키를 넣는 순간 `--max-cost-usd 10` 에
+  # 걸려 **모든 PR 이 빨갛게** 떴을 것이다. 깃발을 두 군데 적으면 갈린다 —
+  # `gates.sh` 를 만든 것과 같은 이유다.
+  #
+  # `--ablation none` — 플러그인 없는 팔은 감사자를 부를 수 없어 트리거
+  # 케이스에서 늘 0 이다. 재는 것이 없는데 값은 두 배다.
   eval:
     runs-on: ubuntu-latest
     needs: gate
     if: needs.gate.outputs.has_key == 'true'
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -155,21 +172,17 @@ jobs:
       - name: 감사자 수트
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FULL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
-          # --judge-model sonnet 은 선택이 아니다. 기본 심판(haiku)은 이 수트의
-          # 감사 기록에서 아홉 번 어긋나는 동안 한 번도 맞지 않았다 —
-          # trap-rollback-unproven 이 haiku 0.278 / sonnet 1.000 이다.
-          claude plugin eval ./vibe-audit \
-            --scaffold --trust-plugin --no-publish \
-            --judge-model sonnet \
-            --runs 3 --threshold 0.8 --max-cost-usd 10 \
-            --json eval-result.json
+          if [ "$FULL" = "true" ]; then
+            ./scripts/run-evals.sh --ablation none --runs 3 --threshold 0.8 --max-cost-usd 40
+          else
+            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 0.8 --max-cost-usd 10
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: eval-result
-          path: |
-            eval-result.json
-            vibe-audit/evals/results/
+          path: vibe-audit/evals/results/
           if-no-files-found: ignore
