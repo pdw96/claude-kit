@@ -134,6 +134,13 @@ import os, stat
 for t in temps:
     if not (t.name.startswith("claude-eval-") and t.parent == pathlib.Path("/tmp")):
         continue
+    # 남긴 디렉터리 **자체**부터 연다. 하네스는 그것을 읽기 전용으로 남기므로
+    # 안의 항목만 열면 목록은 읽혀도 지울 수가 없다. root 로 돌면 권한이 안
+    # 걸려 드러나지 않았고, CI(root 아님)에서 회차마다 「치우지 못했다」로 났다.
+    try:
+        os.chmod(t, stat.S_IRWXU)
+    except OSError:
+        pass
     for root, dirs, files in os.walk(t):
         for n in dirs + files:
             try:
