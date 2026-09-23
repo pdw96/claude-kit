@@ -83,7 +83,30 @@ jobs:
             echo "::error::verify-budget.py 가 자란 문구를 통과시켰다"; exit 1
           fi
 
-          echo "다섯 다 변조본에서 실패 확인"
+          # verify-manifest.py — 선언한 라이선스의 파일이 없으면 실패해야 한다
+          m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
+          rm "$m/LICENSE"
+          if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
+            echo "::error::verify-manifest.py 가 LICENSE 없는 선언을 통과시켰다"; exit 1
+          fi
+
+          # verify-copies.py — 이 저장소에 없는 커밋을 적은 대장은 실패해야 한다.
+          # 이 검사는 git 이력을 보므로 사본이 아니라 제자리에서 흔들고 되돌린다.
+          python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("copies.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          d["copies"].append({"repo": "없는-레포", "agents_path": "/없는/자리",
+                              "synced_commit": "0" * 40, "synced_at": "2026-01-01"})
+          p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 없는 커밋을 적은 대장을 통과시켰다"; exit 1
+          fi
+          git checkout -- copies.json
+
+          echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · brief · evals · graders · budget"
 
       - name: 키가 있는가
         id: key
