@@ -96,6 +96,25 @@ cat > "$DEST/README.md" <<EOF
 이것들은 감사자가 아니게 된다.
 EOF
 
+# 심은 자리를 대장에 적는다. 이게 없으면 사본이 어디에 있는지 아는 사람이
+# 심은 사람뿐이고, verify-copy.py 는 견줄 상대를 못 찾아 아무도 안 돌린다.
+python3 - "$SRC" "$DEST" "$SHA" <<'REG'
+import json, pathlib, subprocess, sys, datetime
+src, dest, sha = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+reg = src / "copies.json"
+d = json.loads(reg.read_text(encoding="utf-8")) if reg.exists() else {"copies": []}
+full = subprocess.run(["git", "-C", str(src), "rev-parse", "HEAD"],
+                      capture_output=True, text=True).stdout.strip() or sha
+repo = pathlib.Path(dest).parent.parent.name
+row = {"repo": repo, "agents_path": dest, "synced_commit": full,
+       "synced_at": datetime.date.today().isoformat()}
+rows = [c for c in d.get("copies", []) if c.get("repo") != repo]
+rows.append(row)
+d["copies"] = sorted(rows, key=lambda c: c["repo"])
+reg.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(f"  대장에 적음 {repo} → {reg.name}")
+REG
+
 echo
 echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped)"
 echo "→ $CMDDEST (커맨드 심음 $cmds)"

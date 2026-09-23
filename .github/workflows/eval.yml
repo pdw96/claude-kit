@@ -38,6 +38,9 @@ jobs:
       - name: 선언과 파일이 맞는가
         run: python3 scripts/verify-manifest.py
 
+      - name: 사본 대장이 성한가
+        run: python3 scripts/verify-copies.py
+
       - name: 수트가 물 수 있는 모양인가
         run: python3 scripts/verify-evals.py
 
