@@ -150,13 +150,40 @@ for case in d.get("cases", []):
             mark = "전부 통과" if not bad else "FAIL " + ", ".join(bad)
             print(f"  run{i} score={run.get('score', 0):.2f}  {mark}")
 print()
+# **결정론 그레이더가 모든 회차에서 떨어졌으면 실패다 — 문턱과 따로.**
+# 문턱은 케이스 점수(회차 평균)에 걸린다. 그래서 무게가 가벼운 그레이더는 매번
+# 떨어져도 문턱을 넘는다 — gate-out-of-scope 의 handoff-named(무게 1/6)는 세 회차
+# 전부 떨어져도 0.833 으로 전수 문턱 0.8 을 넘었고, cycle-continuity 는 그레이더가
+# 일곱이라 어느 하나를 무겁게 해도 셈이 안 맞는다(Codex 리뷰). 전수의 0.8 이 봐주려는
+# 것은 **흔들림**(심판의 갈림 · 감사자의 한 회차)이지 매번 나는 회귀가 아니다.
+# 정규식 · tool_used 는 같은 기록에 늘 같은 답을 내므로, 모든 회차에서 떨어졌다면
+# 그것은 감사자가 매번 그렇게 했다는 뜻이다. 심판(llm)은 넣지 않는다 — 심판이
+# 틀린 일이 이 수트에 실제로 있었다(README 「심판이 못 믿을 자리였다」).
+steady, steady_cases = [], set()
+for case in d.get("cases", []):
+    kinds = {g.get("name"): g.get("type") for g in case.get("graders", [])}
+    runs = (case.get("arms") or {}).get("with") or []
+    if not runs:
+        continue
+    for name, kind in kinds.items():
+        if kind not in ("regex", "tool_used"):
+            continue
+        marks = [g for run in runs for g in run.get("graders", []) if g.get("name") == name]
+        if len(marks) == len(runs) and all(g.get("scored", True) and not g.get("passed") for g in marks):
+            steady.append(f"{case.get('name')}/{name} ({len(runs)}/{len(runs)} 회차)")
+            steady_cases.add(case.get("name"))
+# 이 판정은 트레이스를 치우기 **전에** 내린다. 그런 회차는 점수로는 통과(passed)라
+# 아래 보존 고리가 건너뛰고 임시 디렉터리째 지워져, 실패 산출물에 증거가 없었다
+# (Codex 리뷰). 그 케이스의 회차는 실패한 회차로 보고 트레이스를 남긴다.
+
 for case in d.get("cases", []):
     for arm, runs in (case.get("arms") or {}).items():
         for i, run in enumerate(runs, 1):
             tp = run.get("tracePath")
             if tp:
                 temps.add(pathlib.Path(tp).parent.parent)
-            if run.get("passed") or not tp:
+            held = arm == "with" and case.get("name") in steady_cases
+            if (run.get("passed") and not held) or not tp:
                 continue
             src = pathlib.Path(tp)
             if not src.exists():
@@ -195,27 +222,6 @@ for t in temps:
 print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))
 
-# **결정론 그레이더가 모든 회차에서 떨어졌으면 실패다 — 문턱과 따로.**
-# 문턱은 케이스 점수(회차 평균)에 걸린다. 그래서 무게가 가벼운 그레이더는 매번
-# 떨어져도 문턱을 넘는다 — gate-out-of-scope 의 handoff-named(무게 1/6)는 세 회차
-# 전부 떨어져도 0.833 으로 전수 문턱 0.8 을 넘었고, cycle-continuity 는 그레이더가
-# 일곱이라 어느 하나를 무겁게 해도 셈이 안 맞는다(Codex 리뷰). 전수의 0.8 이 봐주려는
-# 것은 **흔들림**(심판의 갈림 · 감사자의 한 회차)이지 매번 나는 회귀가 아니다.
-# 정규식 · tool_used 는 같은 기록에 늘 같은 답을 내므로, 모든 회차에서 떨어졌다면
-# 그것은 감사자가 매번 그렇게 했다는 뜻이다. 심판(llm)은 넣지 않는다 — 심판이
-# 틀린 일이 이 수트에 실제로 있었다(README 「심판이 못 믿을 자리였다」).
-steady = []
-for case in d.get("cases", []):
-    kinds = {g.get("name"): g.get("type") for g in case.get("graders", [])}
-    runs = (case.get("arms") or {}).get("with") or []
-    if not runs:
-        continue
-    for name, kind in kinds.items():
-        if kind not in ("regex", "tool_used"):
-            continue
-        marks = [g for run in runs for g in run.get("graders", []) if g.get("name") == name]
-        if len(marks) == len(runs) and all(g.get("scored", True) and not g.get("passed") for g in marks):
-            steady.append(f"{case.get('name')}/{name} ({len(runs)}/{len(runs)} 회차)")
 if steady:
     print("\nFAIL 결정론 그레이더가 모든 회차에서 떨어졌다 — 흔들림이 아니라 회귀다.")
     for s in steady:

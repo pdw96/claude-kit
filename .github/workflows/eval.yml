@@ -148,14 +148,26 @@ jobs:
           fi
           git checkout -- copies.json
 
+          # 체크아웃이 얕으면 실패한다. verify-copies.py 는 대장의 synced_commit 을 이
+          # 저장소에서 찾는데, sync-agents.sh 는 대장을 적는 커밋보다 앞선 HEAD 를 적는다.
+          if [ "$(git rev-parse --is-shallow-repository)" != false ]; then
+            echo "::error::체크아웃이 얕다 — 대장의 synced_commit 을 못 찾는다(fetch-depth: 0)"; exit 1
+          fi
+
           # verify-copies.py — 그 커밋에서 그대로 심은 사본은 통과하고, 커맨드를 지운
-          # 사본은 실패해야 한다. 적는 커밋은 커맨드를 고친 커밋 가운데 머리 바로 앞의
-          # 것 — sync-agents.sh 가 적는 것처럼 머리보다 앞선 커밋이라, 체크아웃이 얕으면
-          # 여기서 떨어진다(fetch-depth). HEAD~1 이 아닌 까닭: PR 에서는 머지 커밋의
-          # 첫 부모가 main 이고, 그 main 에는 아직 커맨드가 없을 수 있다.
+          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드와 검사기를 가진
+          # 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면(스쿼시 머지 직후
+          # main 처럼 커맨드가 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
+          # 따로 물므로, 역사의 모양을 얕은 것으로 오인하지 않는다(Codex 리뷰).
           c=$(mktemp -d); mkdir -p "$c/.claude/agents" "$c/.claude/commands"
-          old=$(git log -n1 --skip=1 --format=%H HEAD -- vibe-audit/commands/audit-brief.md)
-          test -n "$old" || { echo "::error::커맨드를 고친 앞선 커밋을 못 찾았다 — 체크아웃이 얕은가"; exit 1; }
+          old=$(git rev-parse HEAD)
+          for k in $(git rev-list --skip=1 --max-count=200 HEAD); do
+            if git cat-file -e "$k:vibe-audit/commands/audit-brief.md" 2>/dev/null \
+               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null; then
+              old=$k; break
+            fi
+          done
+          echo "사본을 심은 커밋으로 적는 것: $old"
           for f in $(git ls-tree --name-only "$old" vibe-audit/agents/ vibe-audit/commands/); do
             case "$f" in
               vibe-audit/agents/audit-*.md) git show "$old:$f" > "$c/.claude/agents/${f##*/}" ;;
@@ -183,17 +195,23 @@ jobs:
 
           # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
           # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
-          # 가짜 하네스가 --json 자리에 결과를 쓴다 — 모델은 안 부른다.
+          # 매번 떨어진 쪽은 회차가 점수로는 통과여도 트레이스 셋이 남아야 한다 — 실패
+          # 산출물에 증거가 없으면 못 연다. 가짜 하네스가 --json 자리에 결과를 쓴다
+          # — 모델은 안 부른다.
           f=$(mktemp -d)
           printf '%s\n' '#!/usr/bin/env bash' \
             'while [ $# -gt 0 ]; do [ "$1" = --json ] && cp "$FAKE_RESULT" "$2"; shift; done' > "$f/claude"
           chmod +x "$f/claude"
           for n in 3 1; do
-            python3 - "$f/r$n.json" "$n" <<'PY'
-          import json, sys
-          out, fails = sys.argv[1], int(sys.argv[2])
+            python3 - "$f/r$n.json" "$n" "$f/tr$n" <<'PY'
+          import json, pathlib, sys
+          out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
+          for i in range(3):
+              (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
+              (tr / f"r{i}" / "trace.jsonl").write_text("{}\n")
           gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
-          runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True, "tracePath": None,
+          runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True,
+                   "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
                    "graders": [{"name": g, "weight": w, "scored": True,
                                 "passed": not (i < fails and g == "handoff-named")} for g, _, w in gs]}
                   for i in range(3)]
@@ -203,11 +221,14 @@ jobs:
                     open(out, "w"))
           PY
             set +e
-            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope >/dev/null 2>&1
+            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope >"$f/o$n" 2>&1
             st=$?
             set -e
             if [ "$n" = 3 ] && [ "$st" != 5 ]; then
               echo "::error::run-evals.sh 가 매번 떨어진 결정론 그레이더를 통과시켰다 (exit $st)"; exit 1
+            fi
+            if [ "$n" = 3 ] && [ "$(grep -c '실패 기록 남김' "$f/o3")" != 3 ]; then
+              echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$f/o3"; exit 1
             fi
             if [ "$n" = 1 ] && [ "$st" != 0 ]; then
               echo "::error::run-evals.sh 가 한 회차만 떨어진 흔들림을 실패로 셌다 (exit $st)"; exit 1

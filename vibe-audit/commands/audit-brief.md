@@ -46,10 +46,15 @@ git rev-parse --verify $0
 | 변경 파일 | `git diff --stat $0...HEAD` |
 | 커밋 목록 | `git log --oneline $0..HEAD` |
 | 본문 diff | `git diff $0...HEAD` |
+| 추적 안 된 파일 | `git ls-files --others --exclude-standard` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short` 가 비어 있지 않으면)
 `$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 브리핑 머리에 적고, 필요하면
 `git diff $0` 도 함께 넣으세요.
+
+**추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
+파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은
+`git diff --no-index /dev/null <파일>` 로 넣으세요. 못 넣으면 「담지 않은 것」에 적습니다.
 
 **셋. `.claude/audit-brief.md` 에 아래 모양으로 씁니다.**
 
@@ -60,6 +65,7 @@ git rev-parse --verify $0
 - 기준: `<base>` = `<짧은 SHA>` (<날짜> <제목>)
 - 대상: `<HEAD 짧은 SHA>` (브랜치 `<이름>`)
 - 커밋 안 된 변경: <없음 / 있음 — 아래 diff 에 포함 여부>
+- 추적 안 된 파일: <없음 / 목록 — 아래 diff 에 포함 여부>
 
 ## 변경 파일
 
