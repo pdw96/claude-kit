@@ -194,6 +194,31 @@ for case in d.get("cases", []):
             kept += 1
             bad = [g["name"] for g in run.get("graders", []) if not g.get("passed")]
             print(f"  실패 기록 남김 {dst}  ({', '.join(bad)})")
+            # **무엇을 했는지 로그에도 찍는다.** 트레이스는 산출물로 올라가지만, 산출물을
+            # 못 받는 자리(네트워크가 막힌 세션)에서는 CI 로그가 전부다. route-contract 가
+            # CI 에서 한 번 안 떴을 때 실제로 그랬다 — 무엇을 대신 했는지 볼 길이 없었다.
+            # 부른 도구(최상위만, 감사자 안의 호출은 빼고)와 마지막 답의 머리를 찍는다.
+            calls, last = [], ""
+            try:
+                for line in open(src, encoding="utf-8"):
+                    try:
+                        e = json.loads(line)
+                    except ValueError:
+                        continue
+                    if e.get("type") == "result":
+                        last = str(e.get("result") or "")
+                    if e.get("type") != "assistant" or e.get("parent_tool_use_id"):
+                        continue
+                    for b in (e.get("message") or {}).get("content") or []:
+                        if b.get("type") != "tool_use":
+                            continue
+                        inp = b.get("input") or {}
+                        what = inp.get("subagent_type") or inp.get("skill") or ""
+                        calls.append(f"{b.get('name')}({what})" if what else str(b.get("name")))
+            except OSError:
+                pass
+            print(f"     부른 도구: {' → '.join(calls) or '(없음)'}")
+            print(f"     마지막 답: {' '.join(last.split())[:300] or '(없음)'}")
 
 # --keep-temp 로 남는 작업공간을 치운다. 모드가 닫혀 있어 그냥 지우면 조용히
 # 실패하므로(하네스가 경고하는 자리) 먼저 열고 지운다. 남기는 것은 위에서 이미
