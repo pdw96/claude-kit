@@ -116,7 +116,7 @@ def check(suite):
                     "정규식이 좁거나 출력 형식과 어긋난다"
                 )
 
-        aims = [n for n in graders if n.startswith(("trap-", "gate-"))]
+        named = set()
         for ng_file in ng_files:
             tag = f"samples/{ng_file.name}"
             ng_text = ng_file.read_text(encoding="utf-8")
@@ -128,14 +128,10 @@ def check(suite):
                 )
                 continue
             want = m.group(1).split()
+            named |= set(want)
             unknown = [w for w in want if w not in graders]
             if unknown:
                 bad.append(f"{case.name}: {tag} 가 없는 그레이더 {unknown} 를 적었다")
-            # 목적 그레이더를 적으라는 요구는 **정규식 목적 그레이더가 있을 때만**
-            # 건다. `brief-absent` 처럼 목적 그레이더가 전부 심판이면 표본으로 볼
-            # 수 있는 것은 대조군뿐이고, 대조군이 가르는지 보는 것도 검사다.
-            if aims and not any(w.startswith(("trap-", "gate-")) for w in want):
-                bad.append(f"{case.name}: {tag} 가 목적 그레이더를 하나도 안 적었다")
             for name, g in sorted(graders.items()):
                 bites = not hits(g, ng_text)
                 if name in want and not bites:
@@ -149,6 +145,17 @@ def check(suite):
                         f"{case.name}/{name}: {tag} 가 적지 않았는데 이것도 문다 — "
                         "선언이 실제와 다르면 어느 그레이더가 가르는지 알 수 없다"
                     )
+        # **정규식 그레이더마다 무는 표본이 하나는 있어야 한다.** 전에는 「fail 표본마다
+        # 목적 그레이더를 하나는 적는다」만 요구했다 — 목적 그레이더 하나만 물어도
+        # 나머지와 대조군은 빈자리로 남았다. 이 요구가 그것을 덮는다. 어느 fail 표본에도
+        # 안 적힌 그레이더는 위 검사가 pass.md 에서 통과하는지만 본다 — 무엇에나
+        # 맞는 `.` 으로 바꿔도 이 검사를 지나, 진짜 NC 를 못 찾은 감사자에게 점수를
+        # 준다(Codex 리뷰가 `trap-local-dev-password/real-nc-found` 로 짚었다).
+        for name in sorted(set(graders) - named):
+            bad.append(
+                f"{case.name}/{name}: 이것을 무는 fail 표본이 없다 — "
+                "무엇에나 맞는 정규식으로 바뀌어도 여기서 안 잡힌다"
+            )
         covered.append(f"{case.name}({len(graders)})")
 
     return bad, covered, uncovered, nothing

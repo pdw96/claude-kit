@@ -44,6 +44,14 @@ import pathlib
 import re
 import sys
 
+WORKFLOW = pathlib.Path(__file__).resolve().parent.parent / ".github" / "workflows" / "eval.yml"
+
+
+def ci_threshold():
+    """CI 가 수트에 거는 문턱. 워크플로에서 읽는다 — 여기 따로 적으면 갈린다."""
+    found = [float(x) for x in re.findall(r"--threshold\s+([0-9.]+)", WORKFLOW.read_text(encoding="utf-8"))]
+    return min(found) if found else None
+
 GRADER_TYPES = {"regex", "tool_used", "tool_order", "file_exists", "llm", "baseline"}
 CONTROL = "real-nc-found"
 PURPOSE_PREFIXES = ("trap-", "gate-")
@@ -203,6 +211,7 @@ def check(suite, agents_dir):
 
         names, purpose_weight, has_control = set(), 0, False
         route_target, route_negatives, route_quiet = None, [], False
+        route_weights = {}
         for g in graders:
             fm = frontmatter(g)
             if fm is None:
@@ -216,8 +225,15 @@ def check(suite, agents_dir):
                 purpose_weight += float(fm.get("weight", 1))
             if g.stem == CONTROL:
                 has_control = True
-                if fm.get("arm"):
-                    bad.append(f"{name}/{CONTROL}: arm 이 붙어 점수에서 빠진다 — 대조군은 점수에 들어가야 한다")
+            # **arm 은 `auditor-fired` 의 `with-only` 에만 허용한다.** 붙은 그레이더는
+            # 점수에서 빠지므로, 목적 · 대조군 · 트리거 그레이더에 한 줄만 붙어도 재는
+            # 행동이 집계에서 사라지고 회귀가 초록이 된다. 전에는 대조군만 봤다(Codex 리뷰).
+            arm = fm.get("arm")
+            if arm and not (g.stem == "auditor-fired" and arm == "with-only"):
+                bad.append(
+                    f"{name}/{g.stem}: arm: {arm} 이 붙어 점수에서 빠진다 — "
+                    "arm 은 auditor-fired 의 with-only 에만 쓴다"
+                )
             # 트리거 케이스의 또 한 모양 — **아무도 뜨면 안 되는** 말이다.
             # `route-not-*` 는 「이 하나가 뜨면 안 된다」만 보므로, 여섯을 전부
             # 띄우는 것과 엉뚱한 자리에서 뜨는 것은 그것으로 안 잡힌다.
@@ -238,6 +254,7 @@ def check(suite, agents_dir):
                 if not (fm.get("min") == "0" and fm.get("max") == "0"):
                     bad.append(f"{name}/route-quiet: min 0 · max 0 이어야 한다")
             elif route and g.stem.startswith(("route-correct", "route-not-")):
+                route_weights[g.stem] = float(fm.get("weight", 1))
                 if t_ := fm.get("type"):
                     if t_ != "tool_used":
                         bad.append(f"{name}/{g.stem}: type 이 tool_used 여야 한다 — 트리거는 심판이 필요 없다")
@@ -284,6 +301,19 @@ def check(suite, agents_dir):
             for neg in route_negatives:
                 if neg == route_target:
                     bad.append(f"{name}: route-not-{neg} 가 route-correct 와 같은 감사자다")
+            # **어느 그레이더 하나만 떨어져도 회차가 문턱 아래로 가야 한다.** 옳은
+            # 감사자 3 · 음성 1 · 1 이면 금지한 감사자가 같이 떠도 4/5 = 0.8 로 문턱을
+            # 넘었다 — 과잉 트리거가 PR CI 를 초록으로 지나간다(Codex 리뷰).
+            thr = ci_threshold()
+            total = sum(route_weights.values())
+            if thr is not None and total:
+                for gname, w in sorted(route_weights.items()):
+                    if (total - w) / total >= thr:
+                        bad.append(
+                            f"{name}/{gname}: weight {w:g} — 이것만 떨어져도 "
+                            f"{total - w:g}/{total:g} = {(total - w) / total:.2f} 로 "
+                            f"CI 문턱 {thr} 을 넘는다. 무게를 올려라"
+                        )
             if CONTROL in names:
                 bad.append(f"{name}: 트리거 케이스에 {CONTROL} 이 있다 — 판정은 여기서 재지 않는다")
         else:

@@ -6,7 +6,13 @@
 # 잡이 둘인 이유: 모델을 부르는 검사는 키가 있어야 돈다. 키가 없을 때 그 잡이
 # exit 0 으로 끝나면 **아무것도 검사하지 않고 초록이 난다** — 이 저장소가
 # 고치겠다는 바로 그 결함이다. 그래서 키 없이 도는 것(gate)과 키가 있어야
-# 도는 것(eval)을 갈라, 후자는 키가 없으면 통과가 아니라 **Skipped** 로 뜬다.
+# 도는 것(eval)을 갈랐다.
+#
+# **판정은 셋째 잡(verdict)이 낸다.** 처음엔 「키가 없으면 eval 이 Skipped 로
+# 뜨니 초록이 아니다」라고 적었는데 틀렸다 — GitHub 은 건너뛴 잡을 필수 체크에서
+# **성공**으로 센다. 포크나 Dependabot PR 은 시크릿을 못 받으니 gate 만 돌고
+# 초록으로 머지될 수 있었다(Codex 리뷰). verdict 는 늘 돌고, 수트가 돌아 통과했거나
+# 같은 입력이 이미 통과했을 때만 통과한다. 필수 체크로 걸 것은 이 잡이다.
 name: eval
 
 on:
@@ -135,6 +141,27 @@ jobs:
           fi
           git checkout -- copies.json
 
+          # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i '0,/^weight/s//arm: with-only\nweight/' "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 arm 붙은 route-correct 를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — 떨어져도 문턱을 못 넘기는 가벼운 음성 그레이더는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-secrets.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 문턱 아래로 못 끌어내리는 음성 그레이더를 통과시켰다"; exit 1
+          fi
+
+          # verify-graders.py — 무엇에나 맞는 대조군은 실패해야 한다(무는 fail 표본이 있어야)
+          g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
+          sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-local-dev-password/graders/real-nc-found.md"
+          if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-graders.py 가 무엇에나 맞는 대조군을 통과시켰다"; exit 1
+          fi
+
           echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · brief · evals · graders · budget"
 
           # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
@@ -178,7 +205,7 @@ jobs:
             echo "has_key=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_key=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CLAUDE_CODE_OAUTH_TOKEN 도 ANTHROPIC_API_KEY 도 없어 감사자 수트가 돌지 않는다 — eval 잡은 Skipped 로 뜬다. 초록이 통과를 뜻하지 않는다"
+            echo "::warning::CLAUDE_CODE_OAUTH_TOKEN 도 ANTHROPIC_API_KEY 도 없어 감사자 수트가 돌지 않는다 — verdict 잡이 실패한다"
           fi
 
       # **같은 입력이 이미 통과했으면 수트를 다시 안 돌린다.** 구독 사용량에서
@@ -204,14 +231,15 @@ jobs:
           path: .eval-pass
           key: ${{ steps.fp.outputs.key }}
 
-      # 건너뛴 eval 잡은 키가 없을 때와 똑같이 Skipped 로 뜬다. 둘을 가르고
+      # 건너뛴 eval 잡은 키가 없을 때와 똑같이 Skipped 로 뜬다. 둘은 verdict 가
+      # 가르고(키 없음은 실패), 여기서는
       # 무엇을 근거로 건너뛰었는지 볼 수 있게 통과했던 실행을 찍는다.
       - name: 건너뛰는 근거
         if: steps.seen.outputs.cache-hit == 'true'
         run: |
           echo "::notice::수트를 건너뛴다 — 같은 입력(${{ steps.fp.outputs.key }})이 이미 통과했다: $(cat .eval-pass/run.txt)"
 
-  # 키가 있어야 도는 것. 없으면 Skipped 로 뜬다 — 초록이 아니다.
+  # 키가 있어야 도는 것. 없으면 Skipped 로 뜨고, 판정은 아래 verdict 가 낸다.
   #
   # **무엇을 얼마나 돌리나 — 저자가 정했다(2026-09-23).** PR 과 push 는
   # 트리거 케이스(`route-*`)만, 판정 케이스까지 도는 전수는 workflow_dispatch
@@ -232,7 +260,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: gate
     if: needs.gate.outputs.has_key == 'true' && needs.gate.outputs.fresh == 'true'
-    timeout-minutes: 120
+    # 전수의 CI 실측은 아직 없다. README 의 123분은 동시성이 1 이던 때 열세 케이스를
+    # 잰 것이고, 지금은 -j 4 · 열여덟 케이스다. 설치와 자격 확인까지 한 잡에 들어가므로
+    # 넉넉히 둔다 — 잘리면 결과도 아티팩트도 안 남는다(Codex 리뷰).
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -294,3 +325,35 @@ jobs:
           name: eval-result
           path: vibe-audit/evals/results/
           if-no-files-found: ignore
+
+  # **판정.** 건너뛴 잡은 GitHub 에서 성공으로 센다 — 그래서 「Skipped 는 초록이
+  # 아니다」는 워크플로 모양만으로는 서지 않는다. 이 잡이 늘 돌아 다음 둘 중
+  # 하나일 때만 통과한다: 감사자 수트가 돌아 통과했다, 또는 같은 입력이 이미
+  # 통과했다(gate 의 지문 캐시). 자격이 없어 안 돈 것은 **실패**다 — 안 돌린 것을
+  # 통과로 세지 않는다.
+  verdict:
+    runs-on: ubuntu-latest
+    needs: [gate, eval]
+    if: always()
+    steps:
+      - name: 수트가 통과했는가
+        env:
+          GATE: ${{ needs.gate.result }}
+          HAS_KEY: ${{ needs.gate.outputs.has_key }}
+          FRESH: ${{ needs.gate.outputs.fresh }}
+          EVAL: ${{ needs.eval.result }}
+        run: |
+          if [ "$GATE" != "success" ]; then
+            echo "::error::gate 가 $GATE — 키 없이 도는 게이트부터 떨어졌다"; exit 1
+          fi
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::error::자격(CLAUDE_CODE_OAUTH_TOKEN · ANTHROPIC_API_KEY)이 없어 감사자 수트가 안 돌았다 — 통과가 아니다"
+            exit 1
+          fi
+          if [ "$FRESH" = "false" ]; then
+            echo "같은 입력이 이미 통과했다 — 수트를 건너뛰었다(근거는 gate 의 notice)"; exit 0
+          fi
+          if [ "$EVAL" != "success" ]; then
+            echo "::error::감사자 수트가 $EVAL"; exit 1
+          fi
+          echo "감사자 수트 통과"

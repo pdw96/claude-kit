@@ -33,7 +33,33 @@ fi
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 SHA="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+TARGET="$(cd "$TARGET" && pwd)"
 DEST="$TARGET/.claude/agents"
+
+# **커밋 안 된 원본은 심지 않는다.** 심는 것은 작업트리의 바이트인데 출처에는
+# HEAD 를 적으므로, 고치던 중인 감사자를 심으면 대장이 「그 커밋에서 왔다」고
+# 거짓을 적는다. 사본 경로가 안 닿는 CI 는 그 출처를 그대로 믿는다(Codex 리뷰).
+dirty="$(git -C "$SRC" status --porcelain -- vibe-audit/agents vibe-audit/commands 2>/dev/null || true)"
+if [ -n "$dirty" ]; then
+  echo "원본에 커밋 안 된 변경이 있다 — 출처를 적을 커밋이 없으므로 심지 않는다:" >&2
+  echo "$dirty" >&2
+  echo "커밋한 뒤 다시 돌려라." >&2
+  exit 1
+fi
+
+# **이름이 같은 다른 레포를 덮지 않는다.** 대장은 레포 이름(경로의 끝)으로 줄을
+# 가르므로, 다른 조직의 `service` 둘을 심으면 둘째가 첫째 줄을 지워 첫째가
+# verify-copies.py 에서 조용히 사라진다(Codex 리뷰). 같은 이름 · 다른 자리면 멈춘다.
+python3 - "$SRC/copies.json" "$(basename "$TARGET")" "$DEST" <<'CLASH' || exit 1
+import json, os, pathlib, sys
+reg, repo, dest = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+if not reg.exists():
+    sys.exit(0)
+for c in json.loads(reg.read_text(encoding="utf-8")).get("copies", []):
+    if c.get("repo") == repo and os.path.normpath(c.get("agents_path", "")) != os.path.normpath(dest):
+        sys.exit(f"대장에 같은 이름 {repo!r} 의 다른 사본이 있다: {c.get('agents_path')}\n"
+                 f"덮으면 그 사본이 대장에서 사라진다. 대장을 손으로 정리한 뒤 다시 돌려라.")
+CLASH
 
 mkdir -p "$DEST"
 
