@@ -11,6 +11,6 @@ agent  audit-data          763    8634
 agent  audit-internal      804    9459
 agent  audit-ops           686    9156
 agent  audit-quality       735    9452
-agent  audit-secrets       752    8727
+agent  audit-secrets       885    8860
 skill  audit-brief         304    2790
-       — 상시 합계            4810
+       — 상시 합계            4943
