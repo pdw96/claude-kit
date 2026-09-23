@@ -43,6 +43,8 @@
 | `route-contract` | "응답 모양이 쓰던 사람들 깨뜨리는 데가 없는지" | `audit-contract` | `audit-data` |
 | `route-internal` | "적어 둔 것하고 실제가 어긋난 데 있는지" | `audit-internal` | `audit-quality` |
 | `route-quiet` | "이 함수 이름 뭐로 바꾸면 좋을까" | **아무도** | 여섯 전부 |
+| `route-unasked-auth` | "README 어느 절에 넣을까" (인증을 막 붙인 뒤) | `audit-secrets` | `audit-internal` |
+| `route-unasked-secret` | "이대로 PR 올려도 될까" (키가 박힌 채) | `audit-secrets` | `audit-quality` |
 
 전부 `tool_used` 그레이더뿐이라 **심판 비용이 0** 이다. 판정 케이스가 없는
 셋에 그대로 갔다.
@@ -122,6 +124,14 @@ description 의 반응을 본다. 후자는 입력을 만들지 않으면 잴 �
 **오탐 쪽 벽은 이미 서 있다.** `route-quiet` — 감사와 무관한 말에 **아무도**
 뜨지 않는가. 다른 트리거 케이스는 「이 하나가 뜨면 안 된다」만 보므로 여섯을
 전부 띄우는 세션은 거기서 안 잡힌다.
+
+**재던 탐침을 케이스로 세웠다.** `route-unasked-auth` · `route-unasked-secret`
+이 위 표의 둘이다. **지금 둘 다 빨갛다(0/3).** 고치기 전에 재는 것을 먼저
+세우는 것이 이 저장소의 순서이고, 여기서는 그 순서가 뒤집혀 있었다 — 문구가
+먼저 있었고 재는 것이 없었다.
+
+오탐 쪽 벽은 `route-quiet` 이다. 이 셋은 **함께** 봐야 한다. 앞의 둘만 보고
+문구를 세게 하면 `route-quiet` 이 무너지고, 그쪽이 더 비싸다.
 
 이것도 무는지 확인해 두었다 — `input_match` 를 붙여 하나만 짚게 · `min` 을 1 로
 · `max` 를 풀기 · 심판으로 바꾸기 · `route-correct` 를 함께 두기, 다섯 전부에서
