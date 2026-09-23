@@ -65,6 +65,37 @@ def against_commit(sha, copy):
     return p.returncode == 0, (lines[0] if lines else "(말이 없다)")
 
 
+def commands_missing(sha, agents_dir):
+    """sha 의 원본 커맨드가 사본 쪽 commands/ 에 있고 머리말이 성한지 본다.
+
+    `sync-agents.sh` 는 감사자와 함께 커맨드(`/audit-brief`)도 심는다. 감사자는
+    git 을 못 돌려 diff 를 스스로 못 구하므로, 커맨드가 빠진 사본은 PR · 커밋
+    범위 항목을 전부 확인불가로 남긴다. 그런데 이 검사가 감사자 폴더만 보고 있어,
+    커맨드를 지운 사본도 PASS 였다(Codex 리뷰). 내용은 견주지 않는다 — 커맨드는
+    공통 절이 없고, 그 레포에 맞게 갈리는 것은 허용이다. 있는지와 머리말만 본다."""
+    names = git("ls-tree", "--name-only", sha, "vibe-audit/commands/").stdout.split()
+    cmd_dir = agents_dir.parent / "commands"
+    out = []
+    for n in names:
+        name = pathlib.PurePosixPath(n)
+        if name.suffix != ".md":
+            continue
+        f = cmd_dir / name.name
+        if not f.is_file():
+            out.append(f"커맨드 {name.name} 가 {cmd_dir} 에 없다")
+            continue
+        parts = f.read_text(encoding="utf-8").split("---", 2)
+        head = parts[1] if len(parts) == 3 and not parts[0].strip() else None
+        fields = {}
+        for line in (head or "").splitlines():
+            k, sep, v = line.partition(":")
+            if sep:
+                fields[k.strip()] = v.strip()
+        if head is None or fields.get("name") != name.stem or not fields.get("description"):
+            out.append(f"커맨드 {name.name} 의 머리말이 성하지 않다 (name: {name.stem} · description 이 있어야)")
+    return out
+
+
 def main():
     bad, notes = [], []
     try:
@@ -123,6 +154,8 @@ def main():
         # 견주면 원본이 앞서 나간 것만으로 손대지 않은 사본이 실패한다 — 갈림은
         # 실패가 아니라고 적어 놓고(루트 README) 게이트는 그것을 실패로 셌다(Codex
         # 리뷰). 규칙도 판마다 자랐으므로 그 판의 규칙으로 잰다. 앞선 만큼은 drift 로 찍는다.
+        bad += [f"{who}: {m}" for m in commands_missing(sha, path)]
+
         ok, head = against_commit(sha, path)
         if ok is None:
             notes.append(f"{who}: {head} (원본은 그 뒤 {drift} 커밋 움직임)")

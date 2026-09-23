@@ -41,7 +41,14 @@ jobs:
       # cache-hit 이 비어 있어 true 가 된다 — 모르면 돈다.
       fresh: ${{ steps.seen.outputs.cache-hit != 'true' }}
     steps:
+      # 역사 전체를 받는다. verify-copies.py 는 대장의 synced_commit 을 이 저장소에서
+      # 찾고 그 커밋의 원본과 검사기로 사본을 견준다. 기본(깊이 1)이면 머리 커밋 하나만
+      # 받아, 대장에 한 줄이라도 생기는 순간 「심었다는 커밋이 없다」로 gate 가 떨어진다
+      # — sync-agents.sh 는 대장을 적는 커밋보다 앞선 HEAD 를 적으므로 늘 그렇다
+      # (Codex 리뷰 · 깊이 1 클론에서 재현).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -140,6 +147,72 @@ jobs:
             echo "::error::verify-copies.py 가 없는 커밋을 적은 대장을 통과시켰다"; exit 1
           fi
           git checkout -- copies.json
+
+          # verify-copies.py — 그 커밋에서 그대로 심은 사본은 통과하고, 커맨드를 지운
+          # 사본은 실패해야 한다. 적는 커밋은 커맨드를 고친 커밋 가운데 머리 바로 앞의
+          # 것 — sync-agents.sh 가 적는 것처럼 머리보다 앞선 커밋이라, 체크아웃이 얕으면
+          # 여기서 떨어진다(fetch-depth). HEAD~1 이 아닌 까닭: PR 에서는 머지 커밋의
+          # 첫 부모가 main 이고, 그 main 에는 아직 커맨드가 없을 수 있다.
+          c=$(mktemp -d); mkdir -p "$c/.claude/agents" "$c/.claude/commands"
+          old=$(git log -n1 --skip=1 --format=%H HEAD -- vibe-audit/commands/audit-brief.md)
+          test -n "$old" || { echo "::error::커맨드를 고친 앞선 커밋을 못 찾았다 — 체크아웃이 얕은가"; exit 1; }
+          for f in $(git ls-tree --name-only "$old" vibe-audit/agents/ vibe-audit/commands/); do
+            case "$f" in
+              vibe-audit/agents/audit-*.md) git show "$old:$f" > "$c/.claude/agents/${f##*/}" ;;
+              vibe-audit/commands/*.md)     git show "$old:$f" > "$c/.claude/commands/${f##*/}" ;;
+            esac
+          done
+          python3 - "$c/.claude/agents" "$old" <<'PY'
+          import json, pathlib, sys
+          p = pathlib.Path("copies.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          d["copies"].append({"repo": "흔드는-사본", "agents_path": sys.argv[1],
+                              "synced_commit": sys.argv[2], "synced_at": "2026-01-01"})
+          p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          if ! python3 scripts/verify-copies.py; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 HEAD~1 에서 그대로 심은 사본을 떨어뜨렸다 — 체크아웃이 얕은가"; exit 1
+          fi
+          rm "$c/.claude/commands/audit-brief.md"
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 /audit-brief 가 빠진 사본을 통과시켰다"; exit 1
+          fi
+          git checkout -- copies.json
+
+          # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
+          # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
+          # 가짜 하네스가 --json 자리에 결과를 쓴다 — 모델은 안 부른다.
+          f=$(mktemp -d)
+          printf '%s\n' '#!/usr/bin/env bash' \
+            'while [ $# -gt 0 ]; do [ "$1" = --json ] && cp "$FAKE_RESULT" "$2"; shift; done' > "$f/claude"
+          chmod +x "$f/claude"
+          for n in 3 1; do
+            python3 - "$f/r$n.json" "$n" <<'PY'
+          import json, sys
+          out, fails = sys.argv[1], int(sys.argv[2])
+          gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
+          runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True, "tracePath": None,
+                   "graders": [{"name": g, "weight": w, "scored": True,
+                                "passed": not (i < fails and g == "handoff-named")} for g, _, w in gs]}
+                  for i in range(3)]
+          json.dump({"cases": [{"name": "gate-out-of-scope", "arms": {"with": runs},
+                                "graders": [{"name": g, "type": t, "weight": w} for g, t, w in gs],
+                                "aggregates": {"score": sum(r["score"] for r in runs) / 3}}]},
+                    open(out, "w"))
+          PY
+            set +e
+            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope >/dev/null 2>&1
+            st=$?
+            set -e
+            if [ "$n" = 3 ] && [ "$st" != 5 ]; then
+              echo "::error::run-evals.sh 가 매번 떨어진 결정론 그레이더를 통과시켰다 (exit $st)"; exit 1
+            fi
+            if [ "$n" = 1 ] && [ "$st" != 0 ]; then
+              echo "::error::run-evals.sh 가 한 회차만 떨어진 흔들림을 실패로 셌다 (exit $st)"; exit 1
+            fi
+          done
 
           # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
