@@ -186,7 +186,12 @@ def check(suite, agents_dir):
             bad.append(f"{name}: case.yaml 의 name 이 디렉터리 이름과 다르다 ({meta.get('name')!r})")
 
         script = meta.get("context.scaffold_script")
-        if script:
+        # **스캐폴드 선언이 없으면 실패다.** 빠지면 하네스는 빈 작업공간에서 돌고,
+        # route-quiet 처럼 「아무도 안 뜬다」만 보는 케이스는 볼 것이 없어 초록이
+        # 된다 — 재려던 입력 없이 통과한다(Codex 리뷰).
+        if not script:
+            bad.append(f"{name}: case.yaml 에 context.scaffold_script 가 없다 — 빈 작업공간에서 돈다")
+        else:
             f = case / script
             if not f.exists():
                 bad.append(f"{name}: scaffold_script 가 가리키는 {script} 가 없다")
