@@ -35,6 +35,9 @@ jobs:
       - name: 플러그인 매니페스트
         run: claude plugin validate ./vibe-audit
 
+      - name: 선언과 파일이 맞는가
+        run: python3 scripts/verify-manifest.py
+
       - name: 수트가 물 수 있는 모양인가
         run: python3 scripts/verify-evals.py
 
