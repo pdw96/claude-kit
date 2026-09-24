@@ -103,13 +103,17 @@ jobs:
               echo "::error::verify-brief.py 가 변조($m)한 브리핑을 통과시켰다"; exit 1
             fi
           done
-          # 두 수를 다 적고 자른 것을 「담지 않은 것」에 적은 브리핑은 통과해야 한다
-          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
-          sed -i 's/^- 자름:.*/- 자름: 있음 — diff 전체 5,000줄 중 2,000줄/' "$b/.claude/audit-brief.md"
-          echo "- 뒤쪽 3,000줄을 잘랐다" >> "$b/.claude/audit-brief.md"
-          if ! python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
-            echo "::error::verify-brief.py 가 줄 수를 다 적은 자른 브리핑을 버렸다"; exit 1
-          fi
+          # 두 수를 다 적고 자른 것을 「담지 않은 것」에 적은 브리핑은 통과해야 한다. 담았다는
+          # M 은 diff 절의 실제 줄 수(픽스처는 30)와 맞아야 하고, 부풀리면 실패해야 한다
+          for m in "30:pass" "2,000:fail"; do
+            b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+            sed -i "s/^- 자름:.*/- 자름: 있음 — diff 전체 5,000줄 중 ${m%%:*}줄/" "$b/.claude/audit-brief.md"
+            echo "- 뒤쪽을 잘랐다" >> "$b/.claude/audit-brief.md"
+            if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then r=pass; else r=fail; fi
+            if [ "$r" != "${m##*:}" ]; then
+              echo "::error::verify-brief.py 가 「5,000줄 중 ${m%%:*}줄」(diff 30줄)에 $r 을 냈다 (${m##*:} 이어야)"; exit 1
+            fi
+          done
           # 「담지 않은 것」을 diff 앞으로 옮기고 끝의 diff 절을 비운 브리핑은 실패해야 한다
           b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
           python3 - "$b/.claude/audit-brief.md" <<'PY'
@@ -485,6 +489,18 @@ jobs:
           printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
           if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
             echo "::error::verify-copy.py 가 본문의 원형 줄에 속아 쓰기 도구를 통과시켰다"; exit 1
+          fi
+
+          # verify-copy.py — 출력 형식의 `## 안 본 것` 머리만 지우고 자리표시를 남긴 사본은 실패해야 한다
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          python3 - "$t/audit-secrets.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text()
+          j = t.find("## 안 본 것\n", t.find("## 출력 형식"))
+          p.write_text(t[:j] + t[j + len("## 안 본 것\n"):])
+          PY
+          if python3 scripts/verify-copy.py vibe-audit/agents "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 출력 형식의 「안 본 것」 머리가 빠진 사본을 통과시켰다"; exit 1
           fi
 
           # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다

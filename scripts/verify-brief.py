@@ -26,6 +26,19 @@ NEED = [
 ]
 
 
+def diff_lines(text):
+    """diff 절 본문의 줄 수 — 절 머리 · 코드 울타리 · 앞뒤 빈 줄을 뺀다. 절이 없으면 None."""
+    m = re.search(r"^## diff[ \t]*\n([\s\S]*?)(?=^## |\Z)", text, re.M)
+    if not m:
+        return None
+    body = [ln for ln in m.group(1).split("\n") if not ln.startswith("```")]
+    while body and not body[0].strip():
+        body.pop(0)
+    while body and not body[-1].strip():
+        body.pop()
+    return len(body)
+
+
 def check(text):
     bad = []
 
@@ -87,6 +100,14 @@ def check(text):
             bad.append("`자름: 있음` 인데 `전체 N줄 중 M줄` 이 없다 — 몇 줄을 받았는지 모른다")
         elif not 0 < int(nm.group(2).replace(",", "")) < int(nm.group(1).replace(",", "")):
             bad.append(f"`자름: 있음` 의 줄 수가 맞지 않다 — {nm.group(1)}줄 중 {nm.group(2)}줄")
+        else:
+            # 담았다는 M 이 diff 절의 실제 줄 수와 맞는지도 본다. 65줄짜리 브리핑이 「5,000줄 중
+            # 2,000줄」이라 적어도 통과했다 — 감사자가 받은 근거를 부풀린다(Codex 리뷰). 절 머리 ·
+            # 코드 울타리 · 앞뒤 빈 줄은 빼고 세고, 작업트리 몫 같은 소제목 줄만큼은 봐준다.
+            got = diff_lines(text)
+            m = int(nm.group(2).replace(",", ""))
+            if got is not None and abs(got - m) > max(10, m // 50):
+                bad.append(f"`자름: 있음` 이 {m}줄을 담았다는데 diff 절은 {got}줄이다 — 받은 근거를 잘못 적었다")
 
     i = text.find("## diff")
     j = text.find("## 이 브리핑이 담지 않은 것")

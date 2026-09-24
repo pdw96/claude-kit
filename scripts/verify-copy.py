@@ -16,6 +16,7 @@
 표준 라이브러리만 쓴다.
 """
 import pathlib
+import re
 import sys
 
 # 모든 사본에서 원본과 같아야 하는 절
@@ -121,6 +122,13 @@ def check(src, dst):
         # 「안 본 것」에 섞여 들어가 사라진다.
         if dt.count(HANDOFF_NONE) < 2:
             bad.append(f"{name}: 「{HANDOFF_NONE}」 표식이 {dt.count(HANDOFF_NONE)}번 — 절과 출력 형식 양쪽에 있어야 한다")
+        # 개수만 세면 출력 형식의 `## 안 본 것` 머리를 지워도 아래 자리표시가 남아 통과했다 —
+        # 그 줄은 앞 절에 붙고 감사자는 「안 본 것」 절을 잃는다(Codex 리뷰). 출력 형식 안의
+        # `## 안 본 것` 절(다음 머리나 코드 울타리까지)에 표식이 있는지 본다.
+        fmt = dt.find("## 출력 형식")
+        seen = re.search(r"^## 안 본 것[ \t]*\n((?:(?!## |```).*\n?)*)", dt[fmt:] if fmt >= 0 else "", re.M)
+        if not seen or HANDOFF_NONE not in seen.group(1):
+            bad.append(f"{name}: 출력 형식의 「## 안 본 것」 절에 「{HANDOFF_NONE}」 자리가 없다 — 담당 없는 발견을 적을 곳이 없다")
         # 회차를 잇는 절은 SHARED 가 글자로 견주지만, 그 결과를 적을 자리는
         # 출력 형식 안에 있고 감사자마다 앞뒤가 다르다. 표식만 본다 — 이것이
         # 빠지면 지난 회차의 처분을 적을 곳이 없어 규칙이 종이로만 남는다.
