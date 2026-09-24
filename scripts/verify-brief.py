@@ -45,8 +45,19 @@ def check(text):
         bad.append("커밋 안 된 변경이 있는지 안 적혀 있다 — diff 가 작업트리를 담았는지 모른다")
     # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
     # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
-    if not re.search(r"^- 추적 안 된 파일:", text, re.M):
+    ut = re.search(r"^- 추적 안 된 파일:(.*)$", text, re.M)
+    if not ut:
         bad.append("추적 안 된 파일이 있는지 안 적혀 있다 — 새로 만든 파일은 어느 diff 에도 안 나온다")
+    else:
+        # 줄만 있고 적힌 파일이 본문에 없으면 머리가 거짓말을 한다. 「app/new.py — 아래
+        # diff 포함」이라 적고 빼도, 다른 파일의 +/- 가 diff 검사를 채웠다(Codex 리뷰).
+        # 적힌 경로(백틱 안)는 diff 절이나 「담지 않은 것」 절에 다시 나와야 한다.
+        rest = text[:ut.start()] + text[ut.end():]
+        k = rest.find("## diff")
+        where = rest[k:] if k >= 0 else ""
+        for path in re.findall(r"`([^`]+)`", ut.group(1)):
+            if path not in where:
+                bad.append(f"추적 안 된 파일 `{path}` 가 diff 에도 「담지 않은 것」에도 없다 — 머리만 적었다")
     # 자른 여부는 **명시로** 받는다. 줄 수로 짐작하면 못 잡는다 — 5,000줄을 2,000줄로
     # 자른 브리핑은 이미 2,000줄이라 「길다」가 안 걸린다(Codex 리뷰).
     cut = re.search(r"^- 자름:\s*(없음|있음)(.*)$", text, re.M)

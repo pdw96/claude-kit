@@ -17,6 +17,6 @@
 - 심각도: 보통
 
 ## 안 본 것
-- 스키마 설계와 마이그레이션 — `audit-data` 담당.
-- 검사 장치와 CI — `audit-quality` 담당.
-- CLAUDE.md 대비 스택 준수 — `audit-internal` 담당.
+- `migrations/0007_drop_legacy_email.py` — 스키마 설계와 마이그레이션은 `audit-data` 담당.
+- `.github/workflows/ci.yml` 와 `tests/test_invoices.py` — 검사 장치와 CI 는 `audit-quality` 담당.
+- `pyproject.toml` 의 `sqlalchemy==1.4.52` — 문서 대비 준수는 `audit-internal` 담당.

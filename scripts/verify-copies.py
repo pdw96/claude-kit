@@ -156,6 +156,20 @@ def main():
         # 리뷰). 규칙도 판마다 자랐으므로 그 판의 규칙으로 잰다. 앞선 만큼은 drift 로 찍는다.
         bad += [f"{who}: {m}" for m in commands_missing(sha, path)]
 
+        # **예전 원본에 있던 감사자가 사본에 남아 있으면 실패다.** 이름을 바꾸거나 뺀
+        # 감사자는 `--force` 로 다시 심어도 지워지지 않고, 위 대조는 원본 이름만 돌아
+        # 그 파일을 못 본다 — 옛 description 으로 여전히 불리는데 PASS 였다(Codex 리뷰).
+        # 레포가 직접 만든 감사자(원본 역사에 한 번도 없던 이름)는 허용한다 — 사본은
+        # 그 레포에 맞게 갈리라고 둔 것이다.
+        now = {pathlib.PurePosixPath(n).name for n in
+               git("ls-tree", "--name-only", sha, "vibe-audit/agents/").stdout.split()}
+        for f in sorted(path.glob("audit-*.md")):
+            if f.name in now:
+                continue
+            ever = git("log", "--format=%h", "-1", sha, "--", f"vibe-audit/agents/{f.name}").stdout.strip()
+            if ever:
+                bad.append(f"{who}: {f.name} 는 원본에서 빠진 감사자다(마지막으로 건드린 커밋 {ever}) — 사본에 남아 옛 설명으로 불린다")
+
         ok, head = against_commit(sha, path)
         if ok is None:
             notes.append(f"{who}: {head} (원본은 그 뒤 {drift} 커밋 움직임)")
