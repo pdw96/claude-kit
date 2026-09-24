@@ -43,6 +43,17 @@ def check(text):
         bad.append("머리에 대상 커밋 SHA 가 없다")
     if not re.search(r"^- 커밋 안 된 변경:", text, re.M):
         bad.append("커밋 안 된 변경이 있는지 안 적혀 있다 — diff 가 작업트리를 담았는지 모른다")
+    # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
+    # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
+    if not re.search(r"^- 추적 안 된 파일:", text, re.M):
+        bad.append("추적 안 된 파일이 있는지 안 적혀 있다 — 새로 만든 파일은 어느 diff 에도 안 나온다")
+    # 자른 여부는 **명시로** 받는다. 줄 수로 짐작하면 못 잡는다 — 5,000줄을 2,000줄로
+    # 자른 브리핑은 이미 2,000줄이라 「길다」가 안 걸린다(Codex 리뷰).
+    cut = re.search(r"^- 자름:\s*(없음|있음)(.*)$", text, re.M)
+    if not cut:
+        bad.append("머리에 `자름: 없음` / `자름: 있음 — N줄 중 M줄` 이 없다 — 자른 브리핑을 전부로 읽는다")
+    elif cut.group(1) == "있음" and not re.search(r"\d", cut.group(2)):
+        bad.append("`자름: 있음` 인데 몇 줄 중 몇 줄을 담았는지가 없다")
 
     i = text.find("## diff")
     j = text.find("## 이 브리핑이 담지 않은 것")
@@ -55,6 +66,8 @@ def check(text):
         omit = text[j:]
         if lines > 2000 and not re.search(r"자르|잘라|생략|truncat", omit):
             bad.append(f"diff 가 {lines}줄인데 「담지 않은 것」에 자른 기록이 없다")
+        if cut and cut.group(1) == "있음" and not re.search(r"자르|잘라|잘랐|생략|truncat", omit):
+            bad.append("`자름: 있음` 인데 「담지 않은 것」에 무엇을 잘랐는지가 없다")
 
     return bad
 

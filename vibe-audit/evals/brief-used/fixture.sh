@@ -80,6 +80,8 @@ mkdir -p .claude
   echo "- 기준: \`$BASE\` = \`$BASE\` (2026-09-22 주문 조회와 관리자 내보내기)"
   echo "- 대상: \`$(git rev-parse --short HEAD)\` (브랜치 \`$(git branch --show-current)\`)"
   echo "- 커밋 안 된 변경: 없음"
+  echo "- 추적 안 된 파일: 없음"
+  echo "- 자름: 없음"
   echo
   echo "## 변경 파일"
   echo
