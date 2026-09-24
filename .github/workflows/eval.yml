@@ -331,16 +331,18 @@ jobs:
           # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
           python3 - "$f/ra.json" <<'PY'
           import json, pathlib, sys
+          # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
+          tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok"}\n')
           rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
                   if p.stem not in ("auditor-fired", "trap-not-an-nc")]
-          runs = [{"score": 1.0, "passed": True, "tracePath": None,
+          runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
                    "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
                                 "withOnly": True, "passed": i != 1},
                                {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
                               + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
                   for i in range(3)]
           # 두 팔(러너의 기본)이므로 without 팔도 회차 수대로 둔다 — 없으면 3 으로 먼저 끝난다
-          base = [{"score": 0.0, "passed": False, "tracePath": None,
+          base = [{"score": 0.0, "passed": False, "tracePath": str(tr),
                    "graders": [{"name": g, "weight": 1, "scored": True, "passed": False}
                                for g in ["trap-not-an-nc"] + rest]} for i in range(3)]
           json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": base},
@@ -372,7 +374,8 @@ jobs:
           f = pathlib.Path(sys.argv[1])
           names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
           disk = lambda n: [p.stem for p in sorted(pathlib.Path(f"vibe-audit/evals/{n}/graders").glob("*.md"))]
-          ok = lambda n: {"score": 1.0, "passed": True, "tracePath": None,
+          (f / "ok.jsonl").write_text('{"type":"result","result":"ok"}\n')
+          ok = lambda n: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"),
                           "graders": [{"name": g, "passed": True, "weight": 3, "scored": True} for g in disk(n)]}
           def case(n, runs):
               return {"name": n, "graders": [{"name": g, "type": "tool_used", "weight": 3} for g in disk(n)],
@@ -382,7 +385,7 @@ jobs:
                            "graders": [{"name": g, "passed": g != "route-correct", "weight": 3, "scored": True}
                                        for g in disk(n)]}
           json.dump({"cases": [case(n, [ok(n), ok(n), lim(n)]) for n in names]}, open(f / "lim.json", "w"))
-          empty = lambda: {"score": 1.0, "passed": True, "tracePath": None, "graders": []}
+          empty = lambda: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"), "graders": []}
           json.dump({"cases": [case(n, [ok(n), ok(n), empty()]) for n in names]}, open(f / "empty.json", "w"))
           # 한도에 걸려 아무것도 안 부른 회차가 음성 그레이더만 있어 **통과**로 채점된 모양
           quiet = lambda n: dict(ok(n), tracePath=str(f / "lim/trace.jsonl"))
@@ -411,7 +414,8 @@ jobs:
           json_one=$(mktemp); python3 - "$json_one" <<'PY'
           import json, pathlib, sys
           g = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/route-quiet/graders").glob("*.md"))]
-          run = {"score": 1.0, "passed": True, "tracePath": None,
+          tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok"}\n')
+          run = {"score": 1.0, "passed": True, "tracePath": str(tr),
                  "graders": [{"name": n, "passed": True, "weight": 3, "scored": True} for n in g]}
           json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
                                 "arms": {"with": [run]}, "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
@@ -422,6 +426,21 @@ jobs:
           set -e
           if [ "$st" != 3 ]; then
             echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
+          fi
+          # 회차가 다 채점됐어도 트레이스가 없으면 무효다 — 모델 · 한도를 볼 수 없다(→ 3)
+          python3 -c "
+          import json
+          d = json.load(open('$f/allok.json'))
+          for c in d['cases']:
+              for r in c['arms']['with']:
+                  r['tracePath'] = None
+          json.dump(d, open('$f/notrace.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/notrace.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 트레이스 없는 회차를 받았다 (exit $st)"; exit 1
           fi
           # --ablation 을 안 주면 두 팔이다. without 팔이 없거나(한 팔 실험으로 바뀐 것) 채점되지
           # 않았으면 3, 두 팔이 다 채점됐으면 0

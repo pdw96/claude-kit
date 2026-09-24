@@ -182,6 +182,11 @@ for n in chosen:
             miss = sorted(want_names - {g.get("name") for g in run.get("graders", [])})
             if miss:
                 short.append(f"{n} {arm} run{i} (채점 안 된 그레이더: {', '.join(miss)})")
+            # 트레이스가 없으면 실제로 돈 모델도, 한도에 걸렸는지도 확인할 수 없다 — 둘 다
+            # 트레이스에만 있다. 전에는 「(트레이스 없음)」만 찍고 통과시켰다(Codex 리뷰).
+            tp = run.get("tracePath")
+            if not tp or not pathlib.Path(tp).is_file():
+                short.append(f"{n} {arm} run{i} (트레이스 없음 — 모델 · 한도를 확인할 수 없다)")
 if short:
     print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
     for s in short:
