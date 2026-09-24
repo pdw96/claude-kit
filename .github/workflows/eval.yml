@@ -110,6 +110,26 @@ jobs:
           if ! python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
             echo "::error::verify-brief.py 가 줄 수를 다 적은 자른 브리핑을 버렸다"; exit 1
           fi
+          # 「담지 않은 것」을 diff 앞으로 옮기고 끝의 diff 절을 비운 브리핑은 실패해야 한다
+          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          python3 - "$b/.claude/audit-brief.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text(); h = "## 이 브리핑이 담지 않은 것"
+          i, j = t.find("## diff"), t.find(h)
+          p.write_text(t[:i] + t[j:].rstrip("\n") + "\n\n## diff\n\n")
+          PY
+          if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
+            echo "::error::verify-brief.py 가 순서가 뒤집히고 diff 가 빈 브리핑을 통과시켰다"; exit 1
+          fi
+
+          # sync-agents.sh — 대장에 있는 사본에 새 커맨드만 빠졌으면 심어야 한다. 감사자가 다
+          # 있어 첫 고리가 전부 건너뛰면 HDR 이 안 정해져 `set -u` 로 죽었다
+          c=$(mktemp -d); git clone -q "$GITHUB_WORKSPACE" "$c/src"; mkdir -p "$c/svc"
+          "$c/src/scripts/sync-agents.sh" "$c/svc" >/dev/null
+          rm "$c/svc/.claude/commands/audit-brief.md"
+          if ! "$c/src/scripts/sync-agents.sh" "$c/svc" >"$c/out" 2>&1 || [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
+            echo "::error::sync-agents.sh 가 빠진 커맨드를 못 심었다"; cat "$c/out"; exit 1
+          fi
 
           # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
@@ -268,6 +288,18 @@ jobs:
               echo "::error::run-evals.sh 가 한 회차만 떨어진 흔들림을 실패로 셌다 (exit $st)"; exit 1
             fi
           done
+          # 케이스 머리의 graders 가 빈 결과도 매번 떨어진 그레이더를 잡아야 한다 — 종류는 디스크에서
+          python3 -c "
+          import json, sys
+          d = json.load(open('$f/r3.json')); d['cases'][0]['graders'] = []
+          json.dump(d, open('$f/r3e.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 5 ]; then
+            echo "::error::run-evals.sh 가 케이스 머리 없는 결과에서 매번 떨어진 그레이더를 놓쳤다 (exit $st)"; exit 1
+          fi
 
           # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
           # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이

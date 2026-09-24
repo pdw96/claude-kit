@@ -32,10 +32,17 @@ def check(text):
     if not text.lstrip().startswith("# 감사 브리핑"):
         bad.append("첫 줄이 `# 감사 브리핑` 이 아니다")
 
+    at = []
     for head, why in NEED:
-        n = len(re.findall(r"^" + re.escape(head) + r"\s*$", text, re.M))
-        if n != 1:
-            bad.append(f"「{head[3:]}」 절이 {n}번 — 정확히 1번이어야 한다. {why}")
+        found = [m.start() for m in re.finditer(r"^" + re.escape(head) + r"\s*$", text, re.M)]
+        if len(found) != 1:
+            bad.append(f"「{head[3:]}」 절이 {len(found)}번 — 정확히 1번이어야 한다. {why}")
+        at.append(found[0] if len(found) == 1 else None)
+    # 절은 적힌 순서대로 와야 한다. 「담지 않은 것」이 diff 앞에 오면 아래의 빈 diff
+    # 검사가 통째로 건너뛰어져, 끝에 빈 diff 절을 둔 브리핑이 통과했다(Codex 리뷰).
+    got = [a for a in at if a is not None]
+    if len(got) == len(NEED) and got != sorted(got):
+        bad.append("절의 순서가 변경 파일 → 커밋 → diff → 담지 않은 것 이 아니다")
 
     if not re.search(r"^- 기준: .*`[0-9a-f]{7,40}`", text, re.M):
         bad.append("머리에 기준 커밋 SHA 가 없다 — 무엇과 견준 diff 인지 모르면 근거가 아니다")

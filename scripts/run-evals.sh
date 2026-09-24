@@ -146,10 +146,12 @@ if ablation != "none":
 # 두 팔이면 without 팔도 본다 — 대조 점수와 Δ 가 채점 안 된 팔에서 나오면 안 된다(Codex
 # 리뷰). without 팔에서는 하네스가 with-only 그레이더(와 arm 없는 `tool_used: Skill`)를
 # 빼고 채점하므로 그것만 뺀다. 전부 with-only 인 케이스는 하네스가 다 채점한다.
-def with_only(g):
+def front(g):
     head = g.read_text(encoding="utf-8").split("---", 2)[1]
-    f = dict((k.strip(), v.strip().strip("'\"")) for k, s, v in
-             (ln.partition(":") for ln in head.splitlines()) if s)
+    return dict((k.strip(), v.strip().strip("'\"")) for k, s, v in
+                (ln.partition(":") for ln in head.splitlines()) if s)
+def with_only(g):
+    f = front(g)
     return f.get("arm") == "with-only" or (not f.get("arm") and f.get("type") == "tool_used"
                                            and f.get("tool") == "Skill")
 byname = {c.get("name"): c for c in d.get("cases", [])}
@@ -236,7 +238,11 @@ print()
 # 틀린 일이 이 수트에 실제로 있었다(README 「심판이 못 믿을 자리였다」).
 steady, steady_cases = [], set()
 for case in d.get("cases", []):
+    # 종류는 **디스크의 그레이더에서** 읽는다. 결과의 케이스 머리(`graders`)에서 읽으면,
+    # 그것이 빈 결과는 이 판정을 통째로 건너뛴다 — 매번 떨어진 handoff-named 가 0.833 으로
+    # exit 0 이었다(Codex 리뷰). 디스크에 없는 이름만 결과의 머리로 채운다.
     kinds = {g.get("name"): g.get("type") for g in case.get("graders", [])}
+    kinds.update({g.stem: front(g).get("type") for g in (suite / str(case.get("name")) / "graders").glob("*.md")})
     runs = (case.get("arms") or {}).get("with") or []
     if not runs:
         continue

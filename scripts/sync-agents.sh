@@ -90,6 +90,12 @@ fi
 
 mkdir -p "$DEST"
 
+# 출처는 프론트매터 **뒤**에 넣는다. 앞에 한 줄이라도 있으면 YAML 머리말이
+# 파일 첫 줄이 아니게 되어 에이전트가 통째로 안 읽힌다. 두 고리 **앞에서** 정한다 —
+# 감사자가 다 있어 첫 고리가 전부 건너뛰면, 새로 생긴 커맨드를 심는 둘째 고리가
+# `set -u` 에 `HDR: unbound variable` 로 죽었다(Codex 리뷰).
+HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에 맞게 고쳐도 된다 — 원본으로 되먹이지 않는다. -->"
+
 copied=0
 skipped=0
 for f in "$SRC"/vibe-audit/agents/*.md; do
@@ -100,9 +106,6 @@ for f in "$SRC"/vibe-audit/agents/*.md; do
     skipped=$((skipped + 1))
     continue
   fi
-  # 출처는 프론트매터 **뒤**에 넣는다. 앞에 한 줄이라도 있으면 YAML 머리말이
-  # 파일 첫 줄이 아니게 되어 에이전트가 통째로 안 읽힌다.
-  HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에 맞게 고쳐도 된다 — 원본으로 되먹이지 않는다. -->"
   awk -v hdr="$HDR" '
     /^---$/ { c++; print; if (c == 2) { print ""; print hdr } next }
     { print }
