@@ -3,13 +3,13 @@
 | # | 항목 | 판정 | 근거 위치 |
 |---|---|---|---|
 | 1 | 시크릿 리터럴 | 적합 | `docker-compose.yml:9` 의 `POSTGRES_PASSWORD=devpassword` 는 로컬 전용이고 `README.md:12` 가 그렇게 적고 있다 |
-| 3 | 인증 없는 엔드포인트 | 부적합 | `app/routes.py:18` — NC-1 |
+| 3 | 인증 없는 엔드포인트 | 부적합 | `app/routes.py:22` — NC-1 |
 
 ## 부적합 목록
 
-### NC-1 · `/internal/users` 가 인증 없이 열려 있다
-- 위치: `app/routes.py:18`
-- 증상: `app/auth.py` 의 `require_user` 가 다른 라우트에는 걸려 있는데 이 라우트에만 없다.
+### NC-1 · `/admin/users` 가 인증 없이 열려 있다
+- 위치: `app/routes.py:22`
+- 증상: `app/auth.py` 의 `require_admin` 가 다른 라우트에는 걸려 있는데 이 라우트에만 없다.
 - 근거: 사내 주소만 알면 전 사용자 목록을 받아 갈 수 있다.
 - 심각도: 높음
 - 제안: 같은 의존성을 건다.

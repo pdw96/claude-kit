@@ -132,14 +132,24 @@ for i, a in enumerate(argv):
 suite = pathlib.Path("vibe-audit/evals")
 chosen = sorted(c.parent.name for c in suite.glob("*/case.yaml")
                 if not pats or any(fnmatch.fnmatchcase(c.parent.name, p) for p in pats))
+# `--runs` 가 없으면 케이스에 적힌 회차 수(prompt.md · case.yaml 의 `runs:`, 없으면 하네스
+# 기본 3)를 요구한다. 전에는 아무 수나 받아, 한 회차만 돈 결과도 통과했다(Codex 리뷰).
+def configured(n):
+    for f in ("prompt.md", "case.yaml"):
+        m = re.search(r"^runs:\s*(\d+)\s*$", (suite / n / f).read_text(encoding="utf-8")
+                      if (suite / n / f).exists() else "", re.M)
+        if m:
+            return int(m.group(1))
+    return 3
+need_runs = {n: want if want is not None else configured(n) for n in chosen}
 got = {c.get("name"): len(((c.get("arms") or {}).get("with") or [])) for c in d.get("cases", [])}
 short = [f"{n} (결과에 없음)" for n in chosen if n not in got]
-short += [f"{n} (with 회차 {got[n]}{'' if want is None else f' / {want}'})"
-          for n in chosen if n in got and (got[n] == 0 or (want is not None and got[n] != want))]
+short += [f"{n} (with 회차 {got[n]} / {need_runs[n]})"
+          for n in chosen if n in got and got[n] != need_runs[n]]
 if ablation != "none":
     wo = {c.get("name"): len(((c.get("arms") or {}).get("without") or [])) for c in d.get("cases", [])}
-    short += [f"{n} (without 회차 {wo[n]} / {want if want is not None else got[n]} — --ablation {ablation})"
-              for n in chosen if n in got and wo[n] != (want if want is not None else got[n])]
+    short += [f"{n} (without 회차 {wo[n]} / {need_runs[n]} — --ablation {ablation})"
+              for n in chosen if n in got and wo[n] != need_runs[n]]
 # **디스크에 적힌 그레이더가 회차마다 다 채점됐는지도 본다.** 아래의 필수 그레이더
 # 판정은 결과가 적은 이름에서 출발하므로, 하네스가 그레이더를 조용히 빠뜨리면
 # `graders: []` 인 만점 회차가 아무것도 안 재고 통과해 캐시에 남는다(Codex 리뷰).

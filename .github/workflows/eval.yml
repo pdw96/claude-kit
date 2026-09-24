@@ -114,6 +114,16 @@ jobs:
               echo "::error::verify-brief.py 가 「5,000줄 중 ${m%%:*}줄」(diff 30줄)에 $r 을 냈다 (${m##*:} 이어야)"; exit 1
             fi
           done
+          # 「커밋 안 된 변경: 있음」은 백틱 경로가 있고 그 경로가 diff 에 나와야 통과한다
+          for m in "있음 — 아래 diff 에 포함:fail" "있음 — \`app/other.py\`, 아래 diff 에 포함:fail" "있음 — \`app/cache.py\`, 아래 diff 에 포함:pass"; do
+            b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+            sed -i "s|^- 커밋 안 된 변경:.*|- 커밋 안 된 변경: ${m%:*}|" "$b/.claude/audit-brief.md"
+            if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then r=pass; else r=fail; fi
+            if [ "$r" != "${m##*:}" ]; then
+              echo "::error::verify-brief.py 가 「커밋 안 된 변경: ${m%:*}」에 $r 을 냈다 (${m##*:} 이어야)"; exit 1
+            fi
+          done
+
           # 「담지 않은 것」을 diff 앞으로 옮기고 끝의 diff 절을 비운 브리핑은 실패해야 한다
           b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
           python3 - "$b/.claude/audit-brief.md" <<'PY'
@@ -386,6 +396,22 @@ jobs:
               echo "::error::run-evals.sh 가 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
             fi
           done
+          # --runs 를 안 주면 케이스에 적힌 회차 수(3)를 요구한다 — 한 회차만 돈 결과는 3
+          json_one=$(mktemp); python3 - "$json_one" <<'PY'
+          import json, pathlib, sys
+          g = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/route-quiet/graders").glob("*.md"))]
+          run = {"score": 1.0, "passed": True, "tracePath": None,
+                 "graders": [{"name": n, "passed": True, "weight": 3, "scored": True} for n in g]}
+          json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
+                                "arms": {"with": [run]}, "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
+          PY
+          set +e
+          FAKE_RESULT="$json_one" PATH="$f:$PATH" ./scripts/run-evals.sh --case route-quiet --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
+          fi
           # --ablation 을 안 주면 두 팔이다. without 팔이 없거나(한 팔 실험으로 바뀐 것) 채점되지
           # 않았으면 3, 두 팔이 다 채점됐으면 0
           for m in allok:3 woempty:3 wook:0; do

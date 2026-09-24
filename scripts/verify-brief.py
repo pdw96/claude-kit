@@ -69,6 +69,18 @@ def check(text):
         # 줄만 있고 값이 비면 적지 않은 것과 같다. 「있음」이면 diff 에 넣었는지도 적어야
         # 감사자가 작업트리 몫을 본 것인지 안다(Codex 리뷰).
         bad.append("`커밋 안 된 변경:` 값이 `없음` 도, 포함 여부를 적은 `있음` 도 아니다")
+    elif wt.group(1).strip().startswith("있음"):
+        # 「있음 — 포함」이라 적고 `git diff HEAD` 가 실패해 작업트리 몫이 빠져도 통과했다
+        # (Codex 리뷰). 추적 안 된 파일처럼 백틱 경로를 적게 하고, 그 경로가 diff 절이나
+        # 「담지 않은 것」에 다시 나와야 한다.
+        paths = re.findall(r"`([^`]+)`", wt.group(1))
+        if not paths:
+            bad.append("`커밋 안 된 변경: 있음` 인데 어느 파일인지 백틱 경로가 없다 — 담겼는지 가릴 수 없다")
+        rest = text[:wt.start()] + text[wt.end():]
+        k = rest.find("## diff")
+        for path in paths:
+            if path not in (rest[k:] if k >= 0 else ""):
+                bad.append(f"커밋 안 된 변경 `{path}` 가 diff 에도 「담지 않은 것」에도 없다 — 머리만 적었다")
     # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
     # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
     ut = re.search(r"^- 추적 안 된 파일:(.*)$", text, re.M)
