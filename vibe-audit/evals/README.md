@@ -905,7 +905,7 @@ PR 을 리뷰로 돌리자 Codex 가 다섯을 짚었다. 넷은 재현하거나
 |---|---|
 | `cycle-first/gate-first-declared` 가 「첫 회차가 아니다」도 받는다 — 낱말만 본다 | 기록 어디에든 「첫 회차가/는 아니」가 있으면 FAIL. 없는 지난 회차를 있다고 한 fail 표본 |
 | `cycle-continuity/gate-new-contiguous` 가 빈틈만 보고 **겹침**은 안 본다 | 같은 번호의 `### NC-` 머리가 두 번이면 FAIL(`cycle-first/gate-numbering` 과 같은 모양). NC-4 를 두 결함에 붙인 fail 표본 |
-| `/audit-brief` 가 지난 감사 기록(`.claude/audits/`) · 옮긴 브리핑(`.claude/briefs/`)을 추적 안 된 파일로 다시 담는다 — 옮긴 브리핑은 지난 diff 전체다 | 모으는 명령에 `-- . ':!.claude/audit*' ':!.claude/briefs'`. 임시 저장소에서 두 폴더와 `.claude/audit-brief.md` 가 빠지고 다른 새 파일은 남는 것을 확인. 천장에 걸려 겹치는 문장 둘을 줄였다 — 호출 시 3,483자 |
+| `/audit-brief` 가 지난 감사 기록(`.claude/audits/`) · 옮긴 브리핑(`.claude/briefs/`)을 추적 안 된 파일로 다시 담는다 — 옮긴 브리핑은 지난 diff 전체다 | 모으는 명령에 `-- . ':!.claude/audit*' ':!.claude/briefs'`(17차에서 이름으로 좁혔다). 임시 저장소에서 두 폴더와 `.claude/audit-brief.md` 가 빠지고 다른 새 파일은 남는 것을 확인. 천장에 걸려 겹치는 문장 둘을 줄였다 — 호출 시 3,483자 |
 | `verify-brief.py` 가 값 없는 `- 추적 안 된 파일:` 을 받는다 | 값이 `없음` 으로 시작하거나 백틱 경로가 있어야 한다 |
 | `verify-brief.py` 의 +/- 검사가 파일 머리(`--- a/` · `+++ b/`)도 변경 줄로 센다 | `--- a/` · `+++ b/` · `/dev/null` 머리는 빼고 센다. 머리만 남은 diff 는 빈 브리핑 |
 | 러너가 with 팔만 센다 — `--ablation` 을 안 주면 두 팔인데 without 팔이 빠진 결과도 받는다 | `--ablation` 을 읽어 `none` 이 아니면 without 팔도 회차 수대로 요구한다(→ 3). CI 는 `--ablation none` 이라 영향 없음 |
@@ -929,6 +929,15 @@ without 팔을 채웠다.
 「게이트가 무는가」에 넣은 것: 브리핑 변조 셋(한 수만 · 거꾸로 된 수 · 빈 작업트리 값 → FAIL)과 두 수를
 다 적은 자른 브리핑(→ PASS), 두 팔 결과 셋(without 없음 · without 이 `graders: []` → 3, 두 팔 다 채점 → 0).
 without 이 `graders: []` 인 결과는 옛 러너에서 0 이었다.
+
+## Codex 17차 리뷰 — 하나를 고쳤다 (2026-09-24)
+
+| 짚은 것 | 확인 | 고친 것 |
+|---|---|---|
+| 15차에 넣은 `':!.claude/audit*'` 가 `.claude/audit-policy.md` 같은 무관한 새 파일도 뺀다 | 맞다. 임시 저장소에서 옛 pathspec 은 `audit-policy.md` 를 뺐다 | 뺄 것을 이름으로 적는다 — `':!.claude/audits' ':!.claude/briefs' ':!.claude/audit-brief.md'`. 같은 저장소에서 `audit-policy.md` 만 남는다. 천장에 걸려 세 문장을 줄였다 — 호출 시 3,497자(천장 3,500) |
+
+**커맨드는 이제 천장까지 3자다.** 다음에 커맨드에 무엇을 더하려면 먼저 덜어 내거나, 천장을 올리는
+커밋으로 그 판단을 남겨야 한다.
 
 ## 브리핑 — 확인불가를 기계로 줄인다
 

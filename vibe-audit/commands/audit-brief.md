@@ -5,14 +5,14 @@ argument-hint: [기준 커밋/브랜치 — 필수] [감사자 이름]
 ---
 
 기준 `$0` 와 지금 작업트리의 차이를 모아 `.claude/audit-brief.md` 에 씁니다.
-(`$0` 은 첫째 인자인 기준, `$1` 은 둘째 인자인 감사자 이름입니다.)
+(첫째 인자 `$0` 은 기준, 둘째 `$1` 은 감사자 이름입니다.)
 
 `$0` 가 비어 있으면 먼저 물어보세요 — 기본 브랜치인지, PR 의 머지 베이스인지,
 직전 배포 태그인지에 따라 감사 결과가 달라집니다. **짐작하지 마세요.**
 
 **사람이 없는 자리에서는 이 커맨드가 여기서 멈춥니다.** 클라우드 레인이나 CI
-에서 쓰려면 기준을 인자로 넘겨야 합니다 — `/audit-brief origin/main audit-secrets`.
-멈추는 것이 결함이 아니라, 짐작한 기준으로 만든 브리핑이 틀린 근거가 되는 쪽이
+에서는 기준을 인자로 넘기세요 — `/audit-brief origin/main audit-secrets`.
+멈춤은 결함이 아닙니다. 짐작한 기준으로 만든 브리핑이 틀린 근거가 되는 쪽이
 결함입니다.
 
 ## 왜 이것이 필요한가
@@ -45,7 +45,7 @@ git rev-parse --verify $0
 | 변경 파일 | `git diff --stat $0...HEAD` |
 | 커밋 목록 | `git log --oneline $0..HEAD` |
 | 본문 diff | `git diff $0...HEAD` |
-| 추적 안 된 파일 | `git ls-files --others --exclude-standard -- . ':!.claude/audit*' ':!.claude/briefs'` |
+| 추적 안 된 파일 | `git ls-files --others --exclude-standard -- . ':!.claude/audits' ':!.claude/briefs' ':!.claude/audit-brief.md'` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short` 가 비어 있지 않으면)
 `$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 브리핑 머리에 적고, 필요하면
