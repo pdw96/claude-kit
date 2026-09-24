@@ -68,8 +68,13 @@ def check(text):
 
     i = text.find("## diff")
     j = text.find("## 이 브리핑이 담지 않은 것")
-    if i >= 0 and j > i and not re.search(r"^[-+]", text[i:j], re.M):
-        bad.append("diff 절에 변경 줄(+/-)이 한 줄도 없다 — 빈 브리핑이다")
+    # 변경 줄(+/-)이 없어도 git 이 적는 메타데이터 기록(이름 바꿈 · 모드 · 새 파일 ·
+    # 지운 파일 · 이진 파일)이 있으면 빈 것이 아니다. 실행 비트만 바뀐 변경도 운영에서는
+    # 무겁다 — 그것만 담은 브리핑을 빈 것으로 버리면 안 된다(Codex 리뷰).
+    meta = (r"^(?:[-+]|(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
+            r"|copy (?:from|to) |Binary files )")
+    if i >= 0 and j > i and not re.search(meta, text[i:j], re.M):
+        bad.append("diff 절에 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
 
     # 「담지 않은 것」은 제목만으로는 공개가 아니다. 제목 아래가 비면 감사자는 여전히
     # 전부 본 줄 안다 — 이 검사가 지키려는 바로 그것이다(Codex 리뷰). 항목 하나는 있어야 한다.

@@ -154,6 +154,7 @@ if short:
 
 kept, temps = 0, set()
 limited = []
+LIMIT = re.compile(r"hit your (?:\w+ )?limit|usage limit|rate limit", re.I)
 
 # 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
 # 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
@@ -239,11 +240,28 @@ for case in d.get("cases", []):
             tp = run.get("tracePath")
             if tp:
                 temps.add(pathlib.Path(tp).parent.parent)
-            held = arm == "with" and case.get("name") in steady_cases
-            if (run.get("passed") and not held) or not tp:
+            if not tp or not pathlib.Path(tp).exists():
                 continue
             src = pathlib.Path(tp)
-            if not src.exists():
+            # **한도는 통과한 회차에서도 찾는다.** 한도에 걸린 세션은 아무 도구도 안
+            # 부르므로, 음성 그레이더만 가진 케이스(route-quiet)는 그 회차가 통과로
+            # 채점된다. 실패한 회차에서만 찾으면 한도에 걸린 실행이 0 으로 끝나 캐시에
+            # 통과로 남는다(Codex 리뷰). 걸린 회차는 증거로 트레이스도 남긴다.
+            hit = False
+            try:
+                for line in open(src, encoding="utf-8"):
+                    if '"result"' in line and LIMIT.search(line):
+                        try:
+                            e = json.loads(line)
+                        except ValueError:
+                            continue
+                        hit = e.get("type") == "result" and bool(LIMIT.search(str(e.get("result") or "")))
+            except OSError:
+                pass
+            if hit:
+                limited.append(f"{case['name']}.{arm}.run{i}")
+            held = (arm == "with" and case.get("name") in steady_cases) or hit
+            if run.get("passed") and not held:
                 continue
             dst = out / "traces" / f"{case['name']}.{arm}.run{i}.jsonl"
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -276,8 +294,6 @@ for case in d.get("cases", []):
                 pass
             print(f"     부른 도구: {' → '.join(calls) or '(없음)'}")
             print(f"     마지막 답: {' '.join(last.split())[:300] or '(없음)'}")
-            if re.search(r"hit your (?:\w+ )?limit|usage limit|rate limit", last, re.I):
-                limited.append(f"{case['name']}.{arm}.run{i}")
 
 # --keep-temp 로 남는 작업공간을 치운다. 모드가 닫혀 있어 그냥 지우면 조용히
 # 실패하므로(하네스가 경고하는 자리) 먼저 열고 지운다. 남기는 것은 위에서 이미

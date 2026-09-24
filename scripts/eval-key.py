@@ -84,7 +84,10 @@ def main():
         p = ROOT / f
         # 지운 파일도 지문을 바꿔야 한다 — 없다는 것 자체가 입력이다.
         body = p.read_bytes() if p.is_file() else b"\0(missing)"
-        h.update(f.encode() + b"\0" + hashlib.sha256(body).digest())
+        # 실행 비트도 입력이다. 바이트만 세면 run-evals.sh 에서 비트를 뺀 PR 이 앞서
+        # 통과한 지문을 되찾아 eval 을 건너뛰고, 러너가 안 돌 것을 아무도 못 본다(Codex 리뷰).
+        xbit = b"x" if p.is_file() and p.stat().st_mode & 0o100 else b"-"
+        h.update(f.encode() + b"\0" + xbit + hashlib.sha256(body).digest())
         if listing:
             print(f"  {hashlib.sha256(body).hexdigest()[:12]}  {f}", file=sys.stderr)
 
