@@ -61,6 +61,33 @@ for c in json.loads(reg.read_text(encoding="utf-8")).get("copies", []):
                  f"덮으면 그 사본이 대장에서 사라진다. 대장을 손으로 정리한 뒤 다시 돌려라.")
 CLASH
 
+# **대장에 없는 자리에 사본이 이미 있으면 아무것도 쓰기 전에 멈춘다.** 그대로
+# 가면 있는 파일은 건너뛰고 없는 파일만 심은 뒤, 건너뛴 것이 있어 대장에는 안
+# 적는다 — 섞인 사본이 **대장 밖에** 남아 verify-copies.py 가 영영 못 본다(Codex
+# 리뷰). 대장에 이미 있는 자리면 지금처럼 있는 것은 두고 출처를 옮기지 않는다.
+if [ "$FORCE" -eq 0 ]; then
+  existing=""
+  for f in "$SRC"/vibe-audit/agents/*.md; do
+    [ -e "$DEST/$(basename "$f")" ] && existing="$existing $(basename "$f")"
+  done
+  for f in "$SRC"/vibe-audit/commands/*.md; do
+    [ -e "$f" ] && [ -e "$TARGET/.claude/commands/$(basename "$f")" ] && existing="$existing $(basename "$f")"
+  done
+  if [ -n "$existing" ]; then
+    python3 - "$SRC/copies.json" "$DEST" <<'KNOWN' || {
+import json, os, pathlib, sys
+reg, dest = pathlib.Path(sys.argv[1]), os.path.normpath(sys.argv[2])
+rows = json.loads(reg.read_text(encoding="utf-8")).get("copies", []) if reg.exists() else []
+sys.exit(0 if any(os.path.normpath(c.get("agents_path", "")) == dest for c in rows) else 1)
+KNOWN
+      echo "대장에 없는 자리에 사본이 이미 있다:$existing" >&2
+      echo "빠진 것만 심으면 섞인 사본이 대장 밖에 남는다. 아무것도 심지 않았다." >&2
+      echo "그 사본을 이 커밋으로 덮으려면 --force, 지키려면 대장에 먼저 적어라." >&2
+      exit 1
+    }
+  fi
+fi
+
 mkdir -p "$DEST"
 
 copied=0
