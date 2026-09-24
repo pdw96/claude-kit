@@ -143,20 +143,33 @@ if ablation != "none":
 # **디스크에 적힌 그레이더가 회차마다 다 채점됐는지도 본다.** 아래의 필수 그레이더
 # 판정은 결과가 적은 이름에서 출발하므로, 하네스가 그레이더를 조용히 빠뜨리면
 # `graders: []` 인 만점 회차가 아무것도 안 재고 통과해 캐시에 남는다(Codex 리뷰).
+# 두 팔이면 without 팔도 본다 — 대조 점수와 Δ 가 채점 안 된 팔에서 나오면 안 된다(Codex
+# 리뷰). without 팔에서는 하네스가 with-only 그레이더(와 arm 없는 `tool_used: Skill`)를
+# 빼고 채점하므로 그것만 뺀다. 전부 with-only 인 케이스는 하네스가 다 채점한다.
+def with_only(g):
+    head = g.read_text(encoding="utf-8").split("---", 2)[1]
+    f = dict((k.strip(), v.strip().strip("'\"")) for k, s, v in
+             (ln.partition(":") for ln in head.splitlines()) if s)
+    return f.get("arm") == "with-only" or (not f.get("arm") and f.get("type") == "tool_used"
+                                           and f.get("tool") == "Skill")
 byname = {c.get("name"): c for c in d.get("cases", [])}
 for n in chosen:
     if n not in got:
         continue
-    need = {p.stem for p in (suite / n / "graders").glob("*.md")}
-    for i, run in enumerate((byname[n].get("arms") or {}).get("with") or [], 1):
-        # 시작을 못 한 회차(픽스처 실패 · 실행 불가)는 하네스가 `error` 와 점수 0 ·
-        # `graders: []` 로 낸다. 점수로 이미 떨어지니 여기서 3 으로 덮지 않는다 —
-        # 덮으면 아래의 한도(6) 판정을 가린다.
-        if run.get("error") and not run.get("score"):
-            continue
-        miss = sorted(need - {g.get("name") for g in run.get("graders", [])})
-        if miss:
-            short.append(f"{n} run{i} (채점 안 된 그레이더: {', '.join(miss)})")
+    files = sorted((suite / n / "graders").glob("*.md"))
+    need = {"with": {g.stem for g in files}}
+    if ablation != "none":
+        need["without"] = {g.stem for g in files if not with_only(g)} or need["with"]
+    for arm, want_names in need.items():
+        for i, run in enumerate((byname[n].get("arms") or {}).get(arm) or [], 1):
+            # 시작을 못 한 회차(픽스처 실패 · 실행 불가)는 하네스가 `error` 와 점수 0 ·
+            # `graders: []` 로 낸다. 점수로 이미 떨어지니 여기서 3 으로 덮지 않는다 —
+            # 덮으면 아래의 한도(6) 판정을 가린다.
+            if run.get("error") and not run.get("score"):
+                continue
+            miss = sorted(want_names - {g.get("name") for g in run.get("graders", [])})
+            if miss:
+                short.append(f"{n} {arm} run{i} (채점 안 된 그레이더: {', '.join(miss)})")
 if short:
     print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
     for s in short:

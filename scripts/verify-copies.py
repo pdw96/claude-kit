@@ -169,6 +169,17 @@ def main():
             ever = git("log", "--format=%h", "-1", sha, "--", f"vibe-audit/agents/{f.name}").stdout.strip()
             if ever:
                 bad.append(f"{who}: {f.name} 는 원본에서 빠진 감사자다(마지막으로 건드린 커밋 {ever}) — 사본에 남아 옛 설명으로 불린다")
+        # 커맨드도 같다. 이름을 바꾸거나 뺀 커맨드는 `--force` 로도 안 지워지고, 위의
+        # commands_missing 은 적힌 커밋의 이름만 돌아 옛 슬래시 커맨드가 남아도 PASS 였다
+        # (Codex 리뷰). 레포가 직접 만든 커맨드(원본 역사에 없던 이름)는 허용한다.
+        cmds = {pathlib.PurePosixPath(n).name for n in
+                git("ls-tree", "--name-only", sha, "vibe-audit/commands/").stdout.split()}
+        for f in sorted((path.parent / "commands").glob("*.md")):
+            if f.name in cmds:
+                continue
+            ever = git("log", "--format=%h", "-1", sha, "--", f"vibe-audit/commands/{f.name}").stdout.strip()
+            if ever:
+                bad.append(f"{who}: 커맨드 {f.name} 는 원본에서 빠졌다(마지막으로 건드린 커밋 {ever}) — 사본에 남아 옛 동작으로 불린다")
 
         ok, head = against_commit(sha, path)
         if ok is None:

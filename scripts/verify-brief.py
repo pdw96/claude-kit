@@ -41,8 +41,14 @@ def check(text):
         bad.append("머리에 기준 커밋 SHA 가 없다 — 무엇과 견준 diff 인지 모르면 근거가 아니다")
     if not re.search(r"^- 대상: .*`[0-9a-f]{7,40}`", text, re.M):
         bad.append("머리에 대상 커밋 SHA 가 없다")
-    if not re.search(r"^- 커밋 안 된 변경:", text, re.M):
+    wt = re.search(r"^- 커밋 안 된 변경:(.*)$", text, re.M)
+    if not wt:
         bad.append("커밋 안 된 변경이 있는지 안 적혀 있다 — diff 가 작업트리를 담았는지 모른다")
+    elif not (wt.group(1).strip().startswith("없음")
+              or (wt.group(1).strip().startswith("있음") and re.search(r"포함|담지 않|뺐|제외", wt.group(1)))):
+        # 줄만 있고 값이 비면 적지 않은 것과 같다. 「있음」이면 diff 에 넣었는지도 적어야
+        # 감사자가 작업트리 몫을 본 것인지 안다(Codex 리뷰).
+        bad.append("`커밋 안 된 변경:` 값이 `없음` 도, 포함 여부를 적은 `있음` 도 아니다")
     # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
     # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
     ut = re.search(r"^- 추적 안 된 파일:(.*)$", text, re.M)
@@ -66,8 +72,14 @@ def check(text):
     cut = re.search(r"^- 자름:\s*(없음|있음)(.*)$", text, re.M)
     if not cut:
         bad.append("머리에 `자름: 없음` / `자름: 있음 — N줄 중 M줄` 이 없다 — 자른 브리핑을 전부로 읽는다")
-    elif cut.group(1) == "있음" and not re.search(r"\d", cut.group(2)):
-        bad.append("`자름: 있음` 인데 몇 줄 중 몇 줄을 담았는지가 없다")
+    elif cut.group(1) == "있음":
+        # 두 수가 다 있어야 한다 — 전체만 적으면 몇 줄을 받았는지 모른다(Codex 리뷰).
+        # 받은 줄이 전체보다 적어야 자른 것이다.
+        nm = re.search(r"([\d,]+)\s*줄\s*중\s*([\d,]+)\s*줄", cut.group(2))
+        if not nm:
+            bad.append("`자름: 있음` 인데 `전체 N줄 중 M줄` 이 없다 — 몇 줄을 받았는지 모른다")
+        elif not 0 < int(nm.group(2).replace(",", "")) < int(nm.group(1).replace(",", "")):
+            bad.append(f"`자름: 있음` 의 줄 수가 맞지 않다 — {nm.group(1)}줄 중 {nm.group(2)}줄")
 
     i = text.find("## diff")
     j = text.find("## 이 브리핑이 담지 않은 것")
