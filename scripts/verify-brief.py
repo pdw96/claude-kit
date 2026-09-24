@@ -161,11 +161,17 @@ def check(text):
     # 중간에 끊긴 브리핑 — 를 채워진 것으로 읽으면 안 된다(Codex 리뷰).
     # 변경 줄은 **헝크(`@@ … @@`) 안에서만** 센다. 맨 `-` 로 시작하는 줄은 마크다운 목록이나
     # 「- git diff 실패: …」 같은 실패 기록일 수 있다 — 그것만 있는 diff 절이 통과했다(Codex 리뷰).
-    meta = (r"^(?:(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
-            r"|copy (?:from|to) |Binary files )")
+    # 메타데이터는 **짝이 맞아야** 증거다. `old mode 100644` 한 줄에서 끊기면 새 모드를 모른다
+    # (Codex 리뷰). 짝 없이도 완결인 것은 새 파일 · 지운 파일 · 이진 파일 표시뿐이다.
+    def meta_ok(body):
+        has = lambda p: re.search(p, body, re.M)
+        return bool(has(r"^(?:new|deleted) file mode |^Binary files ")
+                    or (has(r"^old mode ") and has(r"^new mode "))
+                    or (has(r"^rename from ") and has(r"^rename to "))
+                    or (has(r"^copy from ") and has(r"^copy to ")))
     hunk = (r"^@@ -\d[^\n]*@@[^\n]*\n(?:[ \\][^\n]*\n|\n)*"
             r"(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null)))")
-    if i >= 0 and j > i and not (re.search(meta, text[i:j], re.M) or re.search(hunk, text[i:j], re.M)):
+    if i >= 0 and j > i and not (meta_ok(text[i:j]) or re.search(hunk, text[i:j], re.M)):
         bad.append("diff 절에 헝크 안의 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
     # 헝크는 머리(`@@ -a,b +c,d @@`)가 적은 줄 수만큼 와야 한다. 중간에 끊긴 `-old` 한 줄은
     # 바꿈을 지움으로 읽게 한다(Codex 리뷰). 자른 브리핑(`자름: 있음`)은 마지막 헝크만 봐준다.

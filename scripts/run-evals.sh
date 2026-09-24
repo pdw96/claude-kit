@@ -58,8 +58,9 @@ if [ "$jflag" = 1 ]; then CONC=(-j 4); fi
 # 트리거 숫자(README 「트리거 정확도」)는 전부 claude-sonnet-5 로 쟀으므로
 # 같은 모델로 재야 견줄 수 있다. 다른 모델로 재고 싶으면 --model 을 직접 줘라.
 # 실제로 그 모델로 돌았는지는 아래 결과 정리에서 트레이스를 읽어 찍는다.
+DEFAULT_MODEL=claude-sonnet-5
 MODEL=()
-if [ "$mflag" = 1 ]; then MODEL=(--model claude-sonnet-5); fi
+if [ "$mflag" = 1 ]; then MODEL=(--model "$DEFAULT_MODEL"); fi
 
 # 돌기 전에 수트가 물 수 있는 모양인지, 그레이더가 가르기는 하는지부터 본다.
 python3 scripts/verify-evals.py
@@ -84,7 +85,7 @@ status=$?
 set -e
 
 # 실패한 회차의 트레이스만 남기고 임시 디렉터리는 지운다.
-python3 - "$OUT" "$@" <<'PY'
+EVAL_DEFAULT_MODEL="$DEFAULT_MODEL" python3 - "$OUT" "$@" <<'PY'
 import json, pathlib, re, shutil, sys
 
 out = pathlib.Path(sys.argv[1])
@@ -218,11 +219,21 @@ limited = []
 # 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
 # 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
 # 감사자(`model: inherit`)가 부른 모델도 같은 modelUsage 에 잡힌다.
-import collections
+import collections, os
+# **요청한 모델로 돌았는지는 판정이다.** 찍기만 하면, 트레이스에 modelUsage 가 없거나 딴
+# 모델만 있어도 통과해 캐시에 남는다(Codex 리뷰). 요청한 모델이 회차마다 보여야 한다 —
+# 딴 모델이 **곁에** 보이는 것(배경 작업의 작은 모델)은 막지 않는다.
+want_model = os.environ.get("EVAL_DEFAULT_MODEL", "")
+for i, a in enumerate(argv):
+    if a == "--model" and i + 1 < len(argv):
+        want_model = argv[i + 1]
+    elif a.startswith("--model="):
+        want_model = a.split("=", 1)[1]
+wrong_model = []
 models = collections.Counter()
 for case in d.get("cases", []):
-    for runs in (case.get("arms") or {}).values():
-        for run in runs:
+    for arm, runs in (case.get("arms") or {}).items():
+        for i, run in enumerate(runs, 1):
             tp = run.get("tracePath")
             seen = set()
             try:
@@ -237,6 +248,9 @@ for case in d.get("cases", []):
                 seen = {"(트레이스 없음)"}
             for m in (seen or {"(기록 없음)"}):
                 models[m] += 1
+            if want_model and not (run.get("error") and not run.get("score")) \
+                    and not any(m == want_model or want_model in m for m in seen):
+                wrong_model.append(f"{case.get('name')}.{arm}.run{i} ({', '.join(sorted(seen)) or '기록 없음'})")
 print("모델: " + " · ".join(f"{m} {n}회" for m, n in models.most_common()))
 
 # 케이스별 점수부터 찍는다. 이게 없으면 result.json 을 매번 손으로 파야 한다.
@@ -397,6 +411,12 @@ if limited:
         print(f"     {s}")
     print("     한도가 풀린 뒤 다시 돌려라.")
     raise SystemExit(6)
+
+if wrong_model:
+    print(f"\nFAIL 요청한 모델({want_model})이 트레이스에 안 보이는 회차가 {len(wrong_model)}개 — 무엇을 쟀는지 모른다.")
+    for s in wrong_model[:5]:
+        print(f"     {s}")
+    raise SystemExit(3)
 
 if steady:
     print("\nFAIL 결정론 그레이더가 모든 회차에서 떨어졌거나, 감사자가 뜨지 않은 회차가 있다.")
