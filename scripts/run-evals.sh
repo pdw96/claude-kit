@@ -169,6 +169,17 @@ for case in d.get("cases", []):
         if kind not in ("regex", "tool_used"):
             continue
         marks = [g for run in runs for g in run.get("graders", []) if g.get("name") == name]
+        # auditor-fired 는 **한 회차라도** 떨어지면 실패다. 이것은 품질이 아니라 그 회차가
+        # 플러그인을 쟀는지의 전제다 — 감사자가 안 뜬 회차는 본 세션이 흉내 낸 답을 채점한
+        # 것이고, 그 점수가 평균에 섞인다. 게다가 두 팔로 돌면(--ablation 기본) 이
+        # 그레이더는 with-only 라 점수에서 빠져(scored: false) 아무도 안 물었다(Codex 리뷰).
+        # 그래서 이것만은 scored 를 보지 않는다.
+        if name == "auditor-fired":
+            missed = sum(1 for g in marks if not g.get("passed"))
+            if missed:
+                steady.append(f"{case.get('name')}/{name} ({missed}/{len(runs)} 회차 — 감사자가 안 떴다)")
+                steady_cases.add(case.get("name"))
+            continue
         if len(marks) == len(runs) and all(g.get("scored", True) and not g.get("passed") for g in marks):
             steady.append(f"{case.get('name')}/{name} ({len(runs)}/{len(runs)} 회차)")
             steady_cases.add(case.get("name"))
@@ -248,7 +259,7 @@ print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))
 
 if steady:
-    print("\nFAIL 결정론 그레이더가 모든 회차에서 떨어졌다 — 흔들림이 아니라 회귀다.")
+    print("\nFAIL 결정론 그레이더가 모든 회차에서 떨어졌거나, 감사자가 뜨지 않은 회차가 있다.")
     for s in steady:
         print(f"     {s}")
     print("     케이스 점수가 문턱을 넘었어도 통과로 세지 않는다.")

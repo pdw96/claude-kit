@@ -235,6 +235,29 @@ jobs:
             fi
           done
 
+          # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
+          # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
+          # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
+          python3 - "$f/ra.json" <<'PY'
+          import json, sys
+          runs = [{"score": 1.0, "passed": True, "tracePath": None,
+                   "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
+                                "withOnly": True, "passed": i != 1},
+                               {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]}
+                  for i in range(3)]
+          json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": []},
+                                "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
+                                            {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
+                                "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
+          PY
+          set +e
+          FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 5 ]; then
+            echo "::error::run-evals.sh 가 감사자가 안 뜬 회차를 통과시켰다 (exit $st)"; exit 1
+          fi
+
           # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
           sed -i '0,/^weight/s//arm: with-only\nweight/' "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
