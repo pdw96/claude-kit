@@ -225,6 +225,9 @@ jobs:
               (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
               (tr / f"r{i}" / "trace.jsonl").write_text("{}\n")
           gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
+          # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
+          gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
+                 if p.stem not in {g for g, _, _ in gs}]
           runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True,
                    "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
                    "graders": [{"name": g, "weight": w, "scored": True,
@@ -254,11 +257,14 @@ jobs:
           # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
           # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
           python3 - "$f/ra.json" <<'PY'
-          import json, sys
+          import json, pathlib, sys
+          rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
+                  if p.stem not in ("auditor-fired", "trap-not-an-nc")]
           runs = [{"score": 1.0, "passed": True, "tracePath": None,
                    "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
                                 "withOnly": True, "passed": i != 1},
-                               {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]}
+                               {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
+                              + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
                   for i in range(3)]
           json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": []},
                                 "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
@@ -281,23 +287,28 @@ jobs:
           fi
 
           # run-evals.sh — 고른 케이스 가운데 하나가 결과에서 빠지면 실패해야 한다(종료코드 3).
+          # 회차가 다 있어도 디스크에 적힌 그레이더가 채점되지 않았으면 같다(graders: []).
           # 사용량 한도에 걸린 회차는 회귀가 아니라 한도로 따로 끝나야 한다(종료코드 6).
           mkdir -p "$f/lim"; printf '%s\n' '{"type":"result","result":"You'"'"'ve hit your weekly limit · resets Sep 26, 6pm (UTC)"}' > "$f/lim/trace.jsonl"
           python3 - "$f" <<'PY'
           import json, pathlib, sys
           f = pathlib.Path(sys.argv[1])
           names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
-          ok = lambda: {"score": 1.0, "passed": True, "tracePath": None,
-                        "graders": [{"name": "route-correct", "passed": True, "weight": 3, "scored": True}]}
+          disk = lambda n: [p.stem for p in sorted(pathlib.Path(f"vibe-audit/evals/{n}/graders").glob("*.md"))]
+          ok = lambda n: {"score": 1.0, "passed": True, "tracePath": None,
+                          "graders": [{"name": g, "passed": True, "weight": 3, "scored": True} for g in disk(n)]}
           def case(n, runs):
-              return {"name": n, "graders": [{"name": "route-correct", "type": "tool_used", "weight": 3}],
+              return {"name": n, "graders": [{"name": g, "type": "tool_used", "weight": 3} for g in disk(n)],
                       "arms": {"with": runs}, "aggregates": {"score": 1.0}}
-          json.dump({"cases": [case(n, [ok(), ok(), ok()]) for n in names[:-1]]}, open(f / "miss.json", "w"))
-          lim = {"score": 0.67, "passed": False, "tracePath": str(f / "lim/trace.jsonl"),
-                 "graders": [{"name": "route-correct", "passed": False, "weight": 3, "scored": True}]}
-          json.dump({"cases": [case(n, [ok(), ok(), lim]) for n in names]}, open(f / "lim.json", "w"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), ok(n)]) for n in names[:-1]]}, open(f / "miss.json", "w"))
+          lim = lambda n: {"score": 0.67, "passed": False, "tracePath": str(f / "lim/trace.jsonl"),
+                           "graders": [{"name": g, "passed": g != "route-correct", "weight": 3, "scored": True}
+                                       for g in disk(n)]}
+          json.dump({"cases": [case(n, [ok(n), ok(n), lim(n)]) for n in names]}, open(f / "lim.json", "w"))
+          empty = lambda: {"score": 1.0, "passed": True, "tracePath": None, "graders": []}
+          json.dump({"cases": [case(n, [ok(n), ok(n), empty()]) for n in names]}, open(f / "empty.json", "w"))
           PY
-          for m in miss:3 lim:6; do
+          for m in miss:3 lim:6 empty:3; do
             set +e
             FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
             st=$?
