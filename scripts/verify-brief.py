@@ -76,11 +76,13 @@ def check(text):
         paths = re.findall(r"`([^`]+)`", wt.group(1))
         if not paths:
             bad.append("`커밋 안 된 변경: 있음` 인데 어느 파일인지 백틱 경로가 없다 — 담겼는지 가릴 수 없다")
-        rest = text[:wt.start()] + text[wt.end():]
-        k = rest.find("## diff")
+        # 커밋된 diff 에 같은 파일이 있으면 그것만으로 채워졌다(Codex 리뷰). 작업트리 몫은
+        # diff 절의 `### 작업트리` 아래에 따로 있어야 하고, 경로는 거기나 「담지 않은 것」에.
+        sub = re.search(r"^### 작업트리[ \t]*\n([\s\S]*?)(?=^## |^### |\Z)", text, re.M)
+        omit = text[text.find("## 이 브리핑이 담지 않은 것"):] if "## 이 브리핑이 담지 않은 것" in text else ""
         for path in paths:
-            if path not in (rest[k:] if k >= 0 else ""):
-                bad.append(f"커밋 안 된 변경 `{path}` 가 diff 에도 「담지 않은 것」에도 없다 — 머리만 적었다")
+            if path not in (sub.group(1) if sub else "") and path not in omit:
+                bad.append(f"커밋 안 된 변경 `{path}` 가 diff 의 「### 작업트리」에도 「담지 않은 것」에도 없다 — 머리만 적었다")
     # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
     # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
     ut = re.search(r"^- 추적 안 된 파일:(.*)$", text, re.M)
@@ -128,11 +130,14 @@ def check(text):
     # 무겁다 — 그것만 담은 브리핑을 빈 것으로 버리면 안 된다(Codex 리뷰).
     # 파일 머리(`--- a/…` · `+++ b/…` · `/dev/null`)는 변경 줄이 아니다. 그것만 남은 diff —
     # 중간에 끊긴 브리핑 — 를 채워진 것으로 읽으면 안 된다(Codex 리뷰).
-    meta = (r"^(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null))"
-            r"|(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
+    # 변경 줄은 **헝크(`@@ … @@`) 안에서만** 센다. 맨 `-` 로 시작하는 줄은 마크다운 목록이나
+    # 「- git diff 실패: …」 같은 실패 기록일 수 있다 — 그것만 있는 diff 절이 통과했다(Codex 리뷰).
+    meta = (r"^(?:(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
             r"|copy (?:from|to) |Binary files )")
-    if i >= 0 and j > i and not re.search(meta, text[i:j], re.M):
-        bad.append("diff 절에 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
+    hunk = (r"^@@ -\d[^\n]*@@[^\n]*\n(?:[ \\][^\n]*\n|\n)*"
+            r"(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null)))")
+    if i >= 0 and j > i and not (re.search(meta, text[i:j], re.M) or re.search(hunk, text[i:j], re.M)):
+        bad.append("diff 절에 헝크 안의 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
 
     # 「담지 않은 것」은 제목만으로는 공개가 아니다. 제목 아래가 비면 감사자는 여전히
     # 전부 본 줄 안다 — 이 검사가 지키려는 바로 그것이다(Codex 리뷰). 항목 하나는 있어야 한다.

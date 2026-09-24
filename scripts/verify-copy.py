@@ -132,7 +132,10 @@ def check(src, dst):
         # 회차를 잇는 절은 SHARED 가 글자로 견주지만, 그 결과를 적을 자리는
         # 출력 형식 안에 있고 감사자마다 앞뒤가 다르다. 표식만 본다 — 이것이
         # 빠지면 지난 회차의 처분을 적을 곳이 없어 규칙이 종이로만 남는다.
-        if ROUND_HEAD not in dt:
+        # 파일 어디에든 있으면 통과였다 — 출력 형식에서 지우고 뒤에 딴 절로 붙여도 PASS(Codex
+        # 리뷰). 출력 형식 절의 첫 코드 울타리 안에 그 머리가 있어야 한다.
+        fence = re.search(r"^```[^\n]*\n([\s\S]*?)^```", dt[fmt:] if fmt >= 0 else "", re.M)
+        if not fence or not re.search(r"^" + re.escape(ROUND_HEAD) + r"[ \t]*$", fence.group(1), re.M):
             bad.append(f"{name}: 출력 형식에 「{ROUND_HEAD}」 가 없다 — 회차 처분을 적을 자리가 없다")
 
         for head in SHARED:

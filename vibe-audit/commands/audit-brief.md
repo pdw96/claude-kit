@@ -17,12 +17,9 @@ argument-hint: [기준 커밋/브랜치 — 필수] [감사자 이름]
 
 ## 왜 이것이 필요한가
 
-감사자는 `Read` · `Grep` · `Glob` 만 갖고 있습니다. 실행도 git 도 없습니다.
-PR 번호나 커밋 ID 만 주면 **스스로 차이를 구하지 못합니다.**
-
-그래서 브리핑 없이 부르면 과거와의 비교가 필요한 항목이 전부 「확인불가」로
-남습니다. 옳은 처분이지만 **기계로 구할 수 있는 것을 사람에게 묻는 것**입니다. 사람에게만 물을 수 있는 것 — 프로덕션 설정,
-운영 데이터, 배포 이력 — 만 확인불가로 남는 것이 옳은 잔여입니다.
+감사자는 `Read` · `Grep` · `Glob` 만 가져 **스스로 차이를 구하지 못합니다.** 브리핑
+없이는 과거와의 비교가 전부 「확인불가」로 남습니다 — **기계로 구할 것을 사람에게
+묻는 것**입니다. 사람에게만 물을 것(운영 설정 · 데이터 · 배포 이력)만 남아야 합니다.
 
 ## 할 일
 
@@ -39,17 +36,16 @@ git rev-parse --verify $0
 
 | 무엇 | 명령 |
 |---|---|
-| 기준 커밋 | `git rev-parse --short $0` 와 `git log -1 --format='%h %ad %s' --date=short $0` |
+| 기준 커밋 | `git rev-parse --short $0`, `git log -1 --format='%h %ad %s' --date=short $0`, `git merge-base $0 HEAD` |
 | 지금 위치 | `git rev-parse --short HEAD`, `git branch --show-current`, `git status --short` |
 | 변경 파일 | `git diff --stat $0...HEAD` |
 | 커밋 목록 | `git log --oneline $0..HEAD` |
-| 본문 diff | `git diff $0...HEAD` |
+| 본문 diff | `git diff $0...HEAD` — 머지 베이스부터 |
 | 추적 안 된 파일 | `git ls-files --others --exclude-standard -- . ':!.claude/audits' ':!.claude/briefs' ':!.claude/audit-brief.md'` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short` 가 비어 있지 않으면)
-`$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 브리핑 머리에 적고, 필요하면
-`git diff HEAD` 도 함께 넣으세요 — 커밋된 변경은 위 diff 에 이미 있으니 작업트리
-몫만 더합니다.
+`$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
+절의 `### 작업트리` 아래에 따로 넣으세요 — 커밋된 몫과 섞이면 빠졌는지 못 가립니다.
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
 파일이 통째로 빠집니다. 지난 감사 기록 · 브리핑은 위 명령이 뺍니다. 이름을 「변경 파일」에 적고 본문은
@@ -61,7 +57,7 @@ git rev-parse --verify $0
 # 감사 브리핑
 
 - 만든 시각: <지금>
-- 기준: `<base>` = `<짧은 SHA>` (<날짜> <제목>)
+- 기준: `<base>` = `<짧은 SHA>` (<날짜> <제목>), 머지 베이스 `<SHA>`
 - 대상: `<HEAD 짧은 SHA>` (브랜치 `<이름>`)
 - 커밋 안 된 변경: <없음 / 있음 — `경로` 목록, 아래 diff 에 포함 여부>
 - 추적 안 된 파일: <없음 / `경로` 목록 — 아래 diff 에 포함 여부>
@@ -77,7 +73,7 @@ git rev-parse --verify $0
 
 ## diff
 
-<git diff 결과>
+<git diff 결과. 작업트리 몫은 `### 작업트리` 아래>
 
 ## 이 브리핑이 담지 않은 것
 
