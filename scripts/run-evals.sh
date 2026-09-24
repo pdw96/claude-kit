@@ -84,10 +84,11 @@ status=$?
 set -e
 
 # 실패한 회차의 트레이스만 남기고 임시 디렉터리는 지운다.
-python3 - "$OUT" <<'PY'
-import json, pathlib, shutil, sys
+python3 - "$OUT" "$@" <<'PY'
+import json, pathlib, re, shutil, sys
 
 out = pathlib.Path(sys.argv[1])
+argv = sys.argv[2:]
 res = out / "result.json"
 # 결과 파일이 없으면 실패다. 하네스가 exit 0 으로 끝나고 파일을 안 쓰면 아래
 # 「한 케이스도 안 돌았다」 검사까지 닿지도 않고, 러너는 하네스의 0 을 그대로
@@ -107,7 +108,35 @@ if not d.get("cases"):
     print("     안 돌린 것을 통과로 세지 않는다.")
     raise SystemExit(3)
 
+# **고른 케이스가 전부, 회차 수대로 돌았는지 본다.** 위는 「하나도 안 돌았다」만
+# 잡는다. 하네스가 고른 것 가운데 하나를 조용히 빠뜨리거나 with 팔 회차를 안 내면,
+# 남은 케이스만으로 통과하고 그 입력이 캐시에 「통과」로 남는다(Codex 리뷰).
+import fnmatch
+pats, want = [], None
+for i, a in enumerate(argv):
+    if a == "--case" and i + 1 < len(argv):
+        pats.append(argv[i + 1])
+    elif a.startswith("--case="):
+        pats.append(a.split("=", 1)[1])
+    elif a == "--runs" and i + 1 < len(argv):
+        want = int(argv[i + 1])
+    elif a.startswith("--runs="):
+        want = int(a.split("=", 1)[1])
+suite = pathlib.Path("vibe-audit/evals")
+chosen = sorted(c.parent.name for c in suite.glob("*/case.yaml")
+                if not pats or any(fnmatch.fnmatchcase(c.parent.name, p) for p in pats))
+got = {c.get("name"): len(((c.get("arms") or {}).get("with") or [])) for c in d.get("cases", [])}
+short = [f"{n} (결과에 없음)" for n in chosen if n not in got]
+short += [f"{n} (with 회차 {got[n]}{'' if want is None else f' / {want}'})"
+          for n in chosen if n in got and (got[n] == 0 or (want is not None and got[n] != want))]
+if short:
+    print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
+    for s in short:
+        print(f"     {s}")
+    raise SystemExit(3)
+
 kept, temps = 0, set()
+limited = []
 
 # 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
 # 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
@@ -230,6 +259,8 @@ for case in d.get("cases", []):
                 pass
             print(f"     부른 도구: {' → '.join(calls) or '(없음)'}")
             print(f"     마지막 답: {' '.join(last.split())[:300] or '(없음)'}")
+            if re.search(r"hit your (?:\w+ )?limit|usage limit|rate limit", last, re.I):
+                limited.append(f"{case['name']}.{arm}.run{i}")
 
 # --keep-temp 로 남는 작업공간을 치운다. 모드가 닫혀 있어 그냥 지우면 조용히
 # 실패하므로(하네스가 경고하는 자리) 먼저 열고 지운다. 남기는 것은 위에서 이미
@@ -257,6 +288,17 @@ for t in temps:
 
 print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))
+
+# **사용량 한도에 걸린 회차는 판정이 아니다.** 한도에 걸리면 세션은 아무 도구도 안
+# 부르고 「한도에 걸렸다」만 답한다 — 채점은 그것을 「감사자가 안 떴다」로 센다.
+# 실제로 CI 에서 route 여섯이 3/3 「회귀」로 떨어졌는데 원인은 주간 한도였다.
+# 회귀로 읽히지 않도록 따로 찍고 따로 끝낸다(종료코드 6).
+if limited:
+    print(f"\nFAIL 사용량 한도에 걸린 회차가 {len(limited)}개 — 이 실행의 점수는 판정이 아니다.")
+    for s in limited[:5]:
+        print(f"     {s}")
+    print("     한도가 풀린 뒤 다시 돌려라.")
+    raise SystemExit(6)
 
 if steady:
     print("\nFAIL 결정론 그레이더가 모든 회차에서 떨어졌거나, 감사자가 뜨지 않은 회차가 있다.")

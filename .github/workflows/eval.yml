@@ -280,6 +280,51 @@ jobs:
             echo "::error::verify-evals.py 가 실행 비트 없는 픽스처를 통과시켰다"; exit 1
           fi
 
+          # run-evals.sh — 고른 케이스 가운데 하나가 결과에서 빠지면 실패해야 한다(종료코드 3).
+          # 사용량 한도에 걸린 회차는 회귀가 아니라 한도로 따로 끝나야 한다(종료코드 6).
+          mkdir -p "$f/lim"; printf '%s\n' '{"type":"result","result":"You'"'"'ve hit your weekly limit · resets Sep 26, 6pm (UTC)"}' > "$f/lim/trace.jsonl"
+          python3 - "$f" <<'PY'
+          import json, pathlib, sys
+          f = pathlib.Path(sys.argv[1])
+          names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
+          ok = lambda: {"score": 1.0, "passed": True, "tracePath": None,
+                        "graders": [{"name": "route-correct", "passed": True, "weight": 3, "scored": True}]}
+          def case(n, runs):
+              return {"name": n, "graders": [{"name": "route-correct", "type": "tool_used", "weight": 3}],
+                      "arms": {"with": runs}, "aggregates": {"score": 1.0}}
+          json.dump({"cases": [case(n, [ok(), ok(), ok()]) for n in names[:-1]]}, open(f / "miss.json", "w"))
+          lim = {"score": 0.67, "passed": False, "tracePath": str(f / "lim/trace.jsonl"),
+                 "graders": [{"name": "route-correct", "passed": False, "weight": 3, "scored": True}]}
+          json.dump({"cases": [case(n, [ok(), ok(), lim]) for n in names]}, open(f / "lim.json", "w"))
+          PY
+          for m in miss:3 lim:6; do
+            set +e
+            FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
+            st=$?
+            set -e
+            if [ "$st" != "${m##*:}" ]; then
+              echo "::error::run-evals.sh 가 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
+            fi
+          done
+
+          # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gap-unowned/graders/gate-no-fake-owner.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 문턱을 못 넘기는 심판 그레이더를 통과시켰다"; exit 1
+          fi
+
+          # verify-brief.py — 「담지 않은 것」 제목만 있고 항목이 없는 브리핑은 실패해야 한다
+          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          python3 - "$b/.claude/audit-brief.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text(); h = "## 이 브리핑이 담지 않은 것"
+          p.write_text(t[:t.find(h)] + h + "\n\n")
+          PY
+          if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
+            echo "::error::verify-brief.py 가 항목 없는 「담지 않은 것」을 통과시켰다"; exit 1
+          fi
+
           # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
           sed -i '0,/^weight/s//arm: with-only\nweight/' "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"

@@ -230,12 +230,16 @@ def check(suite, agents_dir):
         route_target, route_negatives, route_quiet = None, [], False
         route_weights = {}
         route_others = None  # (제외 목록, 본문이 선언한 허용 목록)
+        all_weights, judged = {}, []
         for g in graders:
             fm = frontmatter(g)
             if fm is None:
                 bad.append(f"{name}/{g.stem}: 프론트매터가 --- 로 닫히지 않았다")
                 continue
             t = fm.get("type")
+            all_weights[g.stem] = float(fm.get("weight", 1))
+            if t == "llm":
+                judged.append(g.stem)
             if t not in GRADER_TYPES:
                 bad.append(f"{name}/{g.stem}: type 이 {t!r} — {sorted(GRADER_TYPES)} 중 하나여야 한다")
             names.add(g.stem)
@@ -388,6 +392,22 @@ def check(suite, agents_dir):
                 )
             if "auditor-fired" not in names:
                 bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
+            # **심판 그레이더 하나가 매번 떨어져도 문턱 아래로 가야 한다.** 결정론 그레이더는
+            # run-evals.sh 가 「모든 회차에서 떨어짐」으로 따로 물지만, 심판은 틀린 적이 있어
+            # 거기서 뺐다 — 그러니 심판이 재는 것은 **무게로만** 지켜진다. gap-unowned 의
+            # gate-no-fake-owner(2/12)는 세 회차 전부 떨어져도 0.833 으로 전수 문턱 0.8 을
+            # 넘었다(Codex 리뷰). CI 는 --ablation none 이라 auditor-fired 도 점수에 든다.
+            thr = ci_threshold()
+            total = sum(all_weights.values())
+            if thr is not None and total:
+                for gname in sorted(judged):
+                    w = all_weights[gname]
+                    if (total - w) / total >= thr:
+                        bad.append(
+                            f"{name}/{gname}: 심판 그레이더 weight {w:g} — 매번 떨어져도 "
+                            f"{total - w:g}/{total:g} = {(total - w) / total:.2f} 로 "
+                            f"CI 문턱 {thr} 을 넘는다. 무게를 올려라"
+                        )
 
     return bad
 

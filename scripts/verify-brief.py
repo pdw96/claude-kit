@@ -60,6 +60,11 @@ def check(text):
     if i >= 0 and j > i and not re.search(r"^[-+]", text[i:j], re.M):
         bad.append("diff 절에 변경 줄(+/-)이 한 줄도 없다 — 빈 브리핑이다")
 
+    # 「담지 않은 것」은 제목만으로는 공개가 아니다. 제목 아래가 비면 감사자는 여전히
+    # 전부 본 줄 안다 — 이 검사가 지키려는 바로 그것이다(Codex 리뷰). 항목 하나는 있어야 한다.
+    if j >= 0 and not re.search(r"^\s*[-*] \S", text[j:].split("\n", 1)[-1], re.M):
+        bad.append("「담지 않은 것」 제목 아래에 항목이 하나도 없다 — 제목은 공개가 아니다")
+
     if i >= 0 and j > i:
         body = text[i:j]
         lines = body.count("\n")
