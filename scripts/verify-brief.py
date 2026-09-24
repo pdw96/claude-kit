@@ -48,6 +48,9 @@ def check(text):
     ut = re.search(r"^- 추적 안 된 파일:(.*)$", text, re.M)
     if not ut:
         bad.append("추적 안 된 파일이 있는지 안 적혀 있다 — 새로 만든 파일은 어느 diff 에도 안 나온다")
+    elif not (ut.group(1).strip().startswith("없음") or re.search(r"`[^`]+`", ut.group(1))):
+        # 값이 비면 줄만 있는 것과 같다 — 새 파일을 빠뜨렸는지 감사자가 모른다(Codex 리뷰).
+        bad.append("`추적 안 된 파일:` 값이 `없음` 도 백틱 경로 목록도 아니다 — 비어 있으면 적지 않은 것과 같다")
     else:
         # 줄만 있고 적힌 파일이 본문에 없으면 머리가 거짓말을 한다. 「app/new.py — 아래
         # diff 포함」이라 적고 빼도, 다른 파일의 +/- 가 diff 검사를 채웠다(Codex 리뷰).
@@ -71,7 +74,10 @@ def check(text):
     # 변경 줄(+/-)이 없어도 git 이 적는 메타데이터 기록(이름 바꿈 · 모드 · 새 파일 ·
     # 지운 파일 · 이진 파일)이 있으면 빈 것이 아니다. 실행 비트만 바뀐 변경도 운영에서는
     # 무겁다 — 그것만 담은 브리핑을 빈 것으로 버리면 안 된다(Codex 리뷰).
-    meta = (r"^(?:[-+]|(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
+    # 파일 머리(`--- a/…` · `+++ b/…` · `/dev/null`)는 변경 줄이 아니다. 그것만 남은 diff —
+    # 중간에 끊긴 브리핑 — 를 채워진 것으로 읽으면 안 된다(Codex 리뷰).
+    meta = (r"^(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null))"
+            r"|(?:old|new) mode |(?:new|deleted) file mode |rename (?:from|to) "
             r"|copy (?:from|to) |Binary files )")
     if i >= 0 and j > i and not re.search(meta, text[i:j], re.M):
         bad.append("diff 절에 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")

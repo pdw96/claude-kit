@@ -897,6 +897,24 @@ PR 을 리뷰로 돌리자 Codex 가 다섯을 짚었다. 넷은 재현하거나
 | `verify-brief.py` 가 +/- 줄 없는 diff 를 빈 브리핑으로 버린다 — 이름 바꿈 · 실행 비트만 바뀐 변경 | 맞다. `old mode` / `new mode` 만 담은 브리핑이 FAIL 이었다 | git 메타데이터 기록(모드 · 새/지운 파일 · 이름 바꿈 · 복사 · 이진 파일)이 있으면 빈 것이 아니다. `diff --git` 머리만 있는 것은 여전히 빈 것. 모드만 바뀐 브리핑이 PASS 인지를 「게이트가 무는가」에 |
 | 수트 지문이 실행 비트를 안 본다 — `run-evals.sh` 에서 비트를 빼도 앞선 통과 지문이 되살아나 eval 을 건너뛴다 | 맞다. `chmod -x` 앞뒤의 지문이 같았다 | 파일마다 소유자 실행 비트를 바이트와 함께 넣는다. 계산 방식이 바뀌어 캐시는 한 번 다 무효가 된다. `chmod -x scripts/run-evals.sh` 가 지문을 바꾸는지를 「게이트가 무는가」에 |
 
+## Codex 15차 리뷰 — 일곱을 고쳤다 (2026-09-24)
+
+**넷이 14차까지 조인 것의 가장자리다.**
+
+| 짚은 것 | 고친 것 |
+|---|---|
+| `cycle-first/gate-first-declared` 가 「첫 회차가 아니다」도 받는다 — 낱말만 본다 | 기록 어디에든 「첫 회차가/는 아니」가 있으면 FAIL. 없는 지난 회차를 있다고 한 fail 표본 |
+| `cycle-continuity/gate-new-contiguous` 가 빈틈만 보고 **겹침**은 안 본다 | 같은 번호의 `### NC-` 머리가 두 번이면 FAIL(`cycle-first/gate-numbering` 과 같은 모양). NC-4 를 두 결함에 붙인 fail 표본 |
+| `/audit-brief` 가 지난 감사 기록(`.claude/audits/`) · 옮긴 브리핑(`.claude/briefs/`)을 추적 안 된 파일로 다시 담는다 — 옮긴 브리핑은 지난 diff 전체다 | 모으는 명령에 `-- . ':!.claude/audit*' ':!.claude/briefs'`. 임시 저장소에서 두 폴더와 `.claude/audit-brief.md` 가 빠지고 다른 새 파일은 남는 것을 확인. 천장에 걸려 겹치는 문장 둘을 줄였다 — 호출 시 3,483자 |
+| `verify-brief.py` 가 값 없는 `- 추적 안 된 파일:` 을 받는다 | 값이 `없음` 으로 시작하거나 백틱 경로가 있어야 한다 |
+| `verify-brief.py` 의 +/- 검사가 파일 머리(`--- a/` · `+++ b/`)도 변경 줄로 센다 | `--- a/` · `+++ b/` · `/dev/null` 머리는 빼고 센다. 머리만 남은 diff 는 빈 브리핑 |
+| 러너가 with 팔만 센다 — `--ablation` 을 안 주면 두 팔인데 without 팔이 빠진 결과도 받는다 | `--ablation` 을 읽어 `none` 이 아니면 without 팔도 회차 수대로 요구한다(→ 3). CI 는 `--ablation none` 이라 영향 없음 |
+| 한도 검출이 「rate limit」 같은 낱말에 걸린다 — 그것을 발견으로 적은 멀쩡한 회차가 6 으로 끝난다 | 답의 **머리에 온** 한도 문구(「You've hit your … limit」 · 「Claude AI usage limit reached」)만 센다. 한도에 걸린 세션은 그 한 줄만 답한다 |
+
+「게이트가 무는가」에 넣은 것: 빈 값 · 머리만 남은 diff(둘 다 → FAIL), 두 팔 기본에 without 없음(→ 3),
+「rate limit」 발견 회차(→ 0), 다 통과한 결과(→ 0). 앞선 가짜 결과들은 `--ablation none` 으로 부르거나
+without 팔을 채웠다.
+
 ## 브리핑 — 확인불가를 기계로 줄인다
 
 1차 되먹임이 발견한 구조적 한계다. 감사자는 `Read` · `Grep` · `Glob` 만 가져

@@ -112,7 +112,10 @@ if not d.get("cases"):
 # 잡는다. 하네스가 고른 것 가운데 하나를 조용히 빠뜨리거나 with 팔 회차를 안 내면,
 # 남은 케이스만으로 통과하고 그 입력이 캐시에 「통과」로 남는다(Codex 리뷰).
 import fnmatch
-pats, want = [], None
+# `--ablation` 을 안 주면 하네스는 대상 경로에서 플러그인을 찾아 **두 팔**(with-without)로
+# 돈다. 그때는 without 팔도 회차 수대로 있어야 한다 — 없으면 대조 실험이 말없이 한 팔
+# 실험이 된다(Codex 리뷰).
+pats, want, ablation = [], None, "with-without"
 for i, a in enumerate(argv):
     if a == "--case" and i + 1 < len(argv):
         pats.append(argv[i + 1])
@@ -122,6 +125,10 @@ for i, a in enumerate(argv):
         want = int(argv[i + 1])
     elif a.startswith("--runs="):
         want = int(a.split("=", 1)[1])
+    elif a == "--ablation" and i + 1 < len(argv):
+        ablation = argv[i + 1]
+    elif a.startswith("--ablation="):
+        ablation = a.split("=", 1)[1]
 suite = pathlib.Path("vibe-audit/evals")
 chosen = sorted(c.parent.name for c in suite.glob("*/case.yaml")
                 if not pats or any(fnmatch.fnmatchcase(c.parent.name, p) for p in pats))
@@ -129,6 +136,10 @@ got = {c.get("name"): len(((c.get("arms") or {}).get("with") or [])) for c in d.
 short = [f"{n} (결과에 없음)" for n in chosen if n not in got]
 short += [f"{n} (with 회차 {got[n]}{'' if want is None else f' / {want}'})"
           for n in chosen if n in got and (got[n] == 0 or (want is not None and got[n] != want))]
+if ablation != "none":
+    wo = {c.get("name"): len(((c.get("arms") or {}).get("without") or [])) for c in d.get("cases", [])}
+    short += [f"{n} (without 회차 {wo[n]} / {want if want is not None else got[n]} — --ablation {ablation})"
+              for n in chosen if n in got and wo[n] != (want if want is not None else got[n])]
 # **디스크에 적힌 그레이더가 회차마다 다 채점됐는지도 본다.** 아래의 필수 그레이더
 # 판정은 결과가 적은 이름에서 출발하므로, 하네스가 그레이더를 조용히 빠뜨리면
 # `graders: []` 인 만점 회차가 아무것도 안 재고 통과해 캐시에 남는다(Codex 리뷰).
@@ -154,7 +165,11 @@ if short:
 
 kept, temps = 0, set()
 limited = []
-LIMIT = re.compile(r"hit your (?:\w+ )?limit|usage limit|rate limit", re.I)
+# 한도 문구는 **답의 머리에 온 것만** 센다. 「rate limit」 같은 말은 감사 기록이 정상으로
+# 쓰는 낱말이다 — 로그인 라우트에 rate limit 이 없다는 발견이 한도로 읽혀 멀쩡한 실행이
+# 6 으로 끝난다(Codex 리뷰). 한도에 걸린 세션은 그 문구 한 줄만 답한다.
+LIMIT = re.compile(r"\s*(?:You['’]ve hit your (?:\w+ )?limit|You have hit your (?:\w+ )?limit"
+                   r"|Claude AI usage limit reached)", re.I)
 
 # 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
 # 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
@@ -250,12 +265,14 @@ for case in d.get("cases", []):
             hit = False
             try:
                 for line in open(src, encoding="utf-8"):
-                    if '"result"' in line and LIMIT.search(line):
-                        try:
-                            e = json.loads(line)
-                        except ValueError:
-                            continue
-                        hit = e.get("type") == "result" and bool(LIMIT.search(str(e.get("result") or "")))
+                    if '"result"' not in line:
+                        continue
+                    try:
+                        e = json.loads(line)
+                    except ValueError:
+                        continue
+                    if e.get("type") == "result":
+                        hit = bool(LIMIT.match(str(e.get("result") or "")))
             except OSError:
                 pass
             if hit:

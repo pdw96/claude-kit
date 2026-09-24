@@ -239,7 +239,7 @@ jobs:
                     open(out, "w"))
           PY
             set +e
-            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope >"$f/o$n" 2>&1
+            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >"$f/o$n" 2>&1
             st=$?
             set -e
             if [ "$n" = 3 ] && [ "$st" != 5 ]; then
@@ -266,7 +266,11 @@ jobs:
                                {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
                               + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
                   for i in range(3)]
-          json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": []},
+          # 두 팔(러너의 기본)이므로 without 팔도 회차 수대로 둔다 — 없으면 3 으로 먼저 끝난다
+          base = [{"score": 0.0, "passed": False, "tracePath": None,
+                   "graders": [{"name": g, "weight": 1, "scored": True, "passed": False}
+                               for g in ["trap-not-an-nc"] + rest]} for i in range(3)]
+          json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": base},
                                 "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
                                             {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
                                 "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
@@ -311,16 +315,29 @@ jobs:
           quiet = lambda n: dict(ok(n), tracePath=str(f / "lim/trace.jsonl"))
           json.dump({"cases": [case(n, [ok(n), ok(n), quiet(n) if n == "route-quiet" else ok(n)]) for n in names]},
                     open(f / "limpass.json", "w"))
+          # 감사 기록이 「rate limit」을 **발견으로** 말한 회차는 한도가 아니다
+          words = lambda n: dict(ok(n), tracePath=str(f / "words/trace.jsonl"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), words(n)]) for n in names]}, open(f / "ratetext.json", "w"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), ok(n)]) for n in names]}, open(f / "allok.json", "w"))
           PY
-          for m in miss:3 lim:6 empty:3 limpass:6; do
+          mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다"}' > "$f/words/trace.jsonl"
+          for m in miss:3 lim:6 empty:3 limpass:6 ratetext:0 allok:0; do
             set +e
-            FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
+            FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
             st=$?
             set -e
             if [ "$st" != "${m##*:}" ]; then
               echo "::error::run-evals.sh 가 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
             fi
           done
+          # --ablation 을 안 주면 두 팔이다. without 팔이 없는 결과는 한 팔 실험으로 바뀐 것이다(→ 3)
+          set +e
+          FAKE_RESULT="$f/allok.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 기본(두 팔)인데 without 팔 없는 결과를 받았다 (exit $st)"; exit 1
+          fi
 
           # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
@@ -357,6 +374,25 @@ jobs:
           PY
           if ! python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
             echo "::error::verify-brief.py 가 모드만 바뀐 diff 를 빈 브리핑으로 버렸다"; exit 1
+          fi
+
+          # verify-brief.py — `추적 안 된 파일:` 값이 비면 실패해야 한다
+          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          sed -i 's/^- 추적 안 된 파일: 없음.*/- 추적 안 된 파일:/' "$b/.claude/audit-brief.md"
+          if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
+            echo "::error::verify-brief.py 가 빈 「추적 안 된 파일」 값을 통과시켰다"; exit 1
+          fi
+
+          # verify-brief.py — 파일 머리(--- a/ · +++ b/)만 남은 diff 는 빈 브리핑이다
+          b=$(mktemp -d); (cd "$b" && bash "$GITHUB_WORKSPACE/vibe-audit/evals/brief-used/fixture.sh")
+          python3 - "$b/.claude/audit-brief.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text(); h = "## 이 브리핑이 담지 않은 것"
+          i = t.find("## diff")
+          p.write_text(t[:i] + "## diff\n\ndiff --git a/app/routes.py b/app/routes.py\n--- a/app/routes.py\n+++ b/app/routes.py\n\n" + t[t.find(h):])
+          PY
+          if python3 scripts/verify-brief.py "$b/.claude/audit-brief.md" >/dev/null 2>&1; then
+            echo "::error::verify-brief.py 가 파일 머리만 남은 diff 를 통과시켰다"; exit 1
           fi
 
           # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
