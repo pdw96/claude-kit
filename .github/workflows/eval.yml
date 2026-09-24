@@ -431,6 +431,14 @@ jobs:
           node-version: "22"
       - run: npm install -g @anthropic-ai/claude-code
 
+      # **이 자격을 받는 사람은 쓰기 권한자뿐이다 — 저자가 이 위험을 받아들였다.**
+      # 같은 저장소 브랜치의 PR 은 저장소 시크릿을 받고, PR 이 고친 스크립트와
+      # 워크플로가 그 자격으로 돈다(Codex 7차). 포크 · Dependabot PR 은 시크릿을 못
+      # 받고 verdict 가 빨갛게 둔다. 지금 쓰기 권한자는 저자 한 명이다.
+      # **협업자를 들이면** 시크릿을 저장소 시크릿에서 승인자가 걸린 environment 로
+      # 옮기고 이 잡에 `environment:` 를 건다 — 스크립트를 기준 브랜치에서 가져오는
+      # 것으로는 안 막힌다. pull_request 는 PR 쪽의 워크플로 파일로 돈다.
+      #
       # **하나만 내보낸다.** 둘 다 env 에 두면 비어 있는 쪽도 「설정됨」으로 읽혀
       # 다른 쪽을 가릴 수 있다 — CLI 는 ANTHROPIC_API_KEY 를 먼저 본다. 둘 다
       # 있으면 구독 토큰을 쓴다.
