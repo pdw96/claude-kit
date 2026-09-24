@@ -13,4 +13,4 @@
 ## 안 본 것
 - `migrations/0007_drop_legacy_email.py` — 스키마 설계와 마이그레이션은 `audit-data` 담당.
 - `.github/workflows/ci.yml` 와 `tests/test_invoices.py` — 검사 장치와 CI 는 `audit-quality` 담당.
-- `pyproject.toml` 의 의존성 버전 고정 — 어느 항목에도 안 걸린다. 담당 없음 — 호출자 판단 필요.
+- `pyproject.toml` 의 `sqlalchemy==1.4.52` — CLAUDE.md 가 적은 스택(SQLAlchemy 2.x)과 다르다. 문서 대비 준수는 `audit-internal` 담당.

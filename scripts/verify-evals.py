@@ -199,6 +199,12 @@ def check(suite, agents_dir):
                 import subprocess
                 if subprocess.run(["bash", "-n", str(f)]).returncode != 0:
                     bad.append(f"{name}: {script} 가 bash 문법 검사에서 깨진다")
+                # 실행 비트도 본다. 지금 하네스(CLI 2.1.281)는 `bash <script>` 로 불러
+                # 비트가 없어도 돌지만, 그것은 하네스의 구현이지 약속이 아니다 — 직접
+                # 실행으로 바뀌면 비트 빠진 픽스처는 빈 작업공간을 남긴다(Codex 리뷰 두 번).
+                # 픽스처 열여덟이 다 100755 라 지키는 값이 싸다.
+                if not f.stat().st_mode & 0o111:
+                    bad.append(f"{name}: {script} 에 실행 비트가 없다 — 하네스가 직접 실행하면 빈 작업공간에서 돈다")
 
         route = name.startswith(ROUTE_PREFIX)
 

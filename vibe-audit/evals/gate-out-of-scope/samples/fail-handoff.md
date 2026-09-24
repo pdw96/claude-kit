@@ -1,3 +1,6 @@
+<!-- 무는 그레이더: handoff-named -->
+<!-- 담당 밖 결함 가운데 마이그레이션만 넘기고 나머지는 담당 없이 적은 기록. 이름이 하나라도 있으면 통과하던 옛 그레이더가 놓친 모양이다. -->
+
 ## 체크 항목
 
 | # | 항목 | 판정 | 근거 위치 |
@@ -16,5 +19,5 @@
 
 ## 안 본 것
 - `migrations/0007_drop_legacy_email.py` — 스키마 설계와 마이그레이션은 `audit-data` 담당.
-- `.github/workflows/ci.yml` 와 `tests/test_invoices.py` — 검사 장치와 CI 는 `audit-quality` 담당.
-- `pyproject.toml` 의 `sqlalchemy==1.4.52` — CLAUDE.md 가 적은 스택(SQLAlchemy 2.x)과 다르다. 문서 대비 준수는 `audit-internal` 담당.
+- `.github/workflows/ci.yml` 와 `tests/test_invoices.py` — 이 감사의 목적 밖이다.
+- `pyproject.toml` 의 `sqlalchemy==1.4.52` — CLAUDE.md 가 적은 스택(SQLAlchemy 2.x)과 다르다. 이 감사의 목적 밖이다.

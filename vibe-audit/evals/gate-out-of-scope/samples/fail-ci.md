@@ -18,3 +18,5 @@
 
 ## 안 본 것
 - 스키마 설계와 마이그레이션 — `audit-data` 담당.
+- 검사 장치와 CI — `audit-quality` 담당.
+- CLAUDE.md 대비 스택 준수 — `audit-internal` 담당.
