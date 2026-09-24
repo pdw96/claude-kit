@@ -39,6 +39,35 @@ def diff_lines(text):
     return len(body)
 
 
+def short_hunks(body):
+    """줄 수가 모자란 헝크의 (머리, 마지막 헝크인가) 목록."""
+    out, lines, k = [], body.split("\n"), 0
+    heads = [n for n, ln in enumerate(lines) if re.match(r"@@ -\d", ln)]
+    for h in heads:
+        m = re.match(r"@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@", lines[h])
+        if not m:
+            continue
+        old, new = int(m.group(1) or 1), int(m.group(2) or 1)
+        k = h + 1
+        while k < len(lines) and (old > 0 or new > 0):
+            ln = lines[k]
+            if ln.startswith("\\"):
+                pass
+            elif ln.startswith("-") and not ln.startswith("--- a/"):
+                old -= 1
+            elif ln.startswith("+") and not ln.startswith("+++ b/"):
+                new -= 1
+            elif ln.startswith(" ") or (ln == "" and old > 0 and new > 0):
+                # 빈 줄은 공백이 지워진 문맥 줄일 수 있다 — 양쪽이 다 남았을 때만 문맥으로 센다
+                old, new = old - 1, new - 1
+            else:
+                break
+            k += 1
+        if old > 0 or new > 0:
+            out.append((lines[h].split(" @@")[0] + " @@", h == heads[-1]))
+    return out
+
+
 def check(text):
     bad = []
 
@@ -138,6 +167,16 @@ def check(text):
             r"(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null)))")
     if i >= 0 and j > i and not (re.search(meta, text[i:j], re.M) or re.search(hunk, text[i:j], re.M)):
         bad.append("diff 절에 헝크 안의 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
+    # 헝크는 머리(`@@ -a,b +c,d @@`)가 적은 줄 수만큼 와야 한다. 중간에 끊긴 `-old` 한 줄은
+    # 바꿈을 지움으로 읽게 한다(Codex 리뷰). 자른 브리핑(`자름: 있음`)은 마지막 헝크만 봐준다.
+    if i >= 0 and j > i:
+        broken = short_hunks(text[i:j])
+        if cut and cut.group(1) == "있음":
+            broken = [h for h, last in broken if not last]
+        else:
+            broken = [h for h, _ in broken]
+        if broken:
+            bad.append(f"diff 절의 헝크 {broken[0]} 가 머리가 적은 줄 수보다 짧다 — 끊긴 diff 다")
 
     # 「담지 않은 것」은 제목만으로는 공개가 아니다. 제목 아래가 비면 감사자는 여전히
     # 전부 본 줄 안다 — 이 검사가 지키려는 바로 그것이다(Codex 리뷰). 항목 하나는 있어야 한다.

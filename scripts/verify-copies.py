@@ -147,8 +147,17 @@ def main():
 
         # **읽기 전용은 지금 규칙으로 본다.** 이것은 판이 달라도 변하지 않는 불변식이다.
         for f in sorted(path.glob("audit-*.md")):
-            if CURRENT.frontmatter_tools(f.read_text(encoding="utf-8")) != [CURRENT.TOOLS]:
+            text = f.read_text(encoding="utf-8")
+            if CURRENT.frontmatter_tools(text) != [CURRENT.TOOLS]:
                 bad.append(f"{who}: {f.name} 의 프론트매터 tools 가 원형이 아니다 — 감사자가 아니다")
+            # 이름도 파일 이름과 같아야 한다. `name: renamed-secrets` 로 바꾸면 문서가 적은
+            # `@audit-secrets` 로는 안 불리는데 PASS 였다 — 커맨드 쪽만 보고 있었다(Codex 리뷰).
+            parts = text.split("---", 2)
+            head = parts[1] if len(parts) == 3 and not parts[0].strip() else ""
+            name = next((v.strip().strip("'\"") for k, s, v in (ln.partition(":") for ln in head.splitlines())
+                         if s and k.strip() == "name"), None)
+            if name != f.stem:
+                bad.append(f"{who}: {f.name} 의 머리말 name 이 {name!r} — 파일 이름 {f.stem!r} 과 같아야 불린다")
 
         # **공통 절은 적힌 커밋의 원본과, 그 커밋의 검사기로 견준다.** 지금 HEAD 와
         # 견주면 원본이 앞서 나간 것만으로 손대지 않은 사본이 실패한다 — 갈림은

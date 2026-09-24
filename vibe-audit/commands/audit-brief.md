@@ -43,7 +43,7 @@ git rev-parse --verify $0
 | 본문 diff | `git diff $0...HEAD` — 머지 베이스부터 |
 | 추적 안 된 파일 | `git ls-files --others --exclude-standard -- . ':!.claude/audits' ':!.claude/briefs' ':!.claude/audit-brief.md'` |
 
-작업트리에 커밋 안 된 변경이 있으면(`git status --short` 가 비어 있지 않으면)
+작업트리에 커밋 안 된 변경이 있으면(`git status --short -uno` 가 비어 있지 않으면)
 `$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
 절의 `### 작업트리` 아래에 따로 넣으세요 — 커밋된 몫과 섞이면 빠졌는지 못 가립니다.
 

@@ -132,6 +132,11 @@ for i, a in enumerate(argv):
 suite = pathlib.Path("vibe-audit/evals")
 chosen = sorted(c.parent.name for c in suite.glob("*/case.yaml")
                 if not pats or any(fnmatch.fnmatchcase(c.parent.name, p) for p in pats))
+# 한도 문구는 **답의 머리에 온 것만** 센다. 「rate limit」 같은 말은 감사 기록이 정상으로
+# 쓰는 낱말이다 — 로그인 라우트에 rate limit 이 없다는 발견이 한도로 읽혀 멀쩡한 실행이
+# 6 으로 끝난다(Codex 리뷰). 한도에 걸린 세션은 그 문구 한 줄만 답한다.
+LIMIT = re.compile(r"\s*(?:You['’]ve hit your (?:\w+ )?limit|You have hit your (?:\w+ )?limit"
+                   r"|Claude AI usage limit reached)", re.I)
 # `--runs` 가 없으면 케이스에 적힌 회차 수(prompt.md · case.yaml 의 `runs:`, 없으면 하네스
 # 기본 3)를 요구한다. 전에는 아무 수나 받아, 한 회차만 돈 결과도 통과했다(Codex 리뷰).
 def configured(n):
@@ -165,6 +170,7 @@ def with_only(g):
     return f.get("arm") == "with-only" or (not f.get("arm") and f.get("type") == "tool_used"
                                            and f.get("tool") == "Skill")
 byname = {c.get("name"): c for c in d.get("cases", [])}
+early_limited = []
 for n in chosen:
     if n not in got:
         continue
@@ -178,6 +184,13 @@ for n in chosen:
             # `graders: []` 로 낸다. 점수로 이미 떨어지니 여기서 3 으로 덮지 않는다 —
             # 덮으면 아래의 한도(6) 판정을 가린다.
             if run.get("error") and not run.get("score"):
+                # 시작을 못 한 회차는 **문턱과 따로** 실패다. 점수 0 이 평균에 섞이면 --runs 5 ·
+                # 문턱 0.8 에서 네 만점 + 하나 불발이 딱 0.8 로 통과했다(Codex 리뷰). 한도 때문이면 6.
+                err = " ".join(str(run.get("error")).split())
+                if LIMIT.search(err):
+                    early_limited.append(f"{n}.{arm}.run{i}")
+                else:
+                    short.append(f"{n} {arm} run{i} (시작 못 함: {err[:120]})")
                 continue
             miss = sorted(want_names - {g.get("name") for g in run.get("graders", [])})
             if miss:
@@ -187,6 +200,12 @@ for n in chosen:
             tp = run.get("tracePath")
             if not tp or not pathlib.Path(tp).is_file():
                 short.append(f"{n} {arm} run{i} (트레이스 없음 — 모델 · 한도를 확인할 수 없다)")
+if early_limited:
+    print(f"\nFAIL 사용량 한도로 시작도 못 한 회차가 {len(early_limited)}개 — 이 실행의 점수는 판정이 아니다.")
+    for s in early_limited[:5]:
+        print(f"     {s}")
+    print("     한도가 풀린 뒤 다시 돌려라.")
+    raise SystemExit(6)
 if short:
     print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
     for s in short:
@@ -195,11 +214,6 @@ if short:
 
 kept, temps = 0, set()
 limited = []
-# 한도 문구는 **답의 머리에 온 것만** 센다. 「rate limit」 같은 말은 감사 기록이 정상으로
-# 쓰는 낱말이다 — 로그인 라우트에 rate limit 이 없다는 발견이 한도로 읽혀 멀쩡한 실행이
-# 6 으로 끝난다(Codex 리뷰). 한도에 걸린 세션은 그 문구 한 줄만 답한다.
-LIMIT = re.compile(r"\s*(?:You['’]ve hit your (?:\w+ )?limit|You have hit your (?:\w+ )?limit"
-                   r"|Claude AI usage limit reached)", re.I)
 
 # 회차가 **실제로** 어느 모델로 돌았는지 트레이스에서 읽는다. result.json 에는
 # 모델이 없고, 통과한 회차의 트레이스는 아래에서 지워지므로 지금 읽어 둔다.
