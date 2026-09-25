@@ -47,6 +47,21 @@ if [ -n "$dirty" ]; then
   exit 1
 fi
 
+# **심을 파일은 모두 HEAD 에 추적돼 있어야 한다.** `status --porcelain` 은 무시된(ignored) 파일을
+# 안 보여 주는데 아래 고리는 *.md 를 다 심는다 — `.git/info/exclude` 에 넣은 커맨드가 출처 없이
+# 퍼졌고, 그 커밋에 없던 이름이라 verify-copies.py 도 레포 고유 파일로 봤다(Codex 리뷰).
+untracked=""
+for f in "$SRC"/vibe-audit/agents/*.md "$SRC"/vibe-audit/commands/*.md; do
+  [ -e "$f" ] || continue
+  rel="${f#"$SRC"/}"
+  git -C "$SRC" cat-file -e "HEAD:$rel" 2>/dev/null || untracked="$untracked $rel"
+done
+if [ -n "$untracked" ]; then
+  echo "원본에 HEAD 에 없는 파일이 있다 — 출처를 적을 수 없어 심지 않는다:$untracked" >&2
+  echo "커밋하거나 치운 뒤 다시 돌려라." >&2
+  exit 1
+fi
+
 # **--force 는 원본의 역사가 다 있어야 한다.** 물러난 감사자 · 커맨드를 역사에서 찾아 지우므로,
 # 얕은 복제에서는 경계 앞에서 물러난 것을 못 보고 남긴 채 대장만 새 커밋으로 옮긴다(Codex 리뷰).
 if [ "$FORCE" -eq 1 ] && [ "$(git -C "$SRC" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then
@@ -205,6 +220,16 @@ cat > "$DEST/README.md" <<EOF
 여섯 다 \`tools: ["Read", "Grep", "Glob"]\` 이라 고칠 도구가 없다. 그 줄을 지우면
 이것들은 감사자가 아니게 된다.
 EOF
+
+# **기능 브랜치의 커밋이면 경고한다.** 대장은 이 HEAD 를 출처로 적는데, 그 커밋이 squash · rebase 로
+# 머지되고 브랜치가 지워지면 가리킬 커밋이 사라져 verify-copies.py 가 떨어진다(Codex 리뷰). 기본
+# 브랜치에서 심는 것이 정석이고, 기능 브랜치에서 심었다면 머지 뒤 대장의 synced_commit 을 같은 내용의
+# 기본 브랜치 커밋으로 옮긴다(evals/README.md 34차).
+if main_ref="$(git -C "$SRC" for-each-ref --format='%(refname)' refs/remotes/origin/main refs/remotes/origin/master | head -1)" \
+   && [ -n "$main_ref" ] && ! git -C "$SRC" merge-base --is-ancestor HEAD "$main_ref" 2>/dev/null; then
+  echo "  경고: HEAD($SHA)가 ${main_ref#refs/remotes/} 에 없다 — squash 머지 뒤 이 출처가 사라질 수 있다." >&2
+  echo "        머지 뒤 copies.json 의 synced_commit 을 같은 내용의 기본 브랜치 커밋으로 옮겨라." >&2
+fi
 
 # 심은 자리를 대장에 적는다. 이게 없으면 사본이 어디에 있는지 아는 사람이
 # 심은 사람뿐이고, verify-copy.py 는 견줄 상대를 못 찾아 아무도 안 돌린다.

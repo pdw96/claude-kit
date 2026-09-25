@@ -94,7 +94,9 @@ def check(src, dst):
     # **원본 폴더의 다른 에이전트도 막는다.** `audit-*.md` 만 세면 `helper.md` 같은 파일은 이 검사 ·
     # 수트 · 예산을 다 비켜 가는데, 플러그인과 sync-agents.sh 는 폴더의 *.md 를 전부 싣는다 —
     # `Edit` · `Write` 를 가진 에이전트가 검사 없이 배포됐다(Codex 리뷰).
-    extra = sorted(p.name for p in src.glob("*.md") if not p.name.startswith("audit-") and p.name != "README.md")
+    # README.md 도 예외가 아니다 — 플러그인의 agents/ 에서는 *.md 가 다 에이전트 정의로 읽혀, 그 이름으로
+    # 머리말을 달면 검사 밖 에이전트가 된다(Codex 리뷰). 원본 폴더에는 감사자 여섯만 둔다.
+    extra = sorted(p.name for p in src.glob("*.md") if not p.name.startswith("audit-"))
     if extra:
         return [f"원본 {src} 에 감사자가 아닌 에이전트가 있다: {', '.join(extra)} — 검사 · 예산 밖에서 배포된다"]
 
