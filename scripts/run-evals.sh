@@ -23,6 +23,11 @@
 # 실행한다. 실제로 두 번 났다 — `line 48: -keep-temp: command not found` 와
 # `line 52: jflag: unbound variable`. 둘 다 재현이 안 돼 한참 못 찾았다.
 # 전체를 함수 하나로 감싸면 bash 가 **끝까지 읽은 뒤** 실행하므로 이 일이 없다.
+#
+# **이 러너는 고정했다(2026-09-25).** 새 방어를 더하지 않는다. 고치는 것은 실제 CI
+# 실행에서 난 결함과, 회귀를 통과(exit 0)로 내는 결함뿐이다. 하네스가 이상한
+# result.json · 트레이스를 쓰는 가설적 모양은 한계로 둔다 — 목록은 evals/README.md
+# 「브리핑 검사기를 떼고, 러너를 고정했다」.
 set -euo pipefail
 
 main() {
