@@ -25,17 +25,18 @@ argument-hint: [기준 커밋/브랜치 — 필수] [감사자 이름]
 
 ```
 git rev-parse --verify "$0^{commit}"
+git merge-base "$0" HEAD
 ```
 
-커밋이 아니면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
+커밋이 아니거나 머지 베이스가 없으면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
 
-**둘. 아래를 모읍니다.** 실패한 명령이 있으면 그 자리를 비워 두지 말고 **실패한
-사실을 브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- . ':!.claude/audits'
+**둘. 아래를 모읍니다.** 실패한 명령은 그 자리를 비워 두지 말고 **실패를
+브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- . ':!.claude/audits'
 ':!.claude/briefs' ':!.claude/audit-brief.md'` 를 붙입니다 — 지난 기록이 다시 담깁니다.
 
 | 무엇 | 명령 |
 |---|---|
-| 기준 커밋 | `git rev-parse --short $0`, `git log -1 --format='%h %ad %s' --date=short $0`, `git merge-base $0 HEAD` |
+| 기준 커밋 | `git rev-parse --short $0`, `git log -1 --format='%h %ad %s' --date=short $0` |
 | 지금 위치 | `git rev-parse --short HEAD`, `git branch --show-current`, `git status --short` |
 | 변경 파일 | `git diff --stat $0...HEAD` |
 | 커밋 목록 | `git log --oneline $0..HEAD` |

@@ -93,6 +93,11 @@ jobs:
           if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
             echo "::error::sync-agents.sh --force 가 원본에서 물러난 커맨드를 남겼다"; cat "$c/out"; exit 1
           fi
+          # --force 는 얕은 복제에서 거절해야 한다 — 경계 앞에서 물러난 것을 못 본다(Codex 32차)
+          git clone -q --depth 1 "file://$c/src" "$c/shallow"
+          if HOME="$c" "$c/shallow/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1; then
+            echo "::error::sync-agents.sh --force 가 얕은 복제에서 돌았다"; cat "$c/out"; exit 1
+          fi
 
           # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"

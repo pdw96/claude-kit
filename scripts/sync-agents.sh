@@ -47,6 +47,14 @@ if [ -n "$dirty" ]; then
   exit 1
 fi
 
+# **--force 는 원본의 역사가 다 있어야 한다.** 물러난 감사자 · 커맨드를 역사에서 찾아 지우므로,
+# 얕은 복제에서는 경계 앞에서 물러난 것을 못 보고 남긴 채 대장만 새 커밋으로 옮긴다(Codex 리뷰).
+if [ "$FORCE" -eq 1 ] && [ "$(git -C "$SRC" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then
+  echo "원본이 얕은 복제다 — 물러난 감사자 · 커맨드를 가릴 역사가 없어 --force 를 하지 않는다." >&2
+  echo "git -C \"$SRC\" fetch --unshallow 로 역사를 받은 뒤 다시 돌려라." >&2
+  exit 1
+fi
+
 # **이름이 같은 다른 레포를 덮지 않는다.** 대장은 레포 이름(경로의 끝)으로 줄을
 # 가르므로, 다른 조직의 `service` 둘을 심으면 둘째가 첫째 줄을 지워 첫째가
 # verify-copies.py 에서 조용히 사라진다(Codex 리뷰). 같은 이름 · 다른 자리면 멈춘다.
