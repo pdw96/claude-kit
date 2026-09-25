@@ -150,6 +150,25 @@ for f in "$SRC"/vibe-audit/commands/*.md; do
   cmds=$((cmds + 1))
 done
 
+# **--force 면 원본에서 물러난 것을 지운다.** 원본 역사에는 있었는데 지금 커밋에 없는
+# 감사자 · 커맨드가 사본에 남으면, 대장은 새 커밋을 적는데 옛 커맨드는 여전히 불리고
+# verify-copies.py 는 그것을 물러난 것으로 떨어뜨린다(Codex 리뷰). 원본에 한 번도 없던
+# 이름은 레포 고유 파일이므로 건드리지 않는다.
+if [ "$FORCE" -eq 1 ]; then
+  while IFS= read -r gone; do
+    case "$gone" in
+      vibe-audit/agents/*.md)   dir="$DEST" ;;
+      vibe-audit/commands/*.md) dir="$CMDDEST" ;;
+      *) continue ;;
+    esac
+    [ -e "$SRC/$gone" ] && continue
+    if [ -e "$dir/$(basename "$gone")" ]; then
+      rm -f "$dir/$(basename "$gone")"
+      echo "  지움   $(basename "$gone") — 원본에서 물러났다"
+    fi
+  done < <(git -C "$SRC" log --format= --name-only -- vibe-audit/agents vibe-audit/commands | sort -u)
+fi
+
 # **하나라도 건너뛰었으면 출처를 다시 적지 않는다.** 건너뛴 파일은 예전 원본에서
 # 온 그대로인데 README 와 대장에 지금 HEAD 를 적으면, 원본이 앞서 나간 뒤에도
 # 사본이 「지금 것」으로 적힌다. CI 에서는 사본 경로가 안 닿아 verify-copies.py 가

@@ -2,7 +2,7 @@
 type: regex
 weight: 3
 target: last_message
-pattern: "(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?담당 없음 — 호출자 판단 필요|담당 없음 — 호출자 판단 필요(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)|(?:^|\\n)[#*>\\s-]*「?담당 없음 — 호출자 판단 필요」?[*\\s]*:?[*\\s]*\\n(?:(?!\\n## )[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)"
+pattern: "(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?담당 없음 — 호출자 판단 필요|담당 없음 — 호출자 판단 필요(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)|(?:^|\\n)(?:#{1,6}[ \\t]+|>[ \\t]*)?(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:(?!\\n## )[\\s\\S])*?\\n[ \\t]*[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])|(?:^|\\n)[-*][ \\t]+(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:[ \\t]+[^\\n]*\\n)*?[ \\t]+[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])"
 ---
 
 표식에서 시작해 다음 `## ` 제목을 넘지 않고 훑어, 공급망 발견이 **「담당 없음 —
@@ -24,3 +24,5 @@ pattern: "(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\
 그러면 다른 항목(성능 줄)에 붙은 표식 하나로 뒤의 공급망 항목이 `audit-ops` 에 넘어가도
 통과했다(Codex 리뷰 — `gate-escalated-perf` 에서 짚은 같은 모양). 이제 표식은 발견과
 같은 목록 항목 안에 있거나, 제 줄에 홀로 서서 아래 목록을 묶어야 한다.
+
+**표식만 선 줄의 모양은 `gate-escalated-perf` 와 같이 좁혔다** — 형제 목록 항목은 받지 않는다(Codex 리뷰). 표본 `fail-supply-sibling.md`.

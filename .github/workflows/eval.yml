@@ -88,6 +88,11 @@ jobs:
           if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
             echo "::error::sync-agents.sh --force 가 빠진 커맨드를 못 심었다"; cat "$c/out"; exit 1
           fi
+          # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
+          (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
+          if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
+            echo "::error::sync-agents.sh --force 가 원본에서 물러난 커맨드를 남겼다"; cat "$c/out"; exit 1
+          fi
 
           # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
           s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
