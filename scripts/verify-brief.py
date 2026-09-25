@@ -61,14 +61,69 @@ def parse_hunks(body):
                 old, changed = old - 1, True
             elif ln.startswith("+") and new > 0:
                 new, changed = new - 1, True
-            elif ln.startswith(" ") or (ln == "" and old > 0 and new > 0):
-                # 빈 줄은 공백이 지워진 문맥 줄일 수 있다 — 양쪽이 다 남았을 때만 문맥으로 센다
+            elif ln.startswith(" "):
+                # 빈 문맥 줄도 git 은 공백 하나를 찍는다. 맨 빈 줄은 울타리 앞의 마크다운 여백이다 —
+                # 그것을 문맥으로 세면 `-old` · `+new` 뒤 끊긴 헝크가 완결로 읽혔다(Codex 리뷰).
                 old, new = old - 1, new - 1
             else:
                 break
             k += 1
         out.append((lines[h].split(" @@")[0] + " @@", h == heads[-1], old > 0 or new > 0, changed))
     return out
+
+
+def git_paths(body):
+    """본문의 `diff --git a/… b/…` 머리가 적은 경로들(양쪽)."""
+    out = set()
+    for m in re.finditer(r"^diff --git (\"?)a/(.+?)\1 (\"?)b/(.+?)\3$", body, re.M):
+        out |= {m.group(2), m.group(4)}
+    return out
+
+
+def stat_paths(text):
+    """「변경 파일」 절의 `--stat` 줄이 적은 경로들. 이름 바꿈은 새 이름으로 편다."""
+    m = re.search(r"^## 변경 파일[ \t]*\n([\s\S]*?)(?=^## |\Z)", text, re.M)
+    out = []
+    for ln in (m.group(1).split("\n") if m else []):
+        s = re.match(r"^\s*(\S.*?)\s+\|\s+(?:\d+|Bin)\b", ln)
+        if not s:
+            continue
+        path = s.group(1).strip('"')
+        if "{" in path and " => " in path:
+            path = re.sub(r"//+", "/", re.sub(r"\{[^{}]* => ([^{}]*)\}", r"\1", path))
+        elif " => " in path:
+            path = path.split(" => ", 1)[1]
+        out.append(path)
+    return out
+
+
+def named(path, heads):
+    """경로가 diff 머리에 있나. `--stat` 이 앞을 `.../` 로 줄인 경로는 끝으로 맞춘다."""
+    if path.startswith(".../"):
+        return any(h.endswith(path[3:]) for h in heads)
+    return path in heads
+
+
+def blocks(body):
+    """diff 절을 `diff --git` 마다 자른 파일별 조각."""
+    at = [m.start() for m in re.finditer(r"^diff --git ", body, re.M)]
+    return [body[a:b] for a, b in zip(at, at[1:] + [len(body)])]
+
+
+def meta_ok(body):
+    """짝이 다 맞는 메타데이터 기록이 있나. 짝 없이도 완결인 것은 새 파일 · 지운 파일 · 이진 파일뿐."""
+    has = lambda p: re.search(p, body, re.M)
+    return bool(has(r"^(?:new|deleted) file mode |^Binary files ")
+                or (has(r"^old mode ") and has(r"^new mode "))
+                or (has(r"^rename from ") and has(r"^rename to "))
+                or (has(r"^copy from ") and has(r"^copy to ")))
+
+
+def meta_broken(body):
+    """짝의 한쪽만 있는 메타데이터 기록."""
+    has = lambda p: bool(re.search(p, body, re.M))
+    return [a for a, b in (("old mode", "new mode"), ("rename from", "rename to"), ("copy from", "copy to"))
+            if has("^" + a + " ") != has("^" + b + " ")]
 
 
 def check(text):
@@ -110,10 +165,13 @@ def check(text):
             bad.append("`커밋 안 된 변경: 있음` 인데 어느 파일인지 백틱 경로가 없다 — 담겼는지 가릴 수 없다")
         # 커밋된 diff 에 같은 파일이 있으면 그것만으로 채워졌다(Codex 리뷰). 작업트리 몫은
         # diff 절의 `### 작업트리` 아래에 따로 있어야 하고, 경로는 거기나 「담지 않은 것」에.
+        # 경로는 그 아래의 `diff --git` 머리와 맞춘다. 본문 글자로 찾으면 딴 파일의 패치가
+        # `# app/missing.py needs review` 를 더해도 채워졌다(Codex 리뷰).
         sub = re.search(r"^### 작업트리[ \t]*\n([\s\S]*?)(?=^## |^### |\Z)", text, re.M)
+        heads = git_paths(sub.group(1)) if sub else set()
         omit = text[text.find("## 이 브리핑이 담지 않은 것"):] if "## 이 브리핑이 담지 않은 것" in text else ""
         for path in paths:
-            if path not in (sub.group(1) if sub else "") and path not in omit:
+            if path not in heads and path not in omit:
                 bad.append(f"커밋 안 된 변경 `{path}` 가 diff 의 「### 작업트리」에도 「담지 않은 것」에도 없다 — 머리만 적었다")
     # 추적 안 된 파일은 어느 diff 에도 안 나온다. 머리에 적지 않으면 새 파일이 통째로
     # 빠져도 이 검사는 모른다 — 고친 파일 하나가 아래 +/- 검사를 채우기 때문이다(Codex 리뷰).
@@ -127,11 +185,14 @@ def check(text):
         # 줄만 있고 적힌 파일이 본문에 없으면 머리가 거짓말을 한다. 「app/new.py — 아래
         # diff 포함」이라 적고 빼도, 다른 파일의 +/- 가 diff 검사를 채웠다(Codex 리뷰).
         # 적힌 경로(백틱 안)는 diff 절이나 「담지 않은 것」 절에 다시 나와야 한다.
-        rest = text[:ut.start()] + text[ut.end():]
-        k = rest.find("## diff")
-        where = rest[k:] if k >= 0 else ""
+        # diff 절에서는 `diff --git` 머리와 맞춘다(`--no-index /dev/null` 도 머리를 찍는다) —
+        # 딴 파일의 본문이 경로를 적어도 채워지지 않게(Codex 리뷰).
+        k = text.find("## diff")
+        j0 = text.find("## 이 브리핑이 담지 않은 것")
+        heads = git_paths(text[k:j0] if 0 <= k < j0 else text[k:] if k >= 0 else "")
+        omit = text[j0:] if j0 >= 0 else ""
         for path in re.findall(r"`([^`]+)`", ut.group(1)):
-            if path not in where:
+            if path not in heads and path not in omit:
                 bad.append(f"추적 안 된 파일 `{path}` 가 diff 에도 「담지 않은 것」에도 없다 — 머리만 적었다")
     # 자른 여부는 **명시로** 받는다. 줄 수로 짐작하면 못 잡는다 — 5,000줄을 2,000줄로
     # 자른 브리핑은 이미 2,000줄이라 「길다」가 안 걸린다(Codex 리뷰).
@@ -166,14 +227,30 @@ def check(text):
     # 「- git diff 실패: …」 같은 실패 기록일 수 있다 — 그것만 있는 diff 절이 통과했다(Codex 리뷰).
     # 메타데이터는 **짝이 맞아야** 증거다. `old mode 100644` 한 줄에서 끊기면 새 모드를 모른다
     # (Codex 리뷰). 짝 없이도 완결인 것은 새 파일 · 지운 파일 · 이진 파일 표시뿐이다.
-    def meta_ok(body):
-        has = lambda p: re.search(p, body, re.M)
-        return bool(has(r"^(?:new|deleted) file mode |^Binary files ")
-                    or (has(r"^old mode ") and has(r"^new mode "))
-                    or (has(r"^rename from ") and has(r"^rename to "))
-                    or (has(r"^copy from ") and has(r"^copy to ")))
     if i >= 0 and j > i and not (meta_ok(text[i:j]) or any(c for *_, c in parse_hunks(text[i:j]))):
         bad.append("diff 절에 헝크 안의 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
+    # 그리고 **파일마다** 본다. 절 전체로 짝을 맞추면 앞 파일의 완결된 모드 바꿈이 뒤 파일의
+    # `old mode` 한 줄을 가렸다(Codex 리뷰). 파일마다 짝이 맞아야 하고, 변경 줄도 완결된
+    # 메타데이터도 없는 파일은 끊긴 것이다 — 자른 브리핑은 마지막 파일만 봐준다.
+    cut_last = bool(cut and cut.group(1) == "있음")
+    if i >= 0 and j > i:
+        files = blocks(text[i:j])
+        for n, blk in enumerate(files):
+            head = blk.split("\n", 1)[0]
+            if n == len(files) - 1 and cut_last:
+                continue
+            half = meta_broken(blk)
+            if half:
+                bad.append(f"diff 절의 `{head}` 가 `{half[0]}` 의 짝이 없다 — 끊긴 메타데이터다")
+            elif not (meta_ok(blk) or any(c for *_, c in parse_hunks(blk))):
+                bad.append(f"diff 절의 `{head}` 에 변경 줄도 완결된 메타데이터도 없다 — 끊긴 파일이다")
+        # 「변경 파일」에 적힌 파일은 diff 절에 제 머리가 있거나 「담지 않은 것」에 적혀야 한다.
+        # 파일 사이에서 깔끔하게 끊기면 남은 파일의 헝크가 위 검사를 다 채워, routes.py 패치가
+        # 통째로 빠진 브리핑이 통과했다(Codex 리뷰).
+        heads = git_paths(text[i:j])
+        for path in stat_paths(text):
+            if not named(path, heads) and path.lstrip(".").lstrip("/") not in text[j:]:
+                bad.append(f"변경 파일 `{path}` 의 diff 가 없고 「담지 않은 것」에도 없다 — 파일이 통째로 빠졌다")
     # 헝크는 머리(`@@ -a,b +c,d @@`)가 적은 줄 수만큼 와야 한다. 중간에 끊긴 `-old` 한 줄은
     # 바꿈을 지움으로 읽게 한다(Codex 리뷰). 자른 브리핑(`자름: 있음`)은 마지막 헝크만 봐준다.
     if i >= 0 and j > i:

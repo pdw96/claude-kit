@@ -201,17 +201,10 @@ for n in chosen:
             tp = run.get("tracePath")
             if not tp or not pathlib.Path(tp).is_file():
                 short.append(f"{n} {arm} run{i} (트레이스 없음 — 모델 · 한도를 확인할 수 없다)")
-if early_limited:
-    print(f"\nFAIL 사용량 한도로 시작도 못 한 회차가 {len(early_limited)}개 — 이 실행의 점수는 판정이 아니다.")
-    for s in early_limited[:5]:
-        print(f"     {s}")
-    print("     한도가 풀린 뒤 다시 돌려라.")
-    raise SystemExit(6)
-if short:
-    print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
-    for s in short:
-        print(f"     {s}")
-    raise SystemExit(3)
+# 구조 실패(3)와 시작 전 한도(6)는 **트레이스를 남긴 뒤에** 낸다. 여기서 바로 끝내면 아래의
+# 보존 · 정리 고리를 건너뛰어, 그레이더가 빠진 회차의 트레이스가 임시 디렉터리째 버려지고
+# 결과 폴더에는 result.json 만 남았다(Codex 리뷰). 그런 실행은 판정이 아니므로 회차를 다 남긴다.
+struct = bool(short or early_limited)
 
 kept, temps = 0, set()
 limited = []
@@ -339,7 +332,7 @@ for case in d.get("cases", []):
                 pass
             if hit:
                 limited.append(f"{case['name']}.{arm}.run{i}")
-            held = (arm == "with" and case.get("name") in steady_cases) or hit
+            held = (arm == "with" and case.get("name") in steady_cases) or hit or struct
             if run.get("passed") and not held:
                 continue
             dst = out / "traces" / f"{case['name']}.{arm}.run{i}.jsonl"
@@ -400,6 +393,18 @@ for t in temps:
 
 print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))
+
+if early_limited:
+    print(f"\nFAIL 사용량 한도로 시작도 못 한 회차가 {len(early_limited)}개 — 이 실행의 점수는 판정이 아니다.")
+    for s in early_limited[:5]:
+        print(f"     {s}")
+    print("     한도가 풀린 뒤 다시 돌려라.")
+    raise SystemExit(6)
+if short:
+    print("\nFAIL 고른 케이스가 다 돌지 않았다 — 안 돌린 것을 통과로 세지 않는다.")
+    for s in short:
+        print(f"     {s}")
+    raise SystemExit(3)
 
 # **사용량 한도에 걸린 회차는 판정이 아니다.** 한도에 걸리면 세션은 아무 도구도 안
 # 부르고 「한도에 걸렸다」만 답한다 — 채점은 그것을 「감사자가 안 떴다」로 센다.
