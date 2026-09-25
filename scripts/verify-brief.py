@@ -39,32 +39,35 @@ def diff_lines(text):
     return len(body)
 
 
-def short_hunks(body):
-    """줄 수가 모자란 헝크의 (머리, 마지막 헝크인가) 목록."""
-    out, lines, k = [], body.split("\n"), 0
+def parse_hunks(body):
+    """헝크마다 (머리, 마지막인가, 모자란가, 변경 줄이 있는가).
+
+    헝크 **안에서는** `--- a/…` · `+++ b/…` 로 시작하는 줄도 본문이다 — `-- a/query` 를 지우면
+    git 은 `--- a/query` 를 찍는다. 파일 머리로 빼면 멀쩡한 헝크가 짧다고 떨어졌다(Codex 리뷰).
+    머리가 적은 줄 수만큼만 읽으므로 다음 파일의 머리를 본문으로 먹지 않는다."""
+    out, lines = [], body.split("\n")
     heads = [n for n, ln in enumerate(lines) if re.match(r"@@ -\d", ln)]
     for h in heads:
         m = re.match(r"@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@", lines[h])
         if not m:
             continue
         old, new = int(m.group(1) or 1), int(m.group(2) or 1)
-        k = h + 1
+        changed, k = False, h + 1
         while k < len(lines) and (old > 0 or new > 0):
             ln = lines[k]
             if ln.startswith("\\"):
                 pass
-            elif ln.startswith("-") and not ln.startswith("--- a/"):
-                old -= 1
-            elif ln.startswith("+") and not ln.startswith("+++ b/"):
-                new -= 1
+            elif ln.startswith("-") and old > 0:
+                old, changed = old - 1, True
+            elif ln.startswith("+") and new > 0:
+                new, changed = new - 1, True
             elif ln.startswith(" ") or (ln == "" and old > 0 and new > 0):
                 # 빈 줄은 공백이 지워진 문맥 줄일 수 있다 — 양쪽이 다 남았을 때만 문맥으로 센다
                 old, new = old - 1, new - 1
             else:
                 break
             k += 1
-        if old > 0 or new > 0:
-            out.append((lines[h].split(" @@")[0] + " @@", h == heads[-1]))
+        out.append((lines[h].split(" @@")[0] + " @@", h == heads[-1], old > 0 or new > 0, changed))
     return out
 
 
@@ -169,14 +172,12 @@ def check(text):
                     or (has(r"^old mode ") and has(r"^new mode "))
                     or (has(r"^rename from ") and has(r"^rename to "))
                     or (has(r"^copy from ") and has(r"^copy to ")))
-    hunk = (r"^@@ -\d[^\n]*@@[^\n]*\n(?:[ \\][^\n]*\n|\n)*"
-            r"(?:\+(?!\+\+ (?:b/|/dev/null))|-(?!-- (?:a/|/dev/null)))")
-    if i >= 0 and j > i and not (meta_ok(text[i:j]) or re.search(hunk, text[i:j], re.M)):
+    if i >= 0 and j > i and not (meta_ok(text[i:j]) or any(c for *_, c in parse_hunks(text[i:j]))):
         bad.append("diff 절에 헝크 안의 변경 줄(+/-)도 git 메타데이터 기록(이름 바꿈 · 모드 등)도 없다 — 빈 브리핑이다")
     # 헝크는 머리(`@@ -a,b +c,d @@`)가 적은 줄 수만큼 와야 한다. 중간에 끊긴 `-old` 한 줄은
     # 바꿈을 지움으로 읽게 한다(Codex 리뷰). 자른 브리핑(`자름: 있음`)은 마지막 헝크만 봐준다.
     if i >= 0 and j > i:
-        broken = short_hunks(text[i:j])
+        broken = [(h, last) for h, last, short, _ in parse_hunks(text[i:j]) if short]
         if cut and cut.group(1) == "있음":
             broken = [h for h, last in broken if not last]
         else:

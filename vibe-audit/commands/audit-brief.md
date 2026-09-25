@@ -10,10 +10,8 @@ argument-hint: [기준 커밋/브랜치 — 필수] [감사자 이름]
 `$0` 가 비어 있으면 먼저 물어보세요 — 기본 브랜치인지, PR 의 머지 베이스인지,
 직전 배포 태그인지에 따라 감사 결과가 달라집니다. **짐작하지 마세요.**
 
-**사람이 없는 자리에서는 이 커맨드가 여기서 멈춥니다.** 클라우드 레인이나 CI
-에서는 기준을 인자로 넘기세요 — `/audit-brief origin/main audit-secrets`.
-멈춤은 결함이 아닙니다. 짐작한 기준으로 만든 브리핑이 틀린 근거가 되는 쪽이
-결함입니다.
+**사람이 없는 자리(클라우드 레인 · CI)에서는 여기서 멈춥니다** — 기준을 인자로
+넘기세요: `/audit-brief origin/main audit-secrets`. 멈춤은 결함이 아닙니다.
 
 ## 왜 이것이 필요한가
 
@@ -32,7 +30,8 @@ git rev-parse --verify $0
 없는 기준이면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
 
 **둘. 아래를 모읍니다.** 실패한 명령이 있으면 그 자리를 비워 두지 말고 **실패한
-사실을 브리핑에 적으세요.**
+사실을 브리핑에 적으세요.** `git diff` · `git ls-files` 끝에는 늘 `-- . ':!.claude/audits'
+':!.claude/briefs' ':!.claude/audit-brief.md'` 를 붙입니다 — 지난 기록 · 브리핑이 다시 담깁니다.
 
 | 무엇 | 명령 |
 |---|---|
@@ -41,15 +40,15 @@ git rev-parse --verify $0
 | 변경 파일 | `git diff --stat $0...HEAD` |
 | 커밋 목록 | `git log --oneline $0..HEAD` |
 | 본문 diff | `git diff $0...HEAD` — 머지 베이스부터 |
-| 추적 안 된 파일 | `git ls-files --others --exclude-standard -- . ':!.claude/audits' ':!.claude/briefs' ':!.claude/audit-brief.md'` |
+| 추적 안 된 파일 | `git ls-files --others --exclude-standard` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short -uno` 가 비어 있지 않으면)
 `$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
 절의 `### 작업트리` 아래에 따로 넣으세요 — 커밋된 몫과 섞이면 빠졌는지 못 가립니다.
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
-파일이 통째로 빠집니다. 지난 감사 기록 · 브리핑은 위 명령이 뺍니다. 이름을 「변경 파일」에 적고 본문은
-`git diff --no-index /dev/null <파일>` 로 넣으세요. 못 넣으면 「담지 않은 것」에 적습니다.
+파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은 `git diff --no-index /dev/null
+<파일>` 로 넣으세요(차이가 있으면 종료코드 1 — 실패가 아닙니다). 못 넣으면 「담지 않은 것」에.
 
 **셋. `.claude/audit-brief.md` 에 아래 모양으로 씁니다.**
 

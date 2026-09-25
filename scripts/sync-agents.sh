@@ -56,7 +56,7 @@ reg, repo, dest = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 if not reg.exists():
     sys.exit(0)
 for c in json.loads(reg.read_text(encoding="utf-8")).get("copies", []):
-    if c.get("repo") == repo and os.path.normpath(c.get("agents_path", "")) != os.path.normpath(dest):
+    if c.get("repo") == repo and os.path.normpath(os.path.expanduser(c.get("agents_path", ""))) != os.path.normpath(dest):
         sys.exit(f"대장에 같은 이름 {repo!r} 의 다른 사본이 있다: {c.get('agents_path')}\n"
                  f"덮으면 그 사본이 대장에서 사라진다. 대장을 손으로 정리한 뒤 다시 돌려라.")
 CLASH
@@ -78,7 +78,7 @@ if [ "$FORCE" -eq 0 ]; then
 import json, os, pathlib, sys
 reg, dest = pathlib.Path(sys.argv[1]), os.path.normpath(sys.argv[2])
 rows = json.loads(reg.read_text(encoding="utf-8")).get("copies", []) if reg.exists() else []
-sys.exit(0 if any(os.path.normpath(c.get("agents_path", "")) == dest for c in rows) else 1)
+sys.exit(0 if any(os.path.normpath(os.path.expanduser(c.get("agents_path", ""))) == dest for c in rows) else 1)
 KNOWN
       echo "대장에 없는 자리에 사본이 이미 있다:$existing" >&2
       echo "빠진 것만 심으면 섞인 사본이 대장 밖에 남는다. 아무것도 심지 않았다." >&2
@@ -170,14 +170,19 @@ EOF
 # 심은 자리를 대장에 적는다. 이게 없으면 사본이 어디에 있는지 아는 사람이
 # 심은 사람뿐이고, verify-copy.py 는 견줄 상대를 못 찾아 아무도 안 돌린다.
 python3 - "$SRC" "$DEST" "$SHA" <<'REG'
-import json, pathlib, subprocess, sys, datetime
+import json, os, pathlib, subprocess, sys, datetime
 src, dest, sha = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 reg = src / "copies.json"
 d = json.loads(reg.read_text(encoding="utf-8")) if reg.exists() else {"copies": []}
 full = subprocess.run(["git", "-C", str(src), "rev-parse", "HEAD"],
                       capture_output=True, text=True).stdout.strip() or sha
 repo = pathlib.Path(dest).parent.parent.name
-row = {"repo": repo, "agents_path": dest, "synced_commit": full,
+# 홈 아래면 `~/…` 로 적는다. 대장은 커밋되는 파일이라 절대 경로를 적으면 심은 사람의
+# 계정 이름과 비공개 디렉터리 이름이 저장소에 남는다(Codex 리뷰). verify-copies.py 는
+# `expanduser()` 로 풀어 읽으므로, 같은 자리에 둔 다른 사람의 기계에서도 닿는다.
+home = os.path.expanduser("~")
+where = "~" + dest[len(home):] if home not in ("", "/") and (dest == home or dest.startswith(home + os.sep)) else dest
+row = {"repo": repo, "agents_path": where, "synced_commit": full,
        "synced_at": datetime.date.today().isoformat()}
 rows = [c for c in d.get("copies", []) if c.get("repo") != repo]
 rows.append(row)
