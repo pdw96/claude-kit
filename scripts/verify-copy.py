@@ -99,6 +99,15 @@ def check(src, dst):
     extra = sorted(p.name for p in src.glob("*.md") if not p.name.startswith("audit-"))
     if extra:
         return [f"원본 {src} 에 감사자가 아닌 에이전트가 있다: {', '.join(extra)} — 검사 · 예산 밖에서 배포된다"]
+    # **원본의 머리말 name 도 파일 이름과 같아야 한다.** 이름은 파일에서만 뽑으므로, `audit-ops` →
+    # `audit-opx` 처럼 머리말만 바꾸면 모든 게이트가 통과하고 플러그인은 딴 이름의 감사자를 싣는다 —
+    # 문서의 `@vibe-audit:audit-ops` 가 안 불린다(Codex 리뷰). 사본 쪽은 verify-copies.py 가 본다.
+    import re as _re
+    for name in names:
+        head = (src / name).read_text(encoding="utf-8").split("\n---", 1)[0]
+        m = _re.search(r"^name:\s*['\"]?([^'\"\n]+?)['\"]?\s*$", head, _re.M)
+        if not m or m.group(1) != name[:-3]:
+            return [f"원본 {name}: 머리말 name 이 {m.group(1) if m else '(없음)'} 다 — 파일 이름 {name[:-3]} 과 같아야 한다"]
 
     bad = []
     # **원본 여섯끼리도 공통 절이 같아야 한다.** gates.sh 는 원본을 원본과 견주므로
