@@ -67,11 +67,13 @@ CLASH
 # 리뷰). 대장에 이미 있는 자리면 지금처럼 있는 것은 두고 출처를 옮기지 않는다.
 if [ "$FORCE" -eq 0 ]; then
   existing=""
+  missing=""
   for f in "$SRC"/vibe-audit/agents/*.md; do
-    [ -e "$DEST/$(basename "$f")" ] && existing="$existing $(basename "$f")"
+    if [ -e "$DEST/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   for f in "$SRC"/vibe-audit/commands/*.md; do
-    [ -e "$f" ] && [ -e "$TARGET/.claude/commands/$(basename "$f")" ] && existing="$existing $(basename "$f")"
+    [ -e "$f" ] || continue
+    if [ -e "$TARGET/.claude/commands/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   if [ -n "$existing" ]; then
     python3 - "$SRC/copies.json" "$DEST" <<'KNOWN' || {
@@ -85,6 +87,16 @@ KNOWN
       echo "그 사본을 이 커밋으로 덮으려면 --force, 지키려면 대장에 먼저 적어라." >&2
       exit 1
     }
+  fi
+  # **대장에 있는 자리라도 일부만 있으면 쓰기 전에 멈춘다.** 빠진 것만 심으면 건너뛴 것이
+  # 있어 출처를 안 옮기므로, 새로 심은 파일이 옛 synced_commit 아래 들어간다 — 그 커밋에
+  # 없던 이름은 verify-copies.py 가 레포 고유 파일로 보고 아무 대조도 안 한다(Codex 리뷰).
+  # 섞인 사본을 만들지 않는다. 손으로 따라잡거나 --force 로 이 커밋의 것으로 다 덮는다.
+  if [ -n "$existing" ] && [ -n "$missing" ]; then
+    echo "사본이 일부만 있다 — 빠진 것:$missing" >&2
+    echo "빠진 것만 심으면 그 파일의 출처가 대장에 안 남는다. 아무것도 심지 않았다." >&2
+    echo "손으로 옮기고 verify-copy.py 로 PASS 를 본 뒤 대장의 synced_commit 을 옮기거나, --force 로 다 덮어라." >&2
+    exit 1
   fi
 fi
 
