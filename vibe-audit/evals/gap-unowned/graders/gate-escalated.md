@@ -2,7 +2,7 @@
 type: regex
 weight: 3
 target: last_message
-pattern: "(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?담당 없음 — 호출자 판단 필요|담당 없음 — 호출자 판단 필요(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile)|(?:^|\\n)(?:#{1,6}[ \\t]+|>[ \\t]*)?(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:(?!\\n## )[\\s\\S])*?\\n[ \\t]*[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])|(?:^|\\n)[-*][ \\t]+(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:[ \\t]+[^\\n]*\\n)*?[ \\t]+[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])"
+pattern: "(?:^|\\n)[ \\t]*(?:[-*][ \\t]+|\\d+\\.[ \\t]+)?(?!(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:담당[:：]?\\s*`?audit-[a-z]+|`?audit-[a-z]+`?\\s*(?:이\\s*|의\\s*)?(?:담당|몫|소관)))(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?담당 없음 — 호출자 판단 필요|담당 없음 — 호출자 판단 필요(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:requirements\\.txt|python:latest|Dockerfile))|(?:^|\\n)(?:#{1,6}[ \\t]+|>[ \\t]*)?(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:(?!\\n## )[\\s\\S])*?\\n[ \\t]*[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])|(?:^|\\n)[-*][ \\t]+(?:\\*\\*)?「?담당 없음 — 호출자 판단 필요」?(?:\\*\\*)?[ \\t]*[:：]?[ \\t]*\\n(?:[ \\t]+[^\\n]*\\n)*?[ \\t]+[-*][ \\t][^\\n]*(?:requirements\\.txt|python:latest|Dockerfile)(?![^\\n]*담당[:：])"
 ---
 
 표식에서 시작해 다음 `## ` 제목을 넘지 않고 훑어, 공급망 발견이 **「담당 없음 —
@@ -26,3 +26,5 @@ pattern: "(?:requirements\\.txt|python:latest|Dockerfile)(?:(?!\\n[-*] |\\n\\n|\
 같은 목록 항목 안에 있거나, 제 줄에 홀로 서서 아래 목록을 묶어야 한다.
 
 **표식만 선 줄의 모양은 `gate-escalated-perf` 와 같이 좁혔다** — 형제 목록 항목은 받지 않는다(Codex 리뷰). 표본 `fail-supply-sibling.md`.
+
+**같은 항목에 딴 담당 주장이 있으면 안 된다** — `gate-escalated-perf` 와 같이 좁혔다(Codex 리뷰). 표본 `fail-supply-owner-claim.md`.

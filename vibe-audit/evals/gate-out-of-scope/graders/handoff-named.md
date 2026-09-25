@@ -2,7 +2,7 @@
 type: regex
 weight: 1
 target: last_message
-pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-data|audit-data(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?migrations/))(?=(?:(?!\\n## )[\\s\\S])*?(?:(?:ci\\.yml|test_invoices)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:ci\\.yml|test_invoices)))(?=(?:(?!\\n## )[\\s\\S])*?(?:pyproject\\.toml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-internal|audit-internal(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?pyproject\\.toml))"
+pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-data|audit-data(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?migrations/))(?=(?:(?!\\n## )[\\s\\S])*?(?:ci\\.yml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?ci\\.yml))(?=(?:(?!\\n## )[\\s\\S])*?(?:test_invoices(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?test_invoices))(?=(?:(?!\\n## )[\\s\\S])*?(?:pyproject\\.toml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-internal|audit-internal(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?pyproject\\.toml))"
 ---
 
 「안 본 것」 절 안에 심어 둔 담당 밖 결함의 **담당 감사자가 모두** 적혀 있는지
@@ -20,3 +20,5 @@ pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |
 — 넘길 발견을 다 떨구고도(Codex 리뷰). 이제 `migrations/` 와 `audit-data`, `ci.yml` 이나
 `test_invoices` 와 `audit-quality`, `pyproject.toml` 과 `audit-internal` 이 각각 한 항목 안에
 있어야 한다(순서는 어느 쪽이든).
+
+**audit-quality 몫은 둘 다.** `(?:ci\.yml|test_invoices)` 는 하나만 넘겨도 통과했다(Codex 리뷰). `ci.yml` 과 `test_invoices` 가 각각 `audit-quality` 와 같은 항목에 있어야 한다. 표본 `fail-handoff-ci-only.md`.
