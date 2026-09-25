@@ -324,6 +324,16 @@ def check(suite, agents_dir):
             if g.stem == "auditor-fired":
                 if fm.get("arm") != "with-only":
                     bad.append(f"{name}/auditor-fired: arm 이 with-only 여야 한다 (점수가 아니라 표시)")
+                # **Agent 호출을 실제로 요구해야 한다.** 모양만 보면 `min: 0` 으로 바꿔도 통과해,
+                # 감사자가 안 뜬 회차를 러너의 전수 검사가 못 잡았다(Codex 리뷰).
+                if fm.get("type") != "tool_used" or fm.get("tool") != "Agent":
+                    bad.append(f"{name}/auditor-fired: type 은 tool_used, tool 은 Agent 여야 한다")
+                try:
+                    lo = int(fm.get("min", "1"))
+                except ValueError:
+                    lo = 0
+                if lo < 1 or fm.get("max") == "0":
+                    bad.append(f"{name}/auditor-fired: min 이 1 이상이어야 한다 — 호출을 요구하지 않는다")
                 im = fired(fm.get("input_match"), plugin)
                 if im is None:
                     bad.append(f"{name}/auditor-fired: {why_not_fired(fm.get('input_match'), plugin)}")
