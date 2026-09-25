@@ -30,8 +30,8 @@ git rev-parse --verify $0
 없는 기준이면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
 
 **둘. 아래를 모읍니다.** 실패한 명령이 있으면 그 자리를 비워 두지 말고 **실패한
-사실을 브리핑에 적으세요.** `git diff` · `git ls-files` 끝에는 늘 `-- . ':!.claude/audits'
-':!.claude/briefs' ':!.claude/audit-brief.md'` 를 붙입니다 — 지난 기록 · 브리핑이 다시 담깁니다.
+사실을 브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- . ':!.claude/audits'
+':!.claude/briefs' ':!.claude/audit-brief.md'` 를 붙입니다 — 지난 기록이 다시 담깁니다.
 
 | 무엇 | 명령 |
 |---|---|
@@ -48,7 +48,7 @@ git rev-parse --verify $0
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
 파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은 `git diff --no-index /dev/null
-<파일>` 로 넣으세요(차이가 있으면 종료코드 1 — 실패가 아닙니다). 못 넣으면 「담지 않은 것」에.
+<파일>` 로 넣으세요(종료코드 1 은 실패가 아닙니다). 못 넣으면 「담지 않은 것」에.
 
 **셋. `.claude/audit-brief.md` 에 아래 모양으로 씁니다.**
 
