@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: route-quiet
+description: |
+  감사와 무관한 말에 감사자가 **하나도** 뜨지 않아야 한다. 다른 트리거
+  케이스들은 「이 하나가 뜨면 안 된다」만 보므로, 아무 데서나 뜨는 것은 그것으로
+  안 잡힌다. 아무 데서나 뜨는 감사자는 안 뜨는 감사자만큼 나쁘다 — 몇 번 겪으면
+  아무도 안 부른다.
+expected_outcome: 어떤 감사자도 뜨지 않는다.
+tags: [route]
+context:
+  scaffold_script: fixture.sh

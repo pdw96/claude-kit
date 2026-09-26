@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: route-unasked-contract
+description: |
+  외부 파트너가 쓰는 응답의 `name` 을 `display_name` 으로 막 바꿨고 문서는 여전히
+  `name` 이다. 사용자는 테스트 파일 이름 관례를 묻는다. 감사를 요청하지 않았다 —
+  description 의 상태 조건만이 audit-contract 를 띄울 수 있다.
+expected_outcome: audit-contract 가 뜬다. audit-quality · audit-secrets 는 안 뜬다.
+tags: [route, self-trigger]
+context:
+  scaffold_script: fixture.sh

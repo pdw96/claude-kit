@@ -1,0 +1,16 @@
+# 주의 예산 스냅숏 — 단위는 **문자**. 어디서 재도 같은 값이다.
+# `python3 scripts/verify-budget.py --write` 로 갱신한다.
+# 이 파일이 바뀌는 커밋은 「이번에 주의 예산을 얼마나 더 썼는가」를 밝히는 커밋이다.
+#
+# 상시   프론트매터. 감사를 안 돌리는 세션도 낸다
+# 호출시 파일 전체. 그 감사자가 뜰 때마다 내고, 감사 대상 코드와 같은 창을 쓴다
+
+[vibe-audit]
+agent  audit-contract      834    9700
+agent  audit-data          816    9428
+agent  audit-internal      804   10200
+agent  audit-ops           686    9897
+agent  audit-quality       735   10193
+agent  audit-secrets       885    9601
+skill  audit-brief         283    3499
+       — 상시 합계            5043

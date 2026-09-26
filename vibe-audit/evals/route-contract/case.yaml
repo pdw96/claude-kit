@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: route-contract
+description: |
+  하위 호환성 이야기에 audit-contract 가 떠야 한다. 스키마 이야기로 오인해
+  audit-data 가 뜨면 안 된다 — 응답 필드와 DB 컬럼은 다른 층이다.
+expected_outcome: audit-contract 가 뜬다. audit-data 는 안 뜬다.
+tags: [route]
+context:
+  scaffold_script: fixture.sh

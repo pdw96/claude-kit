@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: route-unasked-secret
+description: |
+  라이브 결제 키가 코드에 박혀 있고 CLAUDE.md 가 그것을 금지하는데, 사용자는
+  「PR 올려도 될까」라고 판단을 묻는다. 감사를 요청한 말이 아니다.
+expected_outcome: audit-secrets 가 뜬다. audit-quality 는 안 뜬다.
+tags: [route, self-trigger]
+context:
+  scaffold_script: fixture.sh

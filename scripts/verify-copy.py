@@ -16,15 +16,53 @@
 표준 라이브러리만 쓴다.
 """
 import pathlib
+import re
 import sys
 
 # 모든 사본에서 원본과 같아야 하는 절
-SHARED = ["## 판정은 넷이다", "## 부적합과 관찰을 가릅니다"]
+#
+# 「담당인 것은 남에게 넘기지 않습니다」 는 다음 '## ' 제목까지 잘리므로
+# 그 뒤의 「담당이 없으면 호출자에게 올립니다」 까지 함께 견준다 — 관문
+# 양쪽과 세 번째 자리가 한 항목으로 걸린다.
+#
+# 앞의 「담당이 아닌 것은 부적합이 아닙니다」 는 감사자마다 담당별 예시가
+# 들어가 여섯이 다르므로 글자 비교를 못 한다. 절의 존재와 순서만 ORDER 가 본다.
+SHARED = [
+    "## 판정은 넷이다",
+    "### 담당인 것은 남에게 넘기지 않습니다",
+    "## 부적합과 관찰을 가릅니다",
+    "## 회차를 잇습니다",
+]
 
 # 이 순서로 서 있어야 한다
-ORDER = ["## 감사 원칙", "## 판정은 넷이다", "## 부적합과 관찰을 가릅니다", "## 출력 형식"]
+ORDER = [
+    "## 감사 원칙",
+    "## 판정은 넷이다",
+    "## 보지 않는 것",
+    "### 담당이 아닌 것은 부적합이 아닙니다",
+    "### 담당인 것은 남에게 넘기지 않습니다",
+    "### 담당이 없으면 호출자에게 올립니다",
+    "## 부적합과 관찰을 가릅니다",
+    "## 회차를 잇습니다",
+    "## 출력 형식",
+]
 
-TOOLS = '\ntools: ["Read", "Grep", "Glob"]\n'
+HANDOFF_NONE = "담당 없음 — 호출자 판단 필요"
+ROUND_HEAD = "## 지난 회차"
+
+TOOLS = 'tools: ["Read", "Grep", "Glob"]'
+
+
+def frontmatter_tools(text):
+    """프론트매터 안의 tools 줄들. 본문에 같은 글자가 있어도 세지 않는다 —
+    전에는 파일 전체에서 찾아, 머리말엔 Edit 를 넣고 본문에 원형 줄을 적어 두면
+    쓰기 도구를 가진 감사자가 통과했다(Codex 리뷰)."""
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 3)
+    if end == -1:
+        return None
+    return [l.strip() for l in text[4:end].splitlines() if l.startswith("tools:")]
 
 
 def section(text, head):
@@ -53,8 +91,35 @@ def check(src, dst):
     names = sorted(p.name for p in src.glob("audit-*.md"))
     if len(names) != 6:
         return [f"원본 {src} 에 감사자가 {len(names)}개다 — 6이어야 한다"]
+    # **원본 폴더의 다른 에이전트도 막는다.** `audit-*.md` 만 세면 `helper.md` 같은 파일은 이 검사 ·
+    # 수트 · 예산을 다 비켜 가는데, 플러그인과 sync-agents.sh 는 폴더의 *.md 를 전부 싣는다 —
+    # `Edit` · `Write` 를 가진 에이전트가 검사 없이 배포됐다(Codex 리뷰).
+    # README.md 도 예외가 아니다 — 플러그인의 agents/ 에서는 *.md 가 다 에이전트 정의로 읽혀, 그 이름으로
+    # 머리말을 달면 검사 밖 에이전트가 된다(Codex 리뷰). 원본 폴더에는 감사자 여섯만 둔다.
+    extra = sorted(p.name for p in src.glob("*.md") if not p.name.startswith("audit-"))
+    if extra:
+        return [f"원본 {src} 에 감사자가 아닌 에이전트가 있다: {', '.join(extra)} — 검사 · 예산 밖에서 배포된다"]
+    # **원본의 머리말 name 도 파일 이름과 같아야 한다.** 이름은 파일에서만 뽑으므로, `audit-ops` →
+    # `audit-opx` 처럼 머리말만 바꾸면 모든 게이트가 통과하고 플러그인은 딴 이름의 감사자를 싣는다 —
+    # 문서의 `@vibe-audit:audit-ops` 가 안 불린다(Codex 리뷰). 사본 쪽은 verify-copies.py 가 본다.
+    import re as _re
+    for name in names:
+        head = (src / name).read_text(encoding="utf-8").split("\n---", 1)[0]
+        m = _re.search(r"^name:\s*['\"]?([^'\"\n]+?)['\"]?\s*$", head, _re.M)
+        if not m or m.group(1) != name[:-3]:
+            return [f"원본 {name}: 머리말 name 이 {m.group(1) if m else '(없음)'} 다 — 파일 이름 {name[:-3]} 과 같아야 한다"]
 
     bad = []
+    # **원본 여섯끼리도 공통 절이 같아야 한다.** gates.sh 는 원본을 원본과 견주므로
+    # 파일마다 자기 자신과 비교해 늘 같다 — 한 감사자만 공통 규율을 고쳐도 PASS 였고,
+    # sync 가 그 갈림을 사본으로 퍼뜨린다(Codex 리뷰). 첫 감사자를 기준으로 견준다.
+    base = names[0]
+    for head in SHARED:
+        ref = section((src / base).read_text(encoding="utf-8"), head)
+        for name in names[1:]:
+            if section((src / name).read_text(encoding="utf-8"), head) != ref:
+                bad.append(f"원본 {name}: 「{head.lstrip('#').strip()}」 절이 원본 {base} 와 다르다 — 공통 절이 갈렸다")
+
     for name in names:
         d = dst / name
         if not d.exists():
@@ -65,29 +130,49 @@ def check(src, dst):
 
         if not dt.startswith("---\n"):
             bad.append(f"{name}: 첫 줄이 --- 가 아니다 — 프론트매터가 안 읽힌다")
-        if TOOLS not in dt:
-            bad.append(f"{name}: tools 줄이 원형이 아니다 — 이것이 바뀌면 감사자가 아니다")
+        if frontmatter_tools(dt) != [TOOLS]:
+            bad.append(f"{name}: 프론트매터의 tools 가 원형이 아니다 — 이것이 바뀌면 감사자가 아니다")
         if "적합 / 부적합 / 해당 없음" in dt:
             bad.append(f"{name}: 판정값이 아직 셋이다 — 확인불가가 빠졌다")
+        # 새 절과 출력 형식 양쪽에 있어야 한다. 출력 형식은 감사자마다 달라
+        # 글자 비교를 못 하므로 표식만 본다 — 이것이 빠지면 담당 없는 발견이
+        # 「안 본 것」에 섞여 들어가 사라진다.
+        if dt.count(HANDOFF_NONE) < 2:
+            bad.append(f"{name}: 「{HANDOFF_NONE}」 표식이 {dt.count(HANDOFF_NONE)}번 — 절과 출력 형식 양쪽에 있어야 한다")
+        # 개수만 세면 출력 형식의 `## 안 본 것` 머리를 지워도 아래 자리표시가 남아 통과했다 —
+        # 그 줄은 앞 절에 붙고 감사자는 「안 본 것」 절을 잃는다(Codex 리뷰). 출력 형식 안의
+        # `## 안 본 것` 절(다음 머리나 코드 울타리까지)에 표식이 있는지 본다.
+        fmt = dt.find("## 출력 형식")
+        seen = re.search(r"^## 안 본 것[ \t]*\n((?:(?!## |```).*\n?)*)", dt[fmt:] if fmt >= 0 else "", re.M)
+        if not seen or HANDOFF_NONE not in seen.group(1):
+            bad.append(f"{name}: 출력 형식의 「## 안 본 것」 절에 「{HANDOFF_NONE}」 자리가 없다 — 담당 없는 발견을 적을 곳이 없다")
+        # 회차를 잇는 절은 SHARED 가 글자로 견주지만, 그 결과를 적을 자리는
+        # 출력 형식 안에 있고 감사자마다 앞뒤가 다르다. 표식만 본다 — 이것이
+        # 빠지면 지난 회차의 처분을 적을 곳이 없어 규칙이 종이로만 남는다.
+        # 파일 어디에든 있으면 통과였다 — 출력 형식에서 지우고 뒤에 딴 절로 붙여도 PASS(Codex
+        # 리뷰). 출력 형식 절의 첫 코드 울타리 안에 그 머리가 있어야 한다.
+        fence = re.search(r"^```[^\n]*\n([\s\S]*?)^```", dt[fmt:] if fmt >= 0 else "", re.M)
+        if not fence or not re.search(r"^" + re.escape(ROUND_HEAD) + r"[ \t]*$", fence.group(1), re.M):
+            bad.append(f"{name}: 출력 형식에 「{ROUND_HEAD}」 가 없다 — 회차 처분을 적을 자리가 없다")
 
         for head in SHARED:
             n = dt.count("\n" + head + "\n")
             if n != 1:
-                bad.append(f"{name}: 「{head[3:]}」 절이 {n}번 — 정확히 1번이어야 한다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 {n}번 — 정확히 1번이어야 한다")
                 continue
             if section(st, head) != section(dt, head):
-                bad.append(f"{name}: 「{head[3:]}」 절이 원본과 다르다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 원본과 다르다")
 
         pos = []
         for head in ORDER:
             try:
                 pos.append(dt.index("\n" + head + "\n"))
             except ValueError:
-                bad.append(f"{name}: 「{head[3:]}」 절이 없다")
+                bad.append(f"{name}: 「{head.lstrip('#').strip()}」 절이 없다")
                 pos = None
                 break
         if pos and pos != sorted(pos):
-            bad.append(f"{name}: 절 순서가 틀렸다 — " + " → ".join(h[3:] for h in ORDER))
+            bad.append(f"{name}: 절 순서가 틀렸다 — " + " → ".join(h.lstrip("#").strip() for h in ORDER))
 
     return bad
 

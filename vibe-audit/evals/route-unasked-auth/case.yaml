@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: route-unasked-auth
+description: |
+  인증 미들웨어를 막 붙였고 `SESSION_SECRET` 이 코드에 박혀 있는데, 사용자는
+  README 에 관한 무관한 질문을 한다. 감사를 요청하지 않았다 — description 의
+  「건드린 뒤에 쓰세요」 절만이 audit-secrets 를 띄울 수 있다.
+expected_outcome: audit-secrets 가 뜬다. audit-internal 은 안 뜬다.
+tags: [route, self-trigger]
+context:
+  scaffold_script: fixture.sh

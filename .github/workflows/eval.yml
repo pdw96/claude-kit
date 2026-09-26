@@ -1,0 +1,773 @@
+# 원본이 자기 수트를 통과하는지 무는 게이트.
+#
+# verify-copy.py 는 사본이 원본과 같은지만 본다 — 원본이 맞는지는 아무도 안
+# 봤다. 이 워크플로가 그 자리다.
+#
+# 잡이 둘인 이유: 모델을 부르는 검사는 키가 있어야 돈다. 키가 없을 때 그 잡이
+# exit 0 으로 끝나면 **아무것도 검사하지 않고 초록이 난다** — 이 저장소가
+# 고치겠다는 바로 그 결함이다. 그래서 키 없이 도는 것(gate)과 키가 있어야
+# 도는 것(eval)을 갈랐다.
+#
+# **판정은 셋째 잡(verdict)이 낸다.** 처음엔 「키가 없으면 eval 이 Skipped 로
+# 뜨니 초록이 아니다」라고 적었는데 틀렸다 — GitHub 은 건너뛴 잡을 필수 체크에서
+# **성공**으로 센다. 포크나 Dependabot PR 은 시크릿을 못 받으니 gate 만 돌고
+# 초록으로 머지될 수 있었다(Codex 리뷰). verdict 는 늘 돌고, 수트가 돌아 통과했거나
+# 같은 입력이 이미 통과했을 때만 통과한다. 필수 체크로 걸 것은 이 잡이다.
+name: eval
+
+on:
+  # **PR 은 거르지 않는다.** verdict 를 필수 체크로 걸면, 경로 필터로 워크플로가
+  # 아예 안 뜬 PR(루트 README 만 고친 PR 등)은 그 체크가 영영 대기로 남아 머지할 수
+  # 없다(Codex 리뷰). 비싼 것은 잡 안에서 거른다 — 수트의 입력이 안 바뀐 PR 은
+  # 지문이 같아 gate 가 캐시에서 「이미 통과」를 찾고 eval 을 건너뛴다. 전에 경로
+  # 필터에 루트 파일을 하나씩 더해 가던 것(LICENSE · copies.json …)도 이로써 필요 없다.
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# **같은 PR 의 앞선 실행은 취소한다.** 한 커밋에 pull_request 실행이 1초 차로 둘 떠 수트를
+# 두 번 돌린 일이 있었고(run 35999877690 · 35999878954), 구독 토큰의 사용량 한도를 두 배로
+# 썼다. 새 커밋을 올리면 앞 커밋의 수트도 쓸모가 없으므로 같이 끊는다.
+concurrency:
+  group: eval-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 키 없이 도는 것. 언제나 물어야 한다.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      has_key: ${{ steps.key.outputs.has_key }}
+      # 같은 지문이 이미 통과했으면 false. 찾아보지 않은 경우(workflow_dispatch)엔
+      # cache-hit 이 비어 있어 true 가 된다 — 모르면 돈다.
+      fresh: ${{ steps.seen.outputs.cache-hit != 'true' }}
+    steps:
+      # 역사 전체를 받는다. verify-copies.py 는 대장의 synced_commit 을 이 저장소에서
+      # 찾고 그 커밋의 원본과 검사기로 사본을 견준다. 기본(깊이 1)이면 머리 커밋 하나만
+      # 받아, 대장에 한 줄이라도 생기는 순간 「심었다는 커밋이 없다」로 gate 가 떨어진다
+      # — sync-agents.sh 는 대장을 적는 커밋보다 앞선 HEAD 를 적으므로 늘 그렇다
+      # (Codex 리뷰 · 깊이 1 클론에서 재현).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code
+
+      - name: 키 없이 도는 게이트
+        run: ./scripts/gates.sh
+
+      - name: 게이트가 무는가
+        run: |
+          set -euo pipefail
+
+          # verify-copy.py — tools 를 변조한 사본은 실패해야 한다
+          python3 scripts/verify-copy.py vibe-audit/agents
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-secrets.md"
+          if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 tools 변조를 통과시켰다"; exit 1
+          fi
+          # verify-copy.py — 원본 폴더에 감사자가 아닌 에이전트가 있으면 실패해야 한다(Codex 33차)
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          printf -- '---\nname: helper\ndescription: x\ntools: ["Read", "Edit", "Write"]\n---\n' > "$t/helper.md"
+          if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 감사자가 아닌 에이전트가 섞인 원본을 통과시켰다"; exit 1
+          fi
+          # README.md 라는 이름도 예외가 아니다 — 플러그인에서는 agents/*.md 가 다 에이전트다(Codex 34차)
+          rm "$t/helper.md"; printf -- '---\nname: readme\ndescription: x\ntools: ["Read", "Edit", "Write"]\n---\n' > "$t/README.md"
+          if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 README.md 로 숨긴 에이전트를 통과시켰다"; exit 1
+          fi
+          # 원본 감사자의 머리말 name 이 파일 이름과 다르면 실패해야 한다(Codex 35차)
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i '0,/^name: .*/s//name: audit-opx/' "$t/audit-ops.md"
+          if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 name 이 파일 이름과 다른 원본 감사자를 통과시켰다"; exit 1
+          fi
+
+          # sync-agents.sh — 대장에 있는 사본에 커맨드만 빠졌으면 **아무것도 쓰지 않고** 멈춰야 한다.
+          # 빠진 것만 심으면 그 파일이 옛 synced_commit 아래 들어가 대조 밖에 남는다(Codex 28차).
+          # --force 면 다 덮고 대장을 이 커밋으로 옮긴다. 감사자가 다 있어 첫 고리가 전부
+          # 건너뛰면 HDR 이 안 정해져 `set -u` 로 죽던 것(18차)도 --force 쪽에서 같이 본다
+          c=$(mktemp -d); git clone -q "$GITHUB_WORKSPACE" "$c/src"; mkdir -p "$c/svc"
+          HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" >/dev/null
+          # 대장에는 홈 기준 경로를 적는다 — 절대 경로는 계정 이름 · 비공개 디렉터리를 커밋에 남긴다
+          if ! grep -q '"agents_path": "~/svc/.claude/agents"' "$c/src/copies.json"; then
+            echo "::error::sync-agents.sh 가 대장에 홈 기준이 아닌 경로를 적었다"; cat "$c/src/copies.json"; exit 1
+          fi
+          rm "$c/svc/.claude/commands/audit-brief.md"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
+            echo "::error::sync-agents.sh 가 일부만 있는 사본에 빠진 커맨드만 심었다"; cat "$c/out"; exit 1
+          fi
+          if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
+            echo "::error::sync-agents.sh --force 가 빠진 커맨드를 못 심었다"; cat "$c/out"; exit 1
+          fi
+          # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
+          (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
+          if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
+            echo "::error::sync-agents.sh --force 가 원본에서 물러난 커맨드를 남겼다"; cat "$c/out"; exit 1
+          fi
+          # --force 는 얕은 복제에서 거절해야 한다 — 경계 앞에서 물러난 것을 못 본다(Codex 32차)
+          git clone -q --depth 1 "file://$c/src" "$c/shallow"
+          if HOME="$c" "$c/shallow/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1; then
+            echo "::error::sync-agents.sh --force 가 얕은 복제에서 돌았다"; cat "$c/out"; exit 1
+          fi
+          # 무시된(ignored) 원본 파일은 심지 않아야 한다 — HEAD 에 없어 출처가 없다(Codex 34차)
+          mkdir -p "$c/svc2" "$c/src/vibe-audit/commands"; echo 'vibe-audit/commands/local.md' >> "$c/src/.git/info/exclude"
+          printf -- '---\ndescription: x\n---\n' > "$c/src/vibe-audit/commands/local.md"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc2" >"$c/out" 2>&1 || [ -e "$c/svc2/.claude/commands/local.md" ]; then
+            echo "::error::sync-agents.sh 가 HEAD 에 없는 무시된 커맨드를 심었다"; cat "$c/out"; exit 1
+          fi
+          rm "$c/src/vibe-audit/commands/local.md"
+
+          # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          rm "$s"/vibe-audit/evals/*/graders/real-nc-found.md
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 대조군 없는 수트를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — input_match 가 subagent_type 에 안 걸린 그레이더는 실패해야 한다.
+          # 이름만 적으면 입력 어디에 적혀 있기만 해도 뜬 것으로 센다. 공백을 넣은 JSON 은
+          # 하네스가 펴는 모양과 달라 영영 안 맞으므로, 음성 그레이더가 늘 통과한다.
+          for mut in \
+            "s/^input_match: .*/input_match: audit-data/" \
+            "s/\"subagent_type\":\"/\"subagent_type\": \"/"; do
+            s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+            sed -i "$mut" "$s/vibe-audit/evals/route-contract/graders/route-not-data.md"
+            if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+              echo "::error::verify-evals.py 가 subagent_type 에 안 걸린 input_match 를 통과시켰다 ($mut)"; exit 1
+            fi
+          done
+
+          # verify-evals.py — route-quiet 이 감사자 하나만 짚으면 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/"vibe-audit:'"'"'$/"vibe-audit:audit-data"'"'"'/' "$s/vibe-audit/evals/route-quiet/graders/route-quiet.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 하나만 짚는 route-quiet 을 통과시켰다"; exit 1
+          fi
+
+          # verify-graders.py — 함정을 못 무는 그레이더는 실패해야 한다
+          g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
+          sed -i 's/NC-3\\\\b/NC-9\\\\b/' "$g/vibe-audit/evals/cycle-continuity/graders/trap-no-false-resolved.md"
+          if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-graders.py 가 못 무는 그레이더를 통과시켰다"; exit 1
+          fi
+
+          # verify-budget.py — 문구가 자란 사본은 실패해야 한다
+          u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
+          python3 -c "
+          import pathlib
+          p = pathlib.Path('$u/vibe-audit/agents/audit-secrets.md')
+          p.write_text(p.read_text() + '\n' + '규칙을 더 붙인다. ' * 200)
+          "
+          if python3 "$u/scripts/verify-budget.py" >/dev/null 2>&1; then
+            echo "::error::verify-budget.py 가 자란 문구를 통과시켰다"; exit 1
+          fi
+
+          # verify-manifest.py — 선언한 라이선스의 파일이 없으면 실패해야 한다
+          m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
+          rm "$m/LICENSE"
+          if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
+            echo "::error::verify-manifest.py 가 LICENSE 없는 선언을 통과시켰다"; exit 1
+          fi
+
+          # verify-copies.py — 이 저장소에 없는 커밋을 적은 대장은 실패해야 한다.
+          # 이 검사는 git 이력을 보므로 사본이 아니라 제자리에서 흔들고 되돌린다.
+          python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("copies.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          d["copies"].append({"repo": "없는-레포", "agents_path": "/없는/자리",
+                              "synced_commit": "0" * 40, "synced_at": "2026-01-01"})
+          p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 없는 커밋을 적은 대장을 통과시켰다"; exit 1
+          fi
+          git checkout -- copies.json
+
+          # 체크아웃이 얕으면 실패한다. verify-copies.py 는 대장의 synced_commit 을 이
+          # 저장소에서 찾는데, sync-agents.sh 는 대장을 적는 커밋보다 앞선 HEAD 를 적는다.
+          if [ "$(git rev-parse --is-shallow-repository)" != false ]; then
+            echo "::error::체크아웃이 얕다 — 대장의 synced_commit 을 못 찾는다(fetch-depth: 0)"; exit 1
+          fi
+
+          # verify-copies.py — 그 커밋에서 그대로 심은 사본은 통과하고, 커맨드를 지운
+          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드와 검사기를 가진
+          # 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면(스쿼시 머지 직후
+          # main 처럼 커맨드가 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
+          # 따로 물므로, 역사의 모양을 얕은 것으로 오인하지 않는다(Codex 리뷰).
+          c=$(mktemp -d); mkdir -p "$c/.claude/agents" "$c/.claude/commands"
+          old=$(git rev-parse HEAD)
+          for k in $(git rev-list --skip=1 --max-count=200 HEAD); do
+            if git cat-file -e "$k:vibe-audit/commands/audit-brief.md" 2>/dev/null \
+               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null; then
+              old=$k; break
+            fi
+          done
+          echo "사본을 심은 커밋으로 적는 것: $old"
+          for f in $(git ls-tree --name-only "$old" vibe-audit/agents/ vibe-audit/commands/); do
+            case "$f" in
+              vibe-audit/agents/audit-*.md) git show "$old:$f" > "$c/.claude/agents/${f##*/}" ;;
+              vibe-audit/commands/*.md)     git show "$old:$f" > "$c/.claude/commands/${f##*/}" ;;
+            esac
+          done
+          python3 - "$c/.claude/agents" "$old" <<'PY'
+          import json, pathlib, sys
+          p = pathlib.Path("copies.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          d["copies"].append({"repo": "흔드는-사본", "agents_path": sys.argv[1],
+                              "synced_commit": sys.argv[2], "synced_at": "2026-01-01"})
+          p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          PY
+          if ! python3 scripts/verify-copies.py; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 HEAD~1 에서 그대로 심은 사본을 떨어뜨렸다 — 체크아웃이 얕은가"; exit 1
+          fi
+          # 감사자의 머리말 name 을 바꾼 사본도 실패해야 한다 — 문서가 적은 이름으로 안 불린다
+          cp "$c/.claude/agents/audit-secrets.md" "$c/keep.md"
+          sed -i '0,/^name: .*/s//name: renamed-secrets/' "$c/.claude/agents/audit-secrets.md"
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 name 을 바꾼 감사자 사본을 통과시켰다"; exit 1
+          fi
+          mv "$c/keep.md" "$c/.claude/agents/audit-secrets.md"
+          rm "$c/.claude/commands/audit-brief.md"
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 /audit-brief 가 빠진 사본을 통과시켰다"; exit 1
+          fi
+          git checkout -- copies.json
+
+          # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
+          # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
+          # 매번 떨어진 쪽은 회차가 점수로는 통과여도 트레이스 셋이 남아야 한다 — 실패
+          # 산출물에 증거가 없으면 못 연다. 가짜 하네스가 --json 자리에 결과를 쓴다
+          # — 모델은 안 부른다.
+          f=$(mktemp -d)
+          printf '%s\n' '#!/usr/bin/env bash' \
+            'while [ $# -gt 0 ]; do [ "$1" = --json ] && cp "$FAKE_RESULT" "$2"; shift; done' > "$f/claude"
+          chmod +x "$f/claude"
+          for n in 3 1; do
+            python3 - "$f/r$n.json" "$n" "$f/tr$n" <<'PY'
+          import json, pathlib, sys
+          out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
+          for i in range(3):
+              (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
+              (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
+          # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
+          gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
+                 if p.stem not in {g for g, _, _ in gs}]
+          runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True,
+                   "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
+                   "graders": [{"name": g, "weight": w, "scored": True,
+                                "passed": not (i < fails and g == "handoff-named")} for g, _, w in gs]}
+                  for i in range(3)]
+          json.dump({"cases": [{"name": "gate-out-of-scope", "arms": {"with": runs},
+                                "graders": [{"name": g, "type": t, "weight": w} for g, t, w in gs],
+                                "aggregates": {"score": sum(r["score"] for r in runs) / 3}}]},
+                    open(out, "w"))
+          PY
+            set +e
+            FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >"$f/o$n" 2>&1
+            st=$?
+            set -e
+            if [ "$n" = 3 ] && [ "$st" != 5 ]; then
+              echo "::error::run-evals.sh 가 매번 떨어진 결정론 그레이더를 통과시켰다 (exit $st)"; exit 1
+            fi
+            if [ "$n" = 3 ] && [ "$(grep -c '실패 기록 남김' "$f/o3")" != 3 ]; then
+              echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$f/o3"; exit 1
+            fi
+            if [ "$n" = 1 ] && [ "$st" != 0 ]; then
+              echo "::error::run-evals.sh 가 한 회차만 떨어진 흔들림을 실패로 셌다 (exit $st)"; exit 1
+            fi
+          done
+          # 케이스 머리의 graders 가 빈 결과도 매번 떨어진 그레이더를 잡아야 한다 — 종류는 디스크에서
+          python3 -c "
+          import json, sys
+          d = json.load(open('$f/r3.json')); d['cases'][0]['graders'] = []
+          json.dump(d, open('$f/r3e.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 5 ]; then
+            echo "::error::run-evals.sh 가 케이스 머리 없는 결과에서 매번 떨어진 그레이더를 놓쳤다 (exit $st)"; exit 1
+          fi
+
+          # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
+          # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
+          # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
+          python3 - "$f/ra.json" <<'PY'
+          import json, pathlib, sys
+          # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
+          tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
+                  if p.stem not in ("auditor-fired", "trap-not-an-nc")]
+          runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
+                   "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
+                                "withOnly": True, "passed": i != 1},
+                               {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
+                              + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
+                  for i in range(3)]
+          # 두 팔(러너의 기본)이므로 without 팔도 회차 수대로 둔다 — 없으면 3 으로 먼저 끝난다
+          base = [{"score": 0.0, "passed": False, "tracePath": str(tr),
+                   "graders": [{"name": g, "weight": 1, "scored": True, "passed": False}
+                               for g in ["trap-not-an-nc"] + rest]} for i in range(3)]
+          json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": base},
+                                "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
+                                            {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
+                                "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
+          PY
+          set +e
+          FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 5 ]; then
+            echo "::error::run-evals.sh 가 감사자가 안 뜬 회차를 통과시켰다 (exit $st)"; exit 1
+          fi
+
+          # verify-evals.py — 실행 비트가 빠진 픽스처는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          chmod 644 "$s/vibe-audit/evals/route-quiet/fixture.sh"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 실행 비트 없는 픽스처를 통과시켰다"; exit 1
+          fi
+
+          # run-evals.sh — 고른 케이스 가운데 하나가 결과에서 빠지면 실패해야 한다(종료코드 3).
+          # 회차가 다 있어도 디스크에 적힌 그레이더가 채점되지 않았으면 같다(graders: []).
+          # 사용량 한도에 걸린 회차는 회귀가 아니라 한도로 따로 끝나야 한다(종료코드 6).
+          mkdir -p "$f/lim"; printf '%s\n' '{"type":"result","result":"You'"'"'ve hit your weekly limit · resets Sep 26, 6pm (UTC)"}' > "$f/lim/trace.jsonl"
+          python3 - "$f" <<'PY'
+          import json, pathlib, sys
+          f = pathlib.Path(sys.argv[1])
+          names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
+          disk = lambda n: [p.stem for p in sorted(pathlib.Path(f"vibe-audit/evals/{n}/graders").glob("*.md"))]
+          (f / "ok.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          ok = lambda n: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"),
+                          "graders": [{"name": g, "passed": True, "weight": 3, "scored": True} for g in disk(n)]}
+          def case(n, runs):
+              return {"name": n, "graders": [{"name": g, "type": "tool_used", "weight": 3} for g in disk(n)],
+                      "arms": {"with": runs}, "aggregates": {"score": 1.0}}
+          json.dump({"cases": [case(n, [ok(n), ok(n), ok(n)]) for n in names[:-1]]}, open(f / "miss.json", "w"))
+          lim = lambda n: {"score": 0.67, "passed": False, "tracePath": str(f / "lim/trace.jsonl"),
+                           "graders": [{"name": g, "passed": g != "route-correct", "weight": 3, "scored": True}
+                                       for g in disk(n)]}
+          json.dump({"cases": [case(n, [ok(n), ok(n), lim(n)]) for n in names]}, open(f / "lim.json", "w"))
+          empty = lambda: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"), "graders": []}
+          json.dump({"cases": [case(n, [ok(n), ok(n), empty()]) for n in names]}, open(f / "empty.json", "w"))
+          # 한도에 걸려 아무것도 안 부른 회차가 음성 그레이더만 있어 **통과**로 채점된 모양
+          quiet = lambda n: dict(ok(n), tracePath=str(f / "lim/trace.jsonl"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), quiet(n) if n == "route-quiet" else ok(n)]) for n in names]},
+                    open(f / "limpass.json", "w"))
+          # 감사 기록이 「rate limit」을 **발견으로** 말한 회차는 한도가 아니다
+          words = lambda n: dict(ok(n), tracePath=str(f / "words/trace.jsonl"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), words(n)]) for n in names]}, open(f / "ratetext.json", "w"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), ok(n)]) for n in names]}, open(f / "allok.json", "w"))
+          # 시작을 못 한 회차는 문턱과 따로 실패(→ 3), 한도 때문이면 6
+          boom = lambda e: {"score": 0, "passed": False, "error": e, "tracePath": "", "graders": []}
+          json.dump({"cases": [case(n, [ok(n), ok(n), boom("scaffold failed (exit 1): boom")]) for n in names]},
+                    open(f / "errrun.json", "w"))
+          json.dump({"cases": [case(n, [ok(n), ok(n), boom("exit 1: You've hit your weekly limit · resets")]) for n in names]},
+                    open(f / "errlim.json", "w"))
+          # 두 팔: without 팔이 채점됐으면 통과, `graders: []` 면 대조 점수가 채점 없이 나온 것이다
+          two = lambda n, wo: dict(case(n, [ok(n)] * 3), arms={"with": [ok(n)] * 3, "without": [wo(n)] * 3})
+          json.dump({"cases": [two(n, ok) for n in names]}, open(f / "wook.json", "w"))
+          json.dump({"cases": [two(n, lambda n: dict(ok(n), graders=[])) for n in names]}, open(f / "woempty.json", "w"))
+          PY
+          mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"claude-sonnet-5":{}}}' > "$f/words/trace.jsonl"
+          for m in miss:3 lim:6 empty:3 limpass:6 ratetext:0 allok:0 errrun:3 errlim:6; do
+            set +e
+            FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
+            st=$?
+            set -e
+            if [ "$st" != "${m##*:}" ]; then
+              echo "::error::run-evals.sh 가 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
+            fi
+          done
+          # 구조 실패(3)로 끝나도 트레이스는 결과 폴더에 남아야 한다 — 그레이더가 왜 빠졌는지 볼 증거다
+          set +e
+          o=$(FAKE_RESULT="$f/empty.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none 2>&1)
+          st=$?
+          set -e
+          r=$(printf '%s\n' "$o" | sed -n 's/^결과: //p' | tail -1)
+          if [ "$st" != 3 ] || [ -z "$r" ] || ! ls "$r"/traces/*.jsonl >/dev/null 2>&1; then
+            echo "::error::run-evals.sh 가 구조 실패(exit $st)에서 트레이스를 안 남겼다 (${r:-결과 폴더 없음})"; exit 1
+          fi
+          # --runs 를 안 주면 케이스에 적힌 회차 수(3)를 요구한다 — 한 회차만 돈 결과는 3
+          json_one=$(mktemp); python3 - "$json_one" <<'PY'
+          import json, pathlib, sys
+          g = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/route-quiet/graders").glob("*.md"))]
+          tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          run = {"score": 1.0, "passed": True, "tracePath": str(tr),
+                 "graders": [{"name": n, "passed": True, "weight": 3, "scored": True} for n in g]}
+          json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
+                                "arms": {"with": [run]}, "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
+          PY
+          set +e
+          FAKE_RESULT="$json_one" PATH="$f:$PATH" ./scripts/run-evals.sh --case route-quiet --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
+          fi
+          # 트레이스에 요청한 모델(claude-sonnet-5)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
+          printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5":{}}}' > "$f/haiku.jsonl"
+          python3 -c "
+          import json
+          d = json.load(open('$f/allok.json'))
+          for c in d['cases']:
+              for r in c['arms']['with']:
+                  r['tracePath'] = '$f/haiku.jsonl'
+          json.dump(d, open('$f/othermodel.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/othermodel.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 요청한 모델이 안 보이는 회차를 받았다 (exit $st)"; exit 1
+          fi
+          # 회차가 다 채점됐어도 트레이스가 없으면 무효다 — 모델 · 한도를 볼 수 없다(→ 3)
+          python3 -c "
+          import json
+          d = json.load(open('$f/allok.json'))
+          for c in d['cases']:
+              for r in c['arms']['with']:
+                  r['tracePath'] = None
+          json.dump(d, open('$f/notrace.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/notrace.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 트레이스 없는 회차를 받았다 (exit $st)"; exit 1
+          fi
+          # --ablation 을 안 주면 두 팔이다. without 팔이 없거나(한 팔 실험으로 바뀐 것) 채점되지
+          # 않았으면 3, 두 팔이 다 채점됐으면 0
+          for m in allok:3 woempty:3 wook:0; do
+            set +e
+            FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
+            st=$?
+            set -e
+            if [ "$st" != "${m##*:}" ]; then
+              echo "::error::run-evals.sh 가 두 팔 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
+            fi
+          done
+
+          # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gap-unowned/graders/gate-no-fake-owner.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 문턱을 못 넘기는 심판 그레이더를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — auditor-fired 가 호출을 요구하지 않으면(min 0) 실패해야 한다(Codex 33차)
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^min: .*/min: 0/' "$s/vibe-audit/evals/cycle-first/graders/auditor-fired.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 min 0 인 auditor-fired 를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i '0,/^weight/s//arm: with-only\nweight/' "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 arm 붙은 route-correct 를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — 떨어져도 문턱을 못 넘기는 가벼운 음성 그레이더는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-secrets.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 문턱 아래로 못 끌어내리는 음성 그레이더를 통과시켰다"; exit 1
+          fi
+
+          # verify-graders.py — 무엇에나 맞는 대조군은 실패해야 한다(무는 fail 표본이 있어야)
+          g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
+          sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-local-dev-password/graders/real-nc-found.md"
+          if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-graders.py 가 무엇에나 맞는 대조군을 통과시켰다"; exit 1
+          fi
+
+          # verify-copy.py — 원본 여섯 가운데 하나만 공통 절이 갈리면 실패해야 한다
+          # (gates.sh 는 원본을 원본과 견주므로 파일마다 자기 자신과 같다)
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-secrets.md"
+          if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 원본끼리 갈린 공통 절을 통과시켰다"; exit 1
+          fi
+
+          # verify-copy.py — 머리말에 Edit 를 넣고 본문에 원형 tools 줄을 적어 두면 실패해야 한다
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-ops.md"
+          printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
+          if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 본문의 원형 줄에 속아 쓰기 도구를 통과시켰다"; exit 1
+          fi
+
+          # verify-copy.py — 출력 형식에서 `## 지난 회차` 를 빼고 파일 끝에 딴 절로 붙인 사본은 실패해야 한다
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          python3 - "$t/audit-secrets.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text()
+          j = t.find("## 지난 회차\n", t.find("## 출력 형식"))
+          p.write_text(t[:j] + t[j + len("## 지난 회차\n"):] + "\n## 지난 회차\n\n딴 절\n")
+          PY
+          if python3 scripts/verify-copy.py vibe-audit/agents "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 출력 형식 밖의 「지난 회차」에 속았다"; exit 1
+          fi
+
+          # verify-copy.py — 출력 형식의 `## 안 본 것` 머리만 지우고 자리표시를 남긴 사본은 실패해야 한다
+          t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
+          python3 - "$t/audit-secrets.md" <<'PY'
+          import sys, pathlib
+          p = pathlib.Path(sys.argv[1]); t = p.read_text()
+          j = t.find("## 안 본 것\n", t.find("## 출력 형식"))
+          p.write_text(t[:j] + t[j + len("## 안 본 것\n"):])
+          PY
+          if python3 scripts/verify-copy.py vibe-audit/agents "$t" >/dev/null 2>&1; then
+            echo "::error::verify-copy.py 가 출력 형식의 「안 본 것」 머리가 빠진 사본을 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          rm "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 route-not-others 없는 route 케이스를 통과시켰다"; exit 1
+          fi
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
+            "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 허용 선언과 어긋난 route-not-others 를 통과시켰다"; exit 1
+          fi
+
+          # verify-evals.py — scaffold_script 선언이 빠진 케이스는 실패해야 한다
+          s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+          sed -i '/scaffold_script/d' "$s/vibe-audit/evals/route-quiet/case.yaml"
+          if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+            echo "::error::verify-evals.py 가 스캐폴드 없는 케이스를 통과시켰다"; exit 1
+          fi
+
+          # verify-manifest.py — 검사가 모르는 라이선스 선언은 실패해야 한다
+          m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
+          sed -i 's/"license": "MIT"/"license": "GPL-3.0"/' "$m/vibe-audit/.claude-plugin/plugin.json"
+          if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
+            echo "::error::verify-manifest.py 가 견줄 수 없는 라이선스 선언을 통과시켰다"; exit 1
+          fi
+
+          echo "게이트 여섯 중 변조본으로 확인한 여섯: manifest · copies · copy · evals · graders · budget"
+
+          # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
+          # 앞쪽이 깨지면 낭비로 끝나지만 뒤쪽이 깨지면 **문구를 고친 PR 이 수트 없이
+          # 지나간다.** 제자리에서 흔들고 그 파일만 되돌린다(커밋 안 한 수정이 있는
+          # 로컬에서 돌리면 그 수정도 되돌아간다 — CI 에서만 돌린다).
+          k0=$(python3 scripts/eval-key.py route)
+          keyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
+            eval "$3"
+            k=$(python3 scripts/eval-key.py route); git checkout -q -- "$2"
+            if [ "$1" = same ] && [ "$k" != "$k0" ]; then
+              echo "::error::eval-key.py 가 수트와 무관한 $2 로 지문을 바꿨다"; exit 1
+            fi
+            if [ "$1" = diff ] && [ "$k" = "$k0" ]; then
+              echo "::error::eval-key.py 가 $2 를 바꿔도 지문이 그대로다 — 수트 없이 지나간다"; exit 1
+            fi
+          }
+          keyed same vibe-audit/evals/README.md                     'echo x >> vibe-audit/evals/README.md'
+          keyed same vibe-audit/README.md                           'echo x >> vibe-audit/README.md'
+          keyed same vibe-audit/evals/budget.txt                    'echo x >> vibe-audit/evals/budget.txt'
+          keyed same vibe-audit/evals/trap-liveness-probe/prompt.md 'echo x >> vibe-audit/evals/trap-liveness-probe/prompt.md'
+          keyed diff vibe-audit/agents/audit-data.md                'echo x >> vibe-audit/agents/audit-data.md'
+          keyed diff vibe-audit/evals/route-quiet/prompt.md         'echo x >> vibe-audit/evals/route-quiet/prompt.md'
+          keyed diff scripts/verify-graders.py                      "echo '#' >> scripts/verify-graders.py"
+          keyed diff .github/workflows/eval.yml                     "echo '#' >> .github/workflows/eval.yml"
+          keyed diff vibe-audit/commands/audit-brief.md             'rm vibe-audit/commands/audit-brief.md'
+          keyed diff scripts/run-evals.sh                           'chmod -x scripts/run-evals.sh'
+          if [ "$(python3 scripts/eval-key.py full)" = "$k0" ]; then
+            echo "::error::eval-key.py 의 지문에 모드가 안 들었다"; exit 1
+          fi
+          echo "수트 지문: 무관한 넷은 그대로, 관련된 여섯(실행 비트 포함)과 모드는 바뀐다"
+
+      # 자격은 둘 중 하나다 — 구독 토큰(`claude setup-token` 이 만든
+      # CLAUDE_CODE_OAUTH_TOKEN) 또는 API 키(ANTHROPIC_API_KEY). 저자는 구독을 쓴다.
+      - name: 키가 있는가
+        id: key
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "${OAUTH:-}" ] || [ -n "${API_KEY:-}" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLAUDE_CODE_OAUTH_TOKEN 도 ANTHROPIC_API_KEY 도 없어 감사자 수트가 돌지 않는다 — verdict 잡이 실패한다"
+          fi
+
+      # **같은 입력이 이미 통과했으면 수트를 다시 안 돌린다.** 구독 사용량에서
+      # 한 번에 24회가 나가는데, README 만 고친 커밋에도 그것을 썼다. 지문은
+      # scripts/eval-key.py 가 내용으로 만든다(무엇이 드는지는 그 파일 머리에).
+      #
+      # 통과한 실행만 지문을 적는다(아래 eval 잡 끝). 그래서 빨간 커밋 뒤에 README
+      # 한 줄을 얹어도 지문이 **통과한 적 없는** 것이라 다시 돈다. 사람이 부른
+      # workflow_dispatch 는 찾아보지 않고 늘 돈다.
+      #
+      # 그래도 다시 돌리고 싶으면 Actions → Caches 에서 `eval-route-` 로 시작하는
+      # 항목을 지우고 재실행한다.
+      - name: 수트 지문
+        id: fp
+        if: steps.key.outputs.has_key == 'true'
+        run: echo "key=$(python3 scripts/eval-key.py route)" >> "$GITHUB_OUTPUT"
+
+      - name: 같은 입력이 이미 통과했는가
+        id: seen
+        if: steps.key.outputs.has_key == 'true' && github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v4
+        with:
+          path: .eval-pass
+          key: ${{ steps.fp.outputs.key }}
+
+      # 건너뛴 eval 잡은 키가 없을 때와 똑같이 Skipped 로 뜬다. 둘은 verdict 가
+      # 가르고(키 없음은 실패), 여기서는
+      # 무엇을 근거로 건너뛰었는지 볼 수 있게 통과했던 실행을 찍는다.
+      - name: 건너뛰는 근거
+        if: steps.seen.outputs.cache-hit == 'true'
+        run: |
+          echo "::notice::수트를 건너뛴다 — 같은 입력(${{ steps.fp.outputs.key }})이 이미 통과했다: $(cat .eval-pass/run.txt)"
+
+  # 키가 있어야 도는 것. 없으면 Skipped 로 뜨고, 판정은 아래 verdict 가 낸다.
+  #
+  # **무엇을 얼마나 돌리나 — 저자가 정했다(2026-09-23).** PR 과 push 는
+  # 트리거 케이스(`route-*`)만, 판정 케이스까지 도는 전수는 workflow_dispatch
+  # 로 사람이 부를 때만. 트리거는 문구를 고친 PR 에서 가장 자주 깨지는 축이고
+  # 심판을 안 써서 싸다(여섯 × 3회, 약 $5). 전수는 심판(sonnet)까지 불러
+  # 열 배쯤 든다.
+  #
+  # **러너를 부르는 이유.** 전에는 여기서 `claude plugin eval` 을 직접 불렀다.
+  # 그러면 러너가 박아 둔 것이 전부 빠진다 — 동시성(기본 1 이라 전수가 두
+  # 시간), 케이스 0개면 실패, 실패 트레이스 보존. 그리고 플러그인 없는 팔이
+  # 기본으로 붙어 비용이 두 배가 되어, 키를 넣는 순간 `--max-cost-usd 10` 에
+  # 걸려 **모든 PR 이 빨갛게** 떴을 것이다. 깃발을 두 군데 적으면 갈린다 —
+  # `gates.sh` 를 만든 것과 같은 이유다.
+  #
+  # `--ablation none` — 플러그인 없는 팔은 감사자를 부를 수 없어 트리거
+  # 케이스에서 늘 0 이다. 재는 것이 없는데 값은 두 배다.
+  eval:
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.has_key == 'true' && needs.gate.outputs.fresh == 'true'
+    # 전수의 CI 실측은 아직 없다. README 의 123분은 동시성이 1 이던 때 열세 케이스를
+    # 잰 것이고, 지금은 -j 4 · 열여덟 케이스다. 설치와 자격 확인까지 한 잡에 들어가므로
+    # 넉넉히 둔다 — 잘리면 결과도 아티팩트도 안 남는다(Codex 리뷰).
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @anthropic-ai/claude-code
+
+      # **이 자격을 받는 사람은 쓰기 권한자뿐이다 — 저자가 이 위험을 받아들였다.**
+      # 같은 저장소 브랜치의 PR 은 저장소 시크릿을 받고, PR 이 고친 스크립트와
+      # 워크플로가 그 자격으로 돈다(Codex 7차). 포크 · Dependabot PR 은 시크릿을 못
+      # 받고 verdict 가 빨갛게 둔다. 지금 쓰기 권한자는 저자 한 명이다.
+      # **협업자를 들이면** 시크릿을 저장소 시크릿에서 승인자가 걸린 environment 로
+      # 옮기고 이 잡에 `environment:` 를 건다 — 스크립트를 기준 브랜치에서 가져오는
+      # 것으로는 안 막힌다. pull_request 는 PR 쪽의 워크플로 파일로 돈다.
+      #
+      # **하나만 내보낸다.** 둘 다 env 에 두면 비어 있는 쪽도 「설정됨」으로 읽혀
+      # 다른 쪽을 가릴 수 있다 — CLI 는 ANTHROPIC_API_KEY 를 먼저 본다. 둘 다
+      # 있으면 구독 토큰을 쓴다.
+      #
+      # **먼저 한 턴으로 자격을 확인한다.** 자격이 안 먹으면 수트는 회차마다
+      # 오류로 0 점을 내고, 그것은 「감사자가 안 떴다」와 모양이 같다. 여기서
+      # 먼저 떨어지면 원인이 자격이라는 것이 로그 첫 줄에 남는다.
+      - name: 감사자 수트
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FULL: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [ -n "${OAUTH:-}" ]; then
+            export CLAUDE_CODE_OAUTH_TOKEN="$OAUTH"; echo "자격: 구독 토큰"
+          else
+            export ANTHROPIC_API_KEY="$API_KEY"; echo "자격: API 키"
+          fi
+          unset OAUTH API_KEY
+
+          if ! out=$(claude -p "OK 한 단어로만 답하라" --max-turns 1 2>&1); then
+            echo "::error::자격 확인 실패 — 수트를 돌리지 않는다: ${out:0:300}"; exit 1
+          fi
+          echo "자격 확인: ${out:0:40}"
+
+          if [ "$FULL" = "true" ]; then
+            ./scripts/run-evals.sh --ablation none --runs 3 --threshold 0.8 --max-cost-usd 40
+          else
+            # route 는 문턱 1.0 — 세 회차 **전부** 맞아야 한다. 문턱은 회차 평균에 걸리므로
+            # 0.8 이면 한 회차의 과잉 트리거가 (1 + 1 + 0.67) / 3 = 0.89 로 지나가고, 그
+            # 입력이 캐시에 「통과」로 남는다(Codex 리뷰). route 는 심판 없는 결정론 채점이고
+            # 실측이 여러 번 24/24 라 흔들림 여유를 둘 까닭이 없다. 판정 케이스(전수)는 심판이
+            # 갈리므로 0.8 을 둔다.
+            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 1.0 --max-cost-usd 10
+          fi
+
+      # 통과한 입력만 적어 둔다. 지문은 이 잡에서 다시 낸다 — gate 잡과 CLI 가
+      # 사이에 올라갔으면 실제로 돈 쪽의 지문을 적어야 하기 때문이다. 전수
+      # (workflow_dispatch)는 찾아보지도 않으므로 적지 않는다.
+      - name: 통과한 입력을 적는다
+        id: pass
+        if: success() && github.event_name != 'workflow_dispatch'
+        run: |
+          mkdir -p .eval-pass
+          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" > .eval-pass/run.txt
+          echo "key=$(python3 scripts/eval-key.py route)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/save@v4
+        if: steps.pass.outcome == 'success'
+        with:
+          path: .eval-pass
+          key: ${{ steps.pass.outputs.key }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-result
+          path: vibe-audit/evals/results/
+          if-no-files-found: ignore
+
+  # **판정.** 건너뛴 잡은 GitHub 에서 성공으로 센다 — 그래서 「Skipped 는 초록이
+  # 아니다」는 워크플로 모양만으로는 서지 않는다. 이 잡이 늘 돌아 다음 둘 중
+  # 하나일 때만 통과한다: 감사자 수트가 돌아 통과했다, 또는 같은 입력이 이미
+  # 통과했다(gate 의 지문 캐시). 자격이 없어 안 돈 것은 **실패**다 — 안 돌린 것을
+  # 통과로 세지 않는다.
+  verdict:
+    runs-on: ubuntu-latest
+    needs: [gate, eval]
+    if: always()
+    steps:
+      - name: 수트가 통과했는가
+        env:
+          GATE: ${{ needs.gate.result }}
+          HAS_KEY: ${{ needs.gate.outputs.has_key }}
+          FRESH: ${{ needs.gate.outputs.fresh }}
+          EVAL: ${{ needs.eval.result }}
+        run: |
+          if [ "$GATE" != "success" ]; then
+            echo "::error::gate 가 $GATE — 키 없이 도는 게이트부터 떨어졌다"; exit 1
+          fi
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::error::자격(CLAUDE_CODE_OAUTH_TOKEN · ANTHROPIC_API_KEY)이 없어 감사자 수트가 안 돌았다 — 통과가 아니다"
+            exit 1
+          fi
+          if [ "$FRESH" = "false" ]; then
+            echo "같은 입력이 이미 통과했다 — 수트를 건너뛰었다(근거는 gate 의 notice)"; exit 0
+          fi
+          if [ "$EVAL" != "success" ]; then
+            echo "::error::감사자 수트가 $EVAL"; exit 1
+          fi
+          echo "감사자 수트 통과"

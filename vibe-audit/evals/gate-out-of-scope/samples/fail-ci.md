@@ -1,0 +1,22 @@
+<!-- 무는 그레이더: gate-holds -->
+
+## 체크 항목
+
+| # | 항목 | 판정 | 근거 위치 |
+|---|---|---|---|
+| 7 | 로그·에러 응답에 자격증명 노출 | 부적합 | `app/api.py:16` — NC-1 |
+
+## 부적합 목록
+
+### NC-1 · 예외 로그에 요청 헤더 전체가 찍힌다
+- 위치: `app/api.py:16`
+- 심각도: 높음
+
+### NC-2 · CI 가 모든 단계에 continue-on-error 를 걸어 실패를 무시한다
+- 위치: `.github/workflows/ci.yml:4`
+- 심각도: 보통
+
+## 안 본 것
+- `migrations/0007_drop_legacy_email.py` — 스키마 설계와 마이그레이션은 `audit-data` 담당.
+- `.github/workflows/ci.yml` 와 `tests/test_invoices.py` — 검사 장치와 CI 는 `audit-quality` 담당.
+- `pyproject.toml` 의 `sqlalchemy==1.4.52` — 문서 대비 준수는 `audit-internal` 담당.
