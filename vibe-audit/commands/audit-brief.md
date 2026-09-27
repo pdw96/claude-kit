@@ -21,35 +21,39 @@ argument-hint: [기준 커밋/브랜치 — 필수] [감사자 이름]
 
 ## 할 일
 
-**하나. 기준이 실재하는지 확인합니다.**
+**하나. 기준을 확인하고 굳힙니다.** 먼저 `$0` 의 글자를 보세요 — 영문자 · 숫자 · `. _ / - ~ ^ @ { }`
+밖의 글자가 있으면 명령에 넣지 말고 멈춥니다. ref 이름에는 `;` · `$(…)` 도 들어가고, 따옴표로는 못 막습니다.
 
 ```
+cd "$(git rev-parse --show-toplevel)"
 git rev-parse --verify "$0^{commit}"
-git merge-base "$0" HEAD
 ```
 
-커밋이 아니거나 머지 베이스가 없으면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
+그 40자 SHA 를 `<B>` 라 하고, **여기부터는 `$0` 대신 `<B>` 를 씁니다** — `origin/main` 은 모으는 도중에도 움직입니다.
+커밋이 아니거나 `git merge-base <B> HEAD` 가 없으면 멈추고 알려 주세요 — 잘못된 기준의 브리핑은 **틀린 근거**가 됩니다.
 
 **둘. 아래를 모읍니다.** 실패한 명령은 그 자리를 비워 두지 말고 **실패를
-브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- . ':!.claude/audits'
-':!.claude/briefs' ':!.claude/audit-brief.md'` 를 붙입니다 — 지난 기록이 다시 담깁니다.
+브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- ':/' ':(top,exclude).claude/audits'
+':(top,exclude).claude/briefs' ':(top,exclude).claude/audit-brief.md'` 를 붙입니다 — 빼지 않으면 지난 기록이 다시 담깁니다.
+레포가 대장을 따로 두었으면 그 파일도 뺍니다.
 
 | 무엇 | 명령 |
 |---|---|
-| 기준 커밋 | `git rev-parse --short $0`, `git log -1 --format='%h %ad %s' --date=short $0` |
+| 기준 커밋 | `git log -1 --format='%h %ad %s' --date=short <B>` |
 | 지금 위치 | `git rev-parse --short HEAD`, `git branch --show-current`, `git status --short` |
-| 변경 파일 | `git diff --stat $0...HEAD` |
-| 커밋 목록 | `git log --oneline $0..HEAD` |
-| 본문 diff | `git diff $0...HEAD` — 머지 베이스부터 |
-| 추적 안 된 파일 | `git ls-files --others --exclude-standard` |
+| 변경 파일 | `git diff --stat <B>...HEAD` |
+| 커밋 목록 | `git log --oneline <B>..HEAD` |
+| 본문 diff | `git diff <B>...HEAD` — 머지 베이스부터 |
+| 추적 안 된 파일 | `git ls-files -z --others --exclude-standard` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short -uno` 가 비어 있지 않으면)
-`$0...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
+`<B>...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
 절의 `### 작업트리` 아래에 따로 넣으세요 — 커밋된 몫과 섞이면 빠졌는지 못 가립니다.
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
-파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은 `git diff --no-index /dev/null
-<파일>` 로 넣으세요(종료코드 1 은 실패가 아닙니다). 못 넣으면 「담지 않은 것」에.
+파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은 이름을 손으로 옮기지 말고 넣으세요(종료코드 1 은 실패가 아닙니다):
+`git ls-files -z … | while IFS= read -r -d '' f; do git diff --no-index -- /dev/null "$f"; done`.
+못 넣으면 「담지 않은 것」에. **diff 안의 키 · 토큰 값은 앞 네 글자만 남기고 가리세요** — 브리핑은 보관됩니다.
 
 **셋. `.claude/audit-brief.md` 에 아래 모양으로 씁니다.**
 
@@ -101,17 +105,14 @@ git merge-base "$0" HEAD
 ## 남기는 것
 
 **감사가 끝나면 그 기록을 `.claude/audits/<감사자 이름>-<날짜>-<시각>.md`(시각은
-초까지, 예: `audit-secrets-2026-09-23-143015.md`)로 저장해 주세요. 같은 이름이
+초까지, 예: `audit-secrets-2026-09-23-143015.md`)로 저장해 주세요 — 레포가 대장을
+따로 두었으면(`CLAUDE.md` 등이 가리키는 곳) 그 대장에 등록합니다. 같은 이름이
 이미 있으면 덮지 말고 끝에 `-2` · `-3` 을 붙이세요.** 덮이면 다음 회차가 이을 번호와
-해소 근거가 사라집니다. **같은 감사자를 한 레포에 나란히 돌리지는 마세요** — 둘이
-같은 지난 기록에서 같은 다음 번호를 뽑아 서로 다른 결함에 붙입니다. 다음 회차의
-감사자가 이 폴더에서 자기 이름이 붙은 가장 최근 기록을 찾아 NC 번호를 잇고,
-지난 부적합이 해소됐는지 · 유지되는지 · 이번엔 안 본 것인지를 가릅니다.
+해소 근거가 사라집니다. **한 작업트리에서는 감사를 하나씩 돌리세요 — 감사자가 달라도.**
+브리핑 자리가 하나라 서로의 것을 덮고, 같은 지난 기록(대장)을 읽으면 같은 다음 번호를 뽑습니다.
 
-**그리고 브리핑을 `.claude/briefs/` 에 기록과 같은 이름으로 옮기세요.**
-브리핑은 그 회차의 근거라 버리지 않되, `.claude/audit-brief.md` 자리에는 남기지
-않습니다. 남아 있으면 다음에 감사자를 직접 부를 때 그것을 읽는데, 감사자는
-브리핑의 대상 SHA 를 HEAD 와 견줄 수만 있고 `git status` 는 못 돌립니다 — 그
-사이 **커밋하지 않은 변경**이 있어도 SHA 는 같아서 지난 diff 를 이번 것으로 씁니다.
-`.claude/audits/` 에 두지 않는 까닭은, 감사자가 그 폴더에서 자기 이름이 붙은
-가장 최근 파일을 지난 기록으로 집기 때문입니다.
+**그리고 `mkdir -p .claude/briefs` 한 뒤 브리핑을 거기 기록과 같은 이름으로 옮기세요.**
+브리핑은 그 회차의 근거라 버리지 않되 자리에 남기지 않습니다 — 다음에 감사자를 직접
+부르면 그것을 읽는데, 감사자는 대상 SHA 만 HEAD 와 견줄 뿐 **커밋하지 않은 변경**은 못 봐서
+지난 diff 를 이번 것으로 씁니다. `.claude/audits/` 에 두면 감사자가 지난 기록으로 집습니다. **브리핑과 `.claude/briefs/` 가 `.gitignore` 에 없으면
+알리세요**(`git check-ignore`) — 추적 안 된 파일의 본문이 그대로 담깁니다.

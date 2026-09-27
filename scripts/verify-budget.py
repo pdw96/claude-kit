@@ -51,7 +51,7 @@ import sys
 ALWAYS_ON_TOTAL_MAX = 5_600      # 지금 4,810 — 감사를 안 돌리는 세션도 내는 값
 COMPONENT_ALWAYS_ON_MAX = 900    # 지금 최대 804
 AGENT_ON_INVOKE_MAX = 11_000     # 지금 최대 9,459 — 감사 대상 코드와 같은 창을 쓴다
-SKILL_ON_INVOKE_MAX = 3_500      # 지금 audit-brief 2,790
+SKILL_ON_INVOKE_MAX = 4_500      # 지금 audit-brief 3,890 (ERP#13 의 결함 여덟을 받고 올렸다)
 
 SNAPSHOT = pathlib.Path("vibe-audit/evals/budget.txt")
 SOURCES = (("agent", "agents/audit-*.md"), ("skill", "commands/*.md"))
