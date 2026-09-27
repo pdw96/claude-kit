@@ -1,3 +1,10 @@
 {
-  "copies": []
+  "copies": [
+    {
+      "repo": "erp",
+      "agents_path": "/home/user/erp/.claude/agents",
+      "synced_commit": "894d5f0d0620ac4496a55ffee49994909c22b945",
+      "synced_at": "2026-09-26"
+    }
+  ]
 }
