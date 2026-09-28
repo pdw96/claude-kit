@@ -17,12 +17,12 @@
 - 「기준」 SHA 가 커밋이고, 적힌 머지 베이스가 git 이 구한 것과 같은가
 - git 이 말하는 변경 파일(커밋된 몫 · 작업트리 · 추적 안 된 파일)이 **하나도 빠짐없이**
   diff 절에 있거나 「담지 않은 것」에 경로가 백틱으로 통째로 적혀 있는가
-- 담은 파일마다 +/- 줄 수가 git 의 `--numstat` 과 같은가(바이너리 블록은 0/0) — 다르면 잘린 것이므로
+- 담은 파일마다 +/- 줄 수와 바이너리 블록 수가 git 의 `--numstat` 과 같은가 — 다르면 잘린 것이므로
   「자름: 있음」이고 그 파일이 「담지 않은 것」에 적혀 있어야 한다
 - git 에 없는 파일의 diff 가 들어 있지 않은가 — 지난 회차나 다른 기준의 것이 섞인 것이다
 
 키 · 토큰을 앞 네 글자만 남기고 가려도 줄 수는 그대로라 대조는 견딘다. diff 는 커맨드처럼
-`--no-ext-diff --no-textconv --submodule=short --no-color` 로 뽑았다고 본다.
+`--no-ext-diff --no-textconv --submodule=short --ignore-submodules=none --no-color` 로 뽑았다고 본다.
 
 보지 않는 것: 줄의 **내용**(가림과 부딪힌다), 커밋된 몫과 작업트리 몫을 제 소절에
 나눠 담았는지(파일마다 합쳐서 센다), 「변경 파일」 · 「커밋」 절의 내용.
@@ -34,9 +34,9 @@ import re
 import subprocess
 import sys
 
-# 커맨드가 모든 `git diff` 에 붙이는 것과 같다 — 외부 diff · textconv · 서브모듈 요약이 켜진
-# 설정에서도 `diff --git` 블록과 날것의 줄 수가 나오게
-PIN = ("--no-ext-diff", "--no-textconv", "--submodule=short", "--no-color")
+# 커맨드가 모든 `git diff` 에 붙이는 것과 같다 — 외부 diff · textconv · 서브모듈 요약 · 서브모듈
+# 무시가 켜진 설정에서도 `diff --git` 블록과 날것의 줄 수가 나오게
+PIN = ("--no-ext-diff", "--no-textconv", "--submodule=short", "--ignore-submodules=none", "--no-color")
 DEFAULT_EXCLUDE = (".claude/audits", ".claude/briefs", ".claude/audit-brief.md")
 SECTIONS = ("## 변경 파일", "## 커밋", "## diff", "## 이 브리핑이 담지 않은 것")
 
@@ -98,7 +98,7 @@ HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
 
 
 def parse_diff(body):
-    """diff 절에서 파일마다 (+, -) 줄 수를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
+    """diff 절에서 파일마다 (+, -, 바이너리 블록 수) 를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
@@ -111,7 +111,7 @@ def parse_diff(body):
         head, path, minus_path, renamed = lines[0], None, None, None
         pair = header_pair(head)
         strip = not (pair and pair[0] == pair[1])  # 두 경로가 같으면 접두가 없는 것이다
-        add = rem = old_left = new_left = 0
+        add = rem = binary = old_left = new_left = 0
         for ln in lines[1:]:
             if old_left > 0 or new_left > 0:
                 if ln.startswith("\\"):
@@ -135,8 +135,10 @@ def parse_diff(body):
                 p = unquote(ln[4:].rstrip("\t"))
                 if p != "/dev/null":
                     minus_path = unprefix(p, strip)
-            elif ln.startswith("rename to "):  # 접두가 없는 줄이라 설정에 안 흔들린다
-                renamed = unquote(ln[len("rename to "):])
+            elif ln.startswith(("rename to ", "copy to ")):  # 접두가 없는 줄이라 설정에 안 흔들린다
+                renamed = unquote(ln.split(" to ", 1)[1])
+            elif ln.startswith(("Binary files ", "GIT binary patch")):
+                binary += 1
         path = renamed or path or minus_path
         if path is None and pair:  # 모드만 바뀐 파일 · 내용 없는 새 파일: 머리 줄에서 가른다
             x, y = unprefix(pair[0], strip), unprefix(pair[1], strip)
@@ -144,8 +146,8 @@ def parse_diff(body):
                 path = y
         if path is None:
             continue
-        a, r = counts.get(path, (0, 0))
-        counts[path] = (a + add, r + rem)
+        a, r, b = counts.get(path, (0, 0, 0))
+        counts[path] = (a + add, r + rem, b + binary)
     return counts
 
 
@@ -163,12 +165,14 @@ def spans(text):
 
 def named(omitted_spans, path):
     """「담지 않은 것」에 그 경로가 코드 스팬 하나로 **통째로** 적혀 있는가. 빈칸 · 대시 · `@` 도
-    파일 이름에 들 수 있어, 스팬 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다."""
-    return path in omitted_spans
+    파일 이름에 들 수 있어, 스팬 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다.
+    줄바꿈이 든 이름은 스팬에 그대로 못 적으므로 git 이 적는 따옴표 모양(`"a\\nb"`)도 받는다."""
+    return path in omitted_spans or any(
+        c[:1] == c[-1:] == '"' and len(c) >= 2 and unquote(c) == path for c in omitted_spans)
 
 
 def numstat(top, *args):
-    """`git diff --numstat -z` → {경로: (+, -)}. 바이너리는 (0, 0). 이름 바꿈은 새 이름으로."""
+    """`git diff --numstat -z` → {경로: (+, -, 바이너리 몫 수)}. 바이너리는 (0, 0, 1). 이름 바꿈은 새 이름으로."""
     out = git(top, "diff", *PIN, "--numstat", "-z", *args).decode("utf-8", "surrogateescape")
     res, parts, i = {}, out.split("\0"), 0
     while i < len(parts):
@@ -182,7 +186,7 @@ def numstat(top, *args):
             i += 3
         else:
             i += 1
-        res[path] = (0, 0) if a == "-" else (int(a), int(d))  # 바이너리 블록은 헝크가 없어 0/0
+        res[path] = (0, 0, 1) if a == "-" else (int(a), int(d), 0)  # 바이너리 블록은 헝크가 없어 0/0
     return res
 
 
@@ -196,7 +200,7 @@ def expected(top, mb, excludes):
         if old is None or c is None:
             want[path] = c if old is None else old
         else:
-            want[path] = (old[0] + c[0], old[1] + c[1])
+            want[path] = tuple(x + y for x, y in zip(old, c))
 
     for path, c in numstat(top, f"{mb}..HEAD", *spec).items():
         add(path, c)
@@ -214,7 +218,7 @@ def expected(top, mb, excludes):
         # (바이너리) 을 git 과 다르게 셀 틈이 없다
         rec = git(top, "diff", *PIN, "--no-index", "--numstat", "-z", "--", "/dev/null", path,
                   ok=(0, 1)).decode("utf-8", "surrogateescape").split("\0")[0].split("\t")
-        add(path, (0, 0) if rec[0] == "-" else (int(rec[0]), int(rec[1])))
+        add(path, (0, 0, 1) if rec[0] == "-" else (int(rec[0]), int(rec[1]), 0))
     return want
 
 
@@ -251,15 +255,15 @@ def main(argv):
         if section(text, s) is None:
             bad.append(f"절이 없다: {s}")
 
-    m = re.search(r"^- 대상:\s*`([0-9a-f]{4,40})`", text, re.M)
+    m = re.search(r"^- 대상:\s*`([0-9a-f]{4,64})`", text, re.M)
     if not m:
         bad.append("「대상」 줄에 HEAD 짧은 SHA 가 없다")
     elif not head.startswith(m.group(1)):
         bad.append(f"「대상」 {m.group(1)} 이 지금 HEAD {head[:12]} 가 아니다 — 지난 회차의 브리핑이다")
 
     mb = None
-    base = re.search(r"^- 기준:.*?=\s*`([0-9a-f]{4,40})`", text, re.M)
-    mbw = re.search(r"^- 기준:.*머지 베이스\s*`([0-9a-f]{4,40})`", text, re.M)
+    base = re.search(r"^- 기준:.*?=\s*`([0-9a-f]{4,64})`", text, re.M)
+    mbw = re.search(r"^- 기준:.*머지 베이스\s*`([0-9a-f]{4,64})`", text, re.M)
     if not base or not mbw:
         bad.append("「기준」 줄에 기준 SHA 와 머지 베이스가 없다")
     else:
@@ -285,12 +289,14 @@ def main(argv):
             if path not in got:
                 if not named(omitted, path):
                     bad.append(f"빠졌다: {path} — git 은 바뀌었다고 하는데 diff 에도 「담지 않은 것」에도 "
-                               f"없다(「담지 않은 것」에는 경로를 백틱으로 통째로 적는다)")
+                               f"없다(「담지 않은 것」에는 경로를 백틱으로 통째로 적는다 — 줄바꿈이 든 이름은 "
+                               f"git 이 적는 따옴표 모양으로)")
                 continue
             if want[path] is not None and got[path] != want[path]:
                 if not named(omitted, path) or not cut or cut.group(1) != "있음":
-                    bad.append(f"줄 수가 다르다: {path} — 브리핑 +{got[path][0]}/-{got[path][1]}, "
-                               f"git +{want[path][0]}/-{want[path][1]}. 잘랐으면 「자름: 있음」과 "
+                    bad.append(f"줄 수가 다르다: {path} — 브리핑 +{got[path][0]}/-{got[path][1]} "
+                               f"바이너리 {got[path][2]}, git +{want[path][0]}/-{want[path][1]} "
+                               f"바이너리 {want[path][2]}. 잘랐으면 「자름: 있음」과 "
                                f"「담지 않은 것」에 백틱으로 적어야 한다")
         for path in sorted(set(got) - set(want)):
             bad.append(f"git 에 없는 변경이 있다: {path} — 다른 기준 · 지난 회차의 diff 가 섞였다")

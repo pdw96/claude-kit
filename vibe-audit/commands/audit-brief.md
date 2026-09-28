@@ -36,7 +36,7 @@ git rev-parse --verify "$0^{commit}"
 브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- ':/' ':(top,exclude).claude/audits'
 ':(top,exclude).claude/briefs' ':(top,exclude).claude/audit-brief.md'` 를 붙입니다 — 빼지 않으면 지난 기록이 다시 담깁니다.
 레포가 대장을 따로 두었으면 그 파일도 뺍니다.
-모든 `git diff` 에는 `--no-ext-diff --no-textconv --submodule=short --no-color` 도 붙입니다 — 설정이 바꾼 모양은 대조를 깨뜨립니다.
+모든 `git diff` 에는 `--no-ext-diff --no-textconv --submodule=short --ignore-submodules=none --no-color` 도 붙입니다 — 설정이 바꾼 모양은 대조를 깨뜨립니다.
 
 | 무엇 | 명령 |
 |---|---|
@@ -53,8 +53,8 @@ git rev-parse --verify "$0^{commit}"
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌
 파일이 통째로 빠집니다. 이름을 「변경 파일」에 적고 본문은 이름을 손으로 옮기지 말고 넣으세요(종료코드 1 은 실패가 아닙니다):
-`git ls-files -z … | while IFS= read -r -d '' f; do git diff --no-index -- /dev/null "$f"; done`.
-못 넣으면 「담지 않은 것」에. **diff 안의 키 · 토큰 값은 앞 네 글자만 남기고 가리세요** — 브리핑은 보관됩니다.
+`git ls-files -z … | while IFS= read -r -d '' f; do [ -f "$f" ] || [ -L "$f" ] || continue; git diff --no-index -- /dev/null "$f"; done`.
+못 넣었거나 파일 · 링크가 아니라 건너뛴 것(안에 든 저장소 등)은 「담지 않은 것」에. **diff 안의 키 · 토큰 값은 앞 네 글자만 남기고 가리세요** — 브리핑은 보관됩니다.
 
 **셋. `.claude/audit-brief.md` 에 아래 모양으로 씁니다.**
 

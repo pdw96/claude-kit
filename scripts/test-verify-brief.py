@@ -5,8 +5,9 @@
 
 임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 · 탭 이름,
 심볼릭 링크 · 끊긴 링크 · `-diff` 속성 · UTF-8 이 아닌 이름 둘) · 바이너리 · 바이너리에서
-텍스트로 바뀐 파일 · 이름 바꿈 · `a/` 로 시작하는 폴더 · 대장 파일을 두고, 외부 diff 와
-줄 수를 바꾸는 textconv 를 켠 저장소에서, `/audit-brief` 커맨드와 **같은 git 명령**으로
+텍스트로(또 그 반대로) 바뀐 파일 · 이름 바꿈 · 복사 · 서브모듈(gitlink) · 줄바꿈 든 이름 ·
+안에 든 저장소 · `a/` 로 시작하는 폴더 · 대장 파일을 두고, 외부 diff · 줄 수를 바꾸는 textconv ·
+복사 찾기 · 서브모듈 무시를 켠 저장소에서(SHA-256 저장소 하나 더), `/audit-brief` 커맨드와 **같은 git 명령**으로
 브리핑을 만든다. 그 브리핑은 통과해야 하고, 한 군데씩 흔든 변조본은 떨어져야 한다.
 검사기를 고치고 이것이 안 돌면, 떨어져야 할 것이 통과해도 아무도 모른다.
 
@@ -22,7 +23,7 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHECK = ROOT / "vibe-audit" / "scripts" / "verify-brief.py"
-PIN = ["--no-ext-diff", "--no-textconv", "--submodule=short", "--no-color"]  # 커맨드가 붙이는 것
+PIN = ["--no-ext-diff", "--no-textconv", "--submodule=short", "--ignore-submodules=none", "--no-color"]  # 커맨드가 붙이는 것
 SPEC = ["--", ":/", ":(top,exclude).claude/audits", ":(top,exclude).claude/briefs",
         ":(top,exclude).claude/audit-brief.md"]
 
@@ -36,11 +37,14 @@ def sh(cwd, *args, ok=(0,)):
     return p.stdout
 
 
-def make_repo(d, ledger):
-    sh(d, "git", "init", "-q", "-b", "main")
+def make_repo(d, ledger, fmt="sha1"):
+    sh(d, "git", "init", "-q", "-b", "main", f"--object-format={fmt}")
+    oid = 40 if fmt == "sha1" else 64
     # 커맨드가 `--no-ext-diff --no-textconv` 로 막는 설정 — 막지 않으면 diff 가 비거나 줄 수가 바뀐다
     sh(d, "git", "config", "diff.external", "true")
     sh(d, "git", "config", "diff.drop.textconv", "grep -v line <")
+    sh(d, "git", "config", "diff.renames", "copies")        # 복사 블록은 `copy to` 만 있고 `+++` 가 없다
+    sh(d, "git", "config", "diff.ignoreSubmodules", "all")  # 막지 않으면 서브모듈 변경이 양쪽에서 사라진다
     (d / "app").mkdir()
     (d / "app" / "routes.py").write_text("".join(f"line {i}\n" for i in range(30)))
     (d / "old_name.py").write_text("keep\n" * 5)
@@ -49,9 +53,13 @@ def make_repo(d, ledger):
     (d / "a" / "util.py").write_text("u\n" * 3)
     (d / ".gitattributes").write_text("*.dat -diff\n*.py diff=drop\n")
     (d / "mixed.txt").write_bytes(b"\0\1")  # 커밋 몫은 바이너리, 작업트리 몫은 텍스트
+    (d / "flip.txt").write_text("a\nb\n")     # 커밋 몫은 텍스트, 작업트리 몫은 바이너리
+    (d / "tmpl.py").write_text("t\n" * 5)
+    (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
     ledger.write_text("# 대장\n")
     sh(d, "git", "add", "-A")
+    sh(d, "git", "update-index", "--add", "--cacheinfo", f"160000,{'1' * oid},sub")
     sh(d, "git", "commit", "-qm", "base")
     sh(d, "git", "checkout", "-qb", "topic")
     txt = (d / "app" / "routes.py").read_text().replace("line 3\n", "line 3 changed\nextra\n")
@@ -60,8 +68,12 @@ def make_repo(d, ledger):
     (d / "logo.bin").write_bytes(b"\0\1\2\3")
     (d / "a" / "util.py").write_text("u\n" * 4)
     (d / "mixed.txt").write_text("a\nb\n")
+    (d / "flip.txt").write_text("a\nbb\n")
+    (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
+    (d / "tmpl.py").write_text("t\n" * 6)
     ledger.write_text("# 대장\n| NC-1 | x |\n")
     sh(d, "git", "add", "-A")
+    sh(d, "git", "update-index", "--cacheinfo", f"160000,{'2' * oid},sub")
     sh(d, "git", "commit", "-qm", "change")
     # 작업트리 몫과 추적 안 된 파일
     (d / "app" / "routes.py").write_text((d / "app" / "routes.py").read_text() + "API_KEY = 'sk-live-abcdef123456'\n")
@@ -72,11 +84,15 @@ def make_repo(d, ledger):
     os.symlink("nowhere", d / "dang")      # 끊긴 링크: 따라가면 읽지도 못한다
     (d / "data.dat").write_text("p\nq\n")    # -diff 속성: git 은 텍스트여도 바이너리로 적는다
     (d / "mixed.txt").write_text("a\nb\nc\n")
+    (d / "flip.txt").write_bytes(b"\0\0")
+    (d / "줄\n바꿈.py").write_text("n\n")
+    sh(d / "app", "git", "init", "-q", str(d / "inner"))  # 안에 든 저장소: `inner/` 로 나오고 diff 는 못 뜬다
+    (d / "inner" / "z").write_text("z\n")
     for tail in (b"\xff", b"\xfe"):             # UTF-8 이 아닌 이름 둘 — 풀어서 한 이름이 되면 안 된다
         (pathlib.Path(os.fsdecode(bytes(d) + b"/bin" + tail))).write_bytes(b"\0x")
 
 
-def brief(d, ledger_rel, cfg=(), pin=True):
+def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True):
     """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
     g = ["git", *(x for c in cfg for x in ("-c", c))]
     spec = SPEC + [f":(top,exclude){ledger_rel}"]
@@ -86,9 +102,11 @@ def brief(d, ledger_rel, cfg=(), pin=True):
     head = sh(d, *g, "rev-parse", "--short", "HEAD").strip()
     committed = sh(d, *g, "diff", *fix, f"{b}...HEAD", *spec)
     work = sh(d, *g, "diff", *fix, "HEAD", *spec)
-    untracked = ""
+    untracked, skipped = "", []
     for f in sh(d, *g, "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
-        if f:
+        if f and not ((d / f).is_file() or (d / f).is_symlink()):  # 커맨드의 `[ -f ] || [ -L ] || continue`
+            skipped.append(f)
+        elif f:
             untracked += sh(d, *g, "diff", *fix, "--no-index", "--", "/dev/null", f, ok=(0, 1))
     return (f"# 감사 브리핑\n\n- 만든 시각: 지금\n"
             f"- 기준: `main` = `{b[:7]}` (날짜 base), 머지 베이스 `{mb}`\n"
@@ -96,7 +114,8 @@ def brief(d, ledger_rel, cfg=(), pin=True):
             f"- 추적 안 된 파일: `new route.py` · `한글.py` — 포함\n- 자름: 없음\n\n"
             f"## 변경 파일\n\n(stat)\n\n## 커밋\n\n(log)\n\n"
             f"## diff\n\n```diff\n{committed}\n### 작업트리\n\n{work}{untracked}```\n\n"
-            f"## 이 브리핑이 담지 않은 것\n\n- 실행 결과 · 테스트 통과 여부\n")
+            f"## 이 브리핑이 담지 않은 것\n\n- 실행 결과 · 테스트 통과 여부\n"
+            + "".join(f"- `{f}` — 파일이 아니라 건너뜀\n" for f in skipped if name_skipped))
 
 
 def drop_block(text, path):
@@ -126,11 +145,13 @@ def run(top, cwd, text, *extra):
 
 def main():
     bad = []
-    with tempfile.TemporaryDirectory() as t:
-        d = pathlib.Path(t)
+    with tempfile.TemporaryDirectory() as t, tempfile.TemporaryDirectory() as t256:
+        d, d256 = pathlib.Path(t), pathlib.Path(t256)
         ledger_rel = "docs/audit/README.md"
         make_repo(d, d / ledger_rel)
         good = brief(d, ledger_rel)
+        make_repo(d256, d256 / ledger_rel, "sha256")
+        good256 = brief(d256, ledger_rel)
         ex = ("--exclude", ledger_rel)
         ok = [
             ("커맨드와 같은 명령으로 만든 브리핑", good, d, ex),
@@ -146,6 +167,9 @@ def main():
              brief(d, ledger_rel, ("diff.noprefix=true",)), d, ex),
             ("사용자 설정이 color.ui=always 여도 — 색 코드가 섞인 diff",
              brief(d, ledger_rel, ("color.ui=always",)), d, ex),
+            ("줄바꿈이 든 이름을 git 의 따옴표 모양으로 「담지 않은 것」에 적고 뺐으면",
+             drop_block(good, "줄\n바꿈.py").replace("통과 여부\n", '통과 여부\n- `"줄\\n바꿈.py"`\n'), d, ex),
+            ("SHA-256 저장소 — 머지 베이스가 64자", good256, d256, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -174,6 +198,11 @@ def main():
              d, ex + ("--exclude", "*")),
             ("커맨드의 고정 플래그 없이 뽑았다 — 외부 diff · textconv 가 모양 · 줄 수를 바꿨다",
              brief(d, ledger_rel, pin=False), d, ex),
+            ("건너뛴 안의 저장소를 「담지 않은 것」에 안 적었다", brief(d, ledger_rel, name_skipped=False), d, ex),
+            ("텍스트 → 바이너리로 바뀐 파일의 작업트리 몫(바이너리 블록)을 뺐다",
+             good.split("### 작업트리")[0] + "### 작업트리" +
+             drop_block(good.split("### 작업트리")[1], "flip.txt"), d, ex),
+            ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
             ("「대상」이 지난 HEAD", re.sub(r"(- 대상: `)[0-9a-f]+", r"\g<1>0000000", good), d, ex),
             ("머지 베이스가 틀렸다", re.sub(r"(머지 베이스 `)[0-9a-f]+", r"\g<1>deadbeef", good), d, ex),
             ("git 에 없는 파일의 diff 가 섞였다",
@@ -183,7 +212,7 @@ def main():
             ("대장을 빼라는 말 없이 돌렸다 — 대장의 변경이 빠진 것으로 보여야", good, d, ()),
         ]
         for name, text, cwd, extra in ok:
-            rc, out = run(d, cwd, text, *extra)
+            rc, out = run(d256 if cwd == d256 else d, cwd, text, *extra)
             if rc != 0:
                 bad.append(f"통과해야 했다 — {name}\n{out}")
         for name, text, cwd, extra in fail:
