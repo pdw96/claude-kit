@@ -99,14 +99,14 @@ def section(text, head):
 HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
 
 
-def parse_diff(body, unmerged=frozenset()):
+def parse_diff(body, order=()):
     """diff 절에서 파일마다 (+, -, 바이너리 블록 수, 블록 수) 를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
     counts = {}
     body = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", body)  # color.ui=always 로 뽑은 diff
-    marks = merge_marks(body, unmerged)
+    marks = merge_marks(body, order)
     for blk in re.split(r"^(?=diff --(?:git|cc|combined) )", body, flags=re.M):
         if not blk.startswith("diff --"):
             continue
@@ -156,12 +156,26 @@ def parse_diff(body, unmerged=frozenset()):
     return counts, marks
 
 
-def merge_marks(text, unmerged):
+def mask_unmerged(text, unmerged, crlf=False):
+    """블록 없이 나오는 `* Unmerged path <경로>` 줄의 경로를 자리표(`\\0` 과 번호)로 바꾼다.
+    그 경로는 git 이 따옴표 없이 날것으로 적는다 — 풀면 `"q"` 와 `q` 가 겹치고, 줄바꿈이 든 이름은
+    줄이 여럿에 걸쳐 둘째 줄이 `diff --git` · `## ` 모양일 수도 있고, 맨 `\\r` 로 끝나는 이름은 줄 끝이
+    `\\r\\n` 이 된다. 그래서 절 · 블록을 가르거나 CRLF 를 풀기 **전에** `ls-files -u -z` 의 경로와
+    긴 것부터 통째로 맞춰 한 줄로 만든다(짧은 이름이 긴 이름의 앞머리에 걸리지 않게). CRLF 로 저장한
+    브리핑이면 경로 안의 줄바꿈도 `\\r\\n` 이다. 자리표 번호가 가리키는 경로 목록도 돌려준다."""
+    order = sorted(unmerged, key=len, reverse=True)
+    nl = "\r\n" if crlf else "\n"
+    for i, p in enumerate(order):
+        raw = p.replace("\n", nl)
+        text = re.sub(r"^\* Unmerged path " + re.escape(raw) + rf"(?={re.escape(nl)}|\Z)",
+                      f"* Unmerged path \0{i}", text, flags=re.M)
+    return text, order
+
+
+def merge_marks(text, order):
     """풀지 않은 머지의 표시를 경로 · 종류별로 센다 — `diff --cc`/`--combined` 블록과, 블록 없이
-    나오는 `* Unmerged path <경로>` 줄(인덱스 몫은 늘, 수정/삭제 충돌은 작업트리 몫도 이것뿐).
-    그 줄의 경로는 git 이 따옴표 없이 날것으로 적는다 — 풀면 `"q"` 와 `q` 가 겹치고, 줄바꿈이 든
-    이름은 두 줄에 걸친다. 그래서 줄 단위로 가르지 않고 `ls-files -u -z` 의 경로와 긴 것부터 통째로
-    맞춘다(짧은 이름이 긴 이름의 앞머리에 걸리지 않게). 어느 경로에도 안 맞는 줄은 첫 줄을 경로로 센다."""
+    나오는 `* Unmerged path` 줄(인덱스 몫은 늘, 수정/삭제 충돌은 작업트리 몫도 이것뿐). 그 줄은
+    `mask_unmerged` 가 자리표로 바꿔 두었다. 어느 충돌 경로에도 안 맞은 줄은 첫 줄을 경로로 센다."""
     marks = {}
 
     def bump(key):
@@ -169,15 +183,9 @@ def merge_marks(text, unmerged):
 
     for m in re.finditer(r"^diff --(?:cc|combined) (.+)$", text, re.M):
         bump((unquote(m.group(1)), "cc"))
-    used = set()
-    for p in sorted(unmerged, key=len, reverse=True):
-        for m in re.finditer(r"^\* Unmerged path " + re.escape(p) + r"(?=\n|\Z)", text, re.M):
-            if m.start() not in used:
-                used.add(m.start())
-                bump((p, "unmerged"))
     for m in re.finditer(r"^\* Unmerged path (.*)$", text, re.M):
-        if m.start() not in used:
-            bump((m.group(1), "unmerged"))
+        i = re.fullmatch(r"\0(\d+)", m.group(1))
+        bump((order[int(i.group(1))] if i else m.group(1), "unmerged"))
     return marks
 
 
@@ -245,9 +253,18 @@ def blocks(top, *args):
     return res
 
 
-def expected(top, mb, excludes):
+def pathspec(excludes):
     # literal: `*` 같은 글자가 와일드카드로 풀려 모든 경로를 빼지 않게
-    spec = ["--", ":/"] + [f":(top,literal,exclude){e}" for e in excludes]
+    return ["--", ":/"] + [f":(top,literal,exclude){e}" for e in excludes]
+
+
+def unmerged_paths(top, spec):
+    """풀지 않은 머지의 경로들(`ls-files -u -z`)."""
+    return {rec.split("\t", 1)[1] for rec in git(top, "ls-files", "-u", "-z", *spec).decode(
+        "utf-8", "surrogateescape").split("\0") if "\t" in rec}
+
+
+def expected(top, mb, spec, unmerged, order):
     want = {}
 
     def add(path, c):  # c 가 None 이면(안에 든 저장소 따위) 있는지만 — 딴 몫의 줄 수는 지킨다
@@ -258,9 +275,7 @@ def expected(top, mb, excludes):
             want[path] = tuple(x + y for x, y in zip(old, c))
 
     # 풀지 않은 머지의 경로: 인덱스 몫은 `* Unmerged path` 한 줄, 작업트리 몫은 `diff --cc` 블록이라
-    # 줄 수 · 블록 수를 git 과 같은 틀로 못 센다 — 두 몫은 세지 않고 `diff --cc` 블록을 따로 요구한다
-    unmerged = {rec.split("\t", 1)[1] for rec in git(top, "ls-files", "-u", "-z", *spec).decode(
-        "utf-8", "surrogateescape").split("\0") if "\t" in rec}
+    # 줄 수 · 블록 수를 git 과 같은 틀로 못 센다 — 두 몫은 세지 않고 git 이 내는 표시를 따로 요구한다
     # 커밋된 몫 · 인덱스 몫(HEAD→인덱스) · 작업트리 몫(인덱스→작업트리). `git diff HEAD` 한 번이면
     # 스테이지한 변경을 작업트리에서 되돌렸을 때 둘이 상쇄돼 다음 커밋에 들어갈 것이 안 보인다
     for rng in ((f"{mb}..HEAD",), ("--cached",), ()):
@@ -290,9 +305,9 @@ def expected(top, mb, excludes):
     want_marks = {}
     if unmerged:
         out = b"".join(git(top, "diff", *PIN, *rng, *spec) for rng in (("--cached",), ()))
-        want_marks = {k: v for k, v in merge_marks(out.decode("utf-8", "surrogateescape"), unmerged).items()
-                      if k[0] in unmerged}
-    return want, unmerged, want_marks
+        out = mask_unmerged(out.decode("utf-8", "surrogateescape"), unmerged)[0]
+        want_marks = {k: v for k, v in merge_marks(out, order).items() if k[0] in unmerged}
+    return want, want_marks
 
 
 def main(argv):
@@ -318,15 +333,20 @@ def main(argv):
     try:
         # 줄 끝을 바꾸지 않고 읽는다 — 헝크 안의 맨 `\r` 이 줄로 바뀌면 헝크 수가 어긋난다
         text = brief.read_bytes().decode("utf-8", "surrogateescape")
-        # CRLF 로 저장한 브리핑도 받는다. `\r\n` 만 `\n` 으로 — 맨 `\r` 은 지키고, 줄 수는 그대로다
-        text = text.replace("\r\n", "\n")
         out = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
         # 저장소 폴더 이름도 UTF-8 이 아닐 수 있고, 빈칸으로 끝날 수도 있다 — git 의 줄 끝만 뗀다
         top = pathlib.Path((out[:-1] if out.endswith(b"\n") else out).decode("utf-8", "surrogateescape"))
         head = git(top, "rev-parse", "HEAD").decode().strip()
+        spec = pathspec(excludes)
+        unmerged = unmerged_paths(top, spec)
     except (OSError, RuntimeError) as e:
         print(f"ERROR {e}")
         return 2
+    # 날것 경로의 `* Unmerged path` 줄을 절 · 블록을 가르고 CRLF 를 풀기 전에 한 줄로 만든다.
+    # CRLF 로 저장했는지는 첫 줄(제목)로 가른다
+    text, order = mask_unmerged(text, unmerged, crlf=text.split("\n", 1)[0].endswith("\r"))
+    # CRLF 로 저장한 브리핑도 받는다. `\r\n` 만 `\n` 으로 — 맨 `\r` 은 지키고, 줄 수는 그대로다
+    text = text.replace("\r\n", "\n")
 
     bad = []
     for s in SECTIONS:
@@ -370,11 +390,11 @@ def main(argv):
     omitted = spans(section(text, "## 이 브리핑이 담지 않은 것") or "")
     if mb and body is not None:
         try:
-            want, unmerged, want_marks = expected(top, mb, excludes)
+            want, want_marks = expected(top, mb, spec, unmerged, order)
         except RuntimeError as e:
             print(f"ERROR {e}")
             return 2
-        got, got_marks = parse_diff(body, unmerged)
+        got, got_marks = parse_diff(body, order)
         # 충돌 경로는 커밋된 몫이 없으면(기준이 HEAD 등) want 에 없으므로 따로 더한다
         omitted = named_paths(omitted, set(want) | unmerged)
         for path in sorted(want):
@@ -396,9 +416,11 @@ def main(argv):
             w = {k: n for (p, k), n in want_marks.items() if p == path}
             g = {k: n for (p, k), n in got_marks.items() if p == path}
             over = any(n > w.get(k, 0) for k, n in g.items())  # 「담지 않은 것」은 모자란 것만 풀어 준다
-            if g != w and (over or path not in omitted):
+            # 일부만 담았으면(표시 일부나 커밋된 몫) 잘린 것이다 — 보통 블록처럼 「자름: 있음」이어야
+            partial = (g or path in got) and (not cut or cut.group(1) != "있음")
+            if g != w and (over or path not in omitted or partial):
                 bad.append(f"풀지 않은 머지가 git 과 다르다: {path} — 브리핑 {g or '없음'}, git {w or '없음'} "
-                           f"(`diff --cc` 블록 · `* Unmerged path` 줄)")
+                           f"(`diff --cc` 블록 · `* Unmerged path` 줄 — 일부만 담았으면 「자름: 있음」과 「담지 않은 것」에)")
         for path in sorted({p for p, _ in got_marks} - unmerged):
             bad.append(f"git 에 없는 머지 표시가 있다: {path} — 지금은 풀지 않은 머지가 아니다")
         for path in sorted(set(got) - set(want)):

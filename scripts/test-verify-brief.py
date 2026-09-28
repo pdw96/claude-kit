@@ -63,6 +63,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / '"gone.txt"').write_text("g\n")     # 그 줄은 경로를 날것으로 적는다 — 풀면 gone.txt 와 겹친다
     (d / "gone.txt\nx").write_text("g\n")   # 줄바꿈 든 이름 — 그 줄이 두 줄에 걸치고 앞머리가 gone.txt 다
     (d / "del\nme.txt").write_text("g\n")   # 줄바꿈 든 이름 — 첫 줄 `del` 은 충돌 경로가 아니다
+    (d / "x\ndiff --git foo foo").write_text("g\n")  # 그 줄의 둘째 줄이 diff 블록 머리 모양이다
+    (d / "cr\r").write_text("g\n")          # 맨 `\r` 로 끝나는 이름 — 그 줄 끝이 `\r\n` 이 된다
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -82,6 +84,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / '"gone.txt"').unlink()
     (d / "gone.txt\nx").unlink()
     (d / "del\nme.txt").unlink()
+    (d / "x\ndiff --git foo foo").unlink()
+    (d / "cr\r").unlink()
     (d / "cr.txt").write_bytes(b"a\rb\nnew\n")
     (d / "flip.txt").write_text("a\nbb\n")
     (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
@@ -97,6 +101,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / '"gone.txt"').write_text("g\nmore\n")
     (d / "gone.txt\nx").write_text("g\nmore\n")
     (d / "del\nme.txt").write_text("g\nmore\n")
+    (d / "x\ndiff --git foo foo").write_text("g\nmore\n")
+    (d / "cr\r").write_text("g\nmore\n")
     sh(d, "git", "commit", "-qam", "other")
     sh(d, "git", "checkout", "-q", "topic")
     sh(d, "git", "merge", "-q", "other", ok=(1,))
@@ -230,6 +236,9 @@ def main():
              re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```|\* Unmerged path ).*\n)*", "", good_head, count=1, flags=re.M)
                  .replace("- 자름: 없음", "- 자름: 있음 — conf.txt 블록").replace("통과 여부\n", "통과 여부\n- `conf.txt`\n"),
              d, ex),
+            ("기준이 HEAD 라 커밋된 몫이 없는 수정/삭제 충돌의 표시를 통째로 빼고 「담지 않은 것」에 적었으면 — 자름이 아니다",
+             re.sub(r"^\* Unmerged path gone\.txt\n(?!x\n)", "", good_head, flags=re.M)
+                 .replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -264,11 +273,16 @@ def main():
              drop_block(good.split("### 작업트리")[1], "flip.txt"), d, ex),
             ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
             ("수정/삭제 충돌의 `* Unmerged path` 줄을 뺐다",
-             re.sub(r"^\* Unmerged path gone\.txt\n", "", good, flags=re.M), d, ex),
+             re.sub(r"^\* Unmerged path gone\.txt\n(?!x\n)", "", good, flags=re.M), d, ex),
             ('`* Unmerged path "gone.txt"` 줄을 `gone.txt` 로 바꿨다 — 날것 경로가 겹치면 안 된다',
              good.replace('* Unmerged path "gone.txt"\n', "* Unmerged path gone.txt\n"), d, ex),
             ("`* Unmerged path` 줄을 더 넣고 「담지 않은 것」으로 덮었다 — 면제는 모자란 것만",
              good.replace("* Unmerged path gone.txt\n", "* Unmerged path gone.txt\n" * 2, 1)
+                 .replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
+            ("수정/삭제 충돌의 `* Unmerged path` 줄 둘 중 하나만 빼고 「담지 않은 것」에 적었다 — 「자름: 없음」",
+             good.replace("* Unmerged path gone.txt\n", "", 1).replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
+            ("충돌 경로의 커밋된 몫은 담고 표시만 통째로 빼 「담지 않은 것」에 적었다 — 「자름: 없음」",
+             re.sub(r"^\* Unmerged path gone\.txt\n(?!x\n)", "", good, flags=re.M)
                  .replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
             ("줄바꿈 든 이름의 `* Unmerged path` 줄을 앞머리 이름(gone.txt)의 줄로 바꿨다",
              good.replace("* Unmerged path gone.txt\nx\n", "* Unmerged path gone.txt\n"), d, ex),
