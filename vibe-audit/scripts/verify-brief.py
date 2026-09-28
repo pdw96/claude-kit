@@ -17,12 +17,12 @@
 - 「기준」 SHA 가 커밋이고, 적힌 머지 베이스가 git 이 구한 것과 같은가
 - git 이 말하는 변경 파일(커밋된 몫 · 작업트리 · 추적 안 된 파일)이 **하나도 빠짐없이**
   diff 절에 있거나 「담지 않은 것」에 경로가 백틱으로 통째로 적혀 있는가
-- 담은 파일마다 +/- 줄 수가 git 의 `--numstat` 과 같은가 — 다르면 잘린 것이므로
+- 담은 파일마다 +/- 줄 수가 git 의 `--numstat` 과 같은가(바이너리 블록은 0/0) — 다르면 잘린 것이므로
   「자름: 있음」이고 그 파일이 「담지 않은 것」에 적혀 있어야 한다
 - git 에 없는 파일의 diff 가 들어 있지 않은가 — 지난 회차나 다른 기준의 것이 섞인 것이다
 
-키 · 토큰을 앞 네 글자만 남기고 가려도 줄 수는 그대로라 대조는 견딘다. 바이너리
-파일은 줄 수가 없어 있는지만 본다.
+키 · 토큰을 앞 네 글자만 남기고 가려도 줄 수는 그대로라 대조는 견딘다. diff 는 커맨드처럼
+`--no-ext-diff --no-textconv --submodule=short --no-color` 로 뽑았다고 본다.
 
 보지 않는 것: 줄의 **내용**(가림과 부딪힌다), 커밋된 몫과 작업트리 몫을 제 소절에
 나눠 담았는지(파일마다 합쳐서 센다), 「변경 파일」 · 「커밋」 절의 내용.
@@ -34,6 +34,9 @@ import re
 import subprocess
 import sys
 
+# 커맨드가 모든 `git diff` 에 붙이는 것과 같다 — 외부 diff · textconv · 서브모듈 요약이 켜진
+# 설정에서도 `diff --git` 블록과 날것의 줄 수가 나오게
+PIN = ("--no-ext-diff", "--no-textconv", "--submodule=short", "--no-color")
 DEFAULT_EXCLUDE = (".claude/audits", ".claude/briefs", ".claude/audit-brief.md")
 SECTIONS = ("## 변경 파일", "## 커밋", "## diff", "## 이 브리핑이 담지 않은 것")
 
@@ -63,9 +66,9 @@ def unquote(s):
             out.append(ESC[body[i + 1]])
             i += 2
         else:
-            out += body[i].encode("utf-8")
+            out += body[i].encode("utf-8", "surrogateescape")
             i += 1
-    return out.decode("utf-8", errors="replace")
+    return out.decode("utf-8", "surrogateescape")  # UTF-8 이 아닌 이름도 바이트 그대로 가른다
 
 
 def unprefix(p, strip=True):
@@ -146,15 +149,27 @@ def parse_diff(body):
     return counts
 
 
-def named(text, path):
-    """「담지 않은 것」에 그 경로가 백틱으로 **통째로** 적혀 있는가. 빈칸 · 대시 · `@` 도
-    파일 이름에 들 수 있어, 백틱 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다."""
-    return f"`{path}`" in text
+def spans(text):
+    """마크다운 코드 스팬의 내용들. 같은 길이의 백틱 줄로 열고 닫고, 양끝 빈칸 하나씩은 벗긴다
+    (CommonMark). ``` ``foo`bar`` ``` 는 `foo` 가 아니라 `foo`bar` 한 덩어리다."""
+    out = set()
+    for m in re.finditer(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", text):
+        c = m.group(2)
+        if len(c) >= 2 and c[0] == c[-1] == " " and c.strip():
+            c = c[1:-1]
+        out.add(c)
+    return out
+
+
+def named(omitted_spans, path):
+    """「담지 않은 것」에 그 경로가 코드 스팬 하나로 **통째로** 적혀 있는가. 빈칸 · 대시 · `@` 도
+    파일 이름에 들 수 있어, 스팬 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다."""
+    return path in omitted_spans
 
 
 def numstat(top, *args):
-    """`git diff --numstat -z` → {경로: (+, -) 또는 None(바이너리)}. 이름 바꿈은 새 이름으로."""
-    out = git(top, "diff", "--numstat", "-z", *args).decode("utf-8", errors="replace")
+    """`git diff --numstat -z` → {경로: (+, -)}. 바이너리는 (0, 0). 이름 바꿈은 새 이름으로."""
+    out = git(top, "diff", *PIN, "--numstat", "-z", *args).decode("utf-8", "surrogateescape")
     res, parts, i = {}, out.split("\0"), 0
     while i < len(parts):
         rec = parts[i]
@@ -167,26 +182,28 @@ def numstat(top, *args):
             i += 3
         else:
             i += 1
-        res[path] = None if a == "-" else (int(a), int(d))
+        res[path] = (0, 0) if a == "-" else (int(a), int(d))  # 바이너리 블록은 헝크가 없어 0/0
     return res
 
 
 def expected(top, mb, excludes):
-    spec = ["--", ":/"] + [f":(top,exclude){e}" for e in excludes]
+    # literal: `*` 같은 글자가 와일드카드로 풀려 모든 경로를 빼지 않게
+    spec = ["--", ":/"] + [f":(top,literal,exclude){e}" for e in excludes]
     want = {}
 
-    def add(path, c):
-        if path in want and want[path] is not None and c is not None:
-            want[path] = (want[path][0] + c[0], want[path][1] + c[1])
+    def add(path, c):  # c 가 None 이면(안에 든 저장소 따위) 있는지만 — 딴 몫의 줄 수는 지킨다
+        old = want.get(path)
+        if old is None or c is None:
+            want[path] = c if old is None else old
         else:
-            want[path] = c if path not in want else None
+            want[path] = (old[0] + c[0], old[1] + c[1])
 
     for path, c in numstat(top, f"{mb}..HEAD", *spec).items():
         add(path, c)
     for path, c in numstat(top, "HEAD", *spec).items():
         add(path, c)
     for path in git(top, "ls-files", "-z", "--others", "--exclude-standard", *spec).decode(
-            "utf-8", errors="replace").split("\0"):
+            "utf-8", "surrogateescape").split("\0"):
         if not path:
             continue
         f = top / path
@@ -195,13 +212,14 @@ def expected(top, mb, excludes):
             continue
         # 커맨드와 같은 `--no-index` 로 git 에게 센다 — 링크(대상 한 줄) · `-diff` 속성
         # (바이너리) 을 git 과 다르게 셀 틈이 없다
-        rec = git(top, "diff", "--no-index", "--numstat", "-z", "--", "/dev/null", path,
-                  ok=(0, 1)).decode("utf-8", errors="replace").split("\0")[0].split("\t")
-        add(path, None if rec[0] == "-" else (int(rec[0]), int(rec[1])))
+        rec = git(top, "diff", *PIN, "--no-index", "--numstat", "-z", "--", "/dev/null", path,
+                  ok=(0, 1)).decode("utf-8", "surrogateescape").split("\0")[0].split("\t")
+        add(path, (0, 0) if rec[0] == "-" else (int(rec[0]), int(rec[1])))
     return want
 
 
 def main(argv):
+    sys.stdout.reconfigure(errors="backslashreplace")  # UTF-8 이 아닌 경로도 찍을 수 있게
     args, excludes = [], list(DEFAULT_EXCLUDE)
     it = iter(argv[1:])
     for a in it:
@@ -221,7 +239,7 @@ def main(argv):
         return 2
     brief = pathlib.Path(args[0])
     try:
-        text = brief.read_text(encoding="utf-8")
+        text = brief.read_text(encoding="utf-8", errors="surrogateescape")
         top = pathlib.Path(git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
         head = git(top, "rev-parse", "HEAD").decode().strip()
     except (OSError, RuntimeError) as e:
@@ -259,7 +277,7 @@ def main(argv):
         bad.append("「자름」 줄이 없음 · 있음 으로 시작하지 않는다")
 
     body = section(text, "## diff")
-    omitted = section(text, "## 이 브리핑이 담지 않은 것") or ""
+    omitted = spans(section(text, "## 이 브리핑이 담지 않은 것") or "")
     if mb and body is not None:
         got = parse_diff(body)
         want = expected(top, mb, excludes)

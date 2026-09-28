@@ -4,8 +4,9 @@
   python3 scripts/test-verify-brief.py
 
 임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 · 탭 이름,
-심볼릭 링크 · 끊긴 링크 · `-diff` 속성) · 바이너리 · 이름 바꿈 · `a/` 로 시작하는 폴더 ·
-대장 파일을 두고, `/audit-brief` 커맨드와 **같은 git 명령**으로
+심볼릭 링크 · 끊긴 링크 · `-diff` 속성 · UTF-8 이 아닌 이름 둘) · 바이너리 · 바이너리에서
+텍스트로 바뀐 파일 · 이름 바꿈 · `a/` 로 시작하는 폴더 · 대장 파일을 두고, 외부 diff 와
+줄 수를 바꾸는 textconv 를 켠 저장소에서, `/audit-brief` 커맨드와 **같은 git 명령**으로
 브리핑을 만든다. 그 브리핑은 통과해야 하고, 한 군데씩 흔든 변조본은 떨어져야 한다.
 검사기를 고치고 이것이 안 돌면, 떨어져야 할 것이 통과해도 아무도 모른다.
 
@@ -21,12 +22,13 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHECK = ROOT / "vibe-audit" / "scripts" / "verify-brief.py"
+PIN = ["--no-ext-diff", "--no-textconv", "--submodule=short", "--no-color"]  # 커맨드가 붙이는 것
 SPEC = ["--", ":/", ":(top,exclude).claude/audits", ":(top,exclude).claude/briefs",
         ":(top,exclude).claude/audit-brief.md"]
 
 
 def sh(cwd, *args, ok=(0,)):
-    p = subprocess.run(args, cwd=cwd, capture_output=True, text=True,
+    p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, errors="surrogateescape",
                        env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
                             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
     if p.returncode not in ok:
@@ -36,13 +38,17 @@ def sh(cwd, *args, ok=(0,)):
 
 def make_repo(d, ledger):
     sh(d, "git", "init", "-q", "-b", "main")
+    # 커맨드가 `--no-ext-diff --no-textconv` 로 막는 설정 — 막지 않으면 diff 가 비거나 줄 수가 바뀐다
+    sh(d, "git", "config", "diff.external", "true")
+    sh(d, "git", "config", "diff.drop.textconv", "grep -v line <")
     (d / "app").mkdir()
     (d / "app" / "routes.py").write_text("".join(f"line {i}\n" for i in range(30)))
     (d / "old_name.py").write_text("keep\n" * 5)
     (d / "logo.bin").write_bytes(b"\0\1\2")
     (d / "a").mkdir()  # diff.noprefix 면 `a/util.py` 의 `a/` 는 접두가 아니라 경로다
     (d / "a" / "util.py").write_text("u\n" * 3)
-    (d / ".gitattributes").write_text("*.dat -diff\n")
+    (d / ".gitattributes").write_text("*.dat -diff\n*.py diff=drop\n")
+    (d / "mixed.txt").write_bytes(b"\0\1")  # 커밋 몫은 바이너리, 작업트리 몫은 텍스트
     ledger.parent.mkdir(parents=True, exist_ok=True)
     ledger.write_text("# 대장\n")
     sh(d, "git", "add", "-A")
@@ -53,6 +59,7 @@ def make_repo(d, ledger):
     sh(d, "git", "mv", "old_name.py", "new_name.py")
     (d / "logo.bin").write_bytes(b"\0\1\2\3")
     (d / "a" / "util.py").write_text("u\n" * 4)
+    (d / "mixed.txt").write_text("a\nb\n")
     ledger.write_text("# 대장\n| NC-1 | x |\n")
     sh(d, "git", "add", "-A")
     sh(d, "git", "commit", "-qm", "change")
@@ -64,21 +71,25 @@ def make_repo(d, ledger):
     os.symlink("new_name.py", d / "link")  # git 은 링크 대상을 한 줄로 적는다 — 따라가면 5줄
     os.symlink("nowhere", d / "dang")      # 끊긴 링크: 따라가면 읽지도 못한다
     (d / "data.dat").write_text("p\nq\n")    # -diff 속성: git 은 텍스트여도 바이너리로 적는다
+    (d / "mixed.txt").write_text("a\nb\nc\n")
+    for tail in (b"\xff", b"\xfe"):             # UTF-8 이 아닌 이름 둘 — 풀어서 한 이름이 되면 안 된다
+        (pathlib.Path(os.fsdecode(bytes(d) + b"/bin" + tail))).write_bytes(b"\0x")
 
 
-def brief(d, ledger_rel, cfg=()):
+def brief(d, ledger_rel, cfg=(), pin=True):
     """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
     g = ["git", *(x for c in cfg for x in ("-c", c))]
     spec = SPEC + [f":(top,exclude){ledger_rel}"]
+    fix = PIN if pin else []
     b = sh(d, *g, "rev-parse", "--verify", "main^{commit}").strip()
     mb = sh(d, *g, "merge-base", b, "HEAD").strip()
     head = sh(d, *g, "rev-parse", "--short", "HEAD").strip()
-    committed = sh(d, *g, "diff", f"{b}...HEAD", *spec)
-    work = sh(d, *g, "diff", "HEAD", *spec)
+    committed = sh(d, *g, "diff", *fix, f"{b}...HEAD", *spec)
+    work = sh(d, *g, "diff", *fix, "HEAD", *spec)
     untracked = ""
     for f in sh(d, *g, "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
         if f:
-            untracked += sh(d, *g, "diff", "--no-index", "--", "/dev/null", f, ok=(0, 1))
+            untracked += sh(d, *g, "diff", *fix, "--no-index", "--", "/dev/null", f, ok=(0, 1))
     return (f"# 감사 브리핑\n\n- 만든 시각: 지금\n"
             f"- 기준: `main` = `{b[:7]}` (날짜 base), 머지 베이스 `{mb}`\n"
             f"- 대상: `{head}` (브랜치 `topic`)\n- 커밋 안 된 변경: 있음 — `app/routes.py`, 포함\n"
@@ -90,14 +101,17 @@ def brief(d, ledger_rel, cfg=()):
 
 def drop_block(text, path):
     """diff 절에서 그 경로의 블록 하나를 지운다. git 은 한글 이름을 따옴표 · 8진수로 적으므로
-    검사기의 `unquote` 로 `+++ b/` 줄을 풀어 맞춘다."""
+    검사기의 `unquote` · `header_pair` 로 `+++ b/` 줄이나 머리 줄을 풀어 맞춘다."""
     spec = importlib.util.spec_from_file_location("vb", CHECK)
     vb = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(vb)
     parts = re.split(r"^(?=diff --git |### |```)", text, flags=re.M)
     for k, blk in enumerate(parts):
-        m = re.search(r"^\+\+\+ (.*)$", blk, re.M)
-        if blk.startswith("diff --git ") and m and vb.unquote(m.group(1).rstrip("\t")) == f"b/{path}":
+        if not blk.startswith("diff --git "):
+            continue
+        m = re.search(r"^\+\+\+ (.*)$", blk, re.M)  # 바이너리 블록에는 없어 머리 줄로도 본다
+        pair = vb.header_pair(blk.split("\n", 1)[0])
+        if (m and vb.unquote(m.group(1).rstrip("\t")) == f"b/{path}") or (pair and pair[1] == f"b/{path}"):
             return "".join(parts[:k] + parts[k + 1:])
     sys.exit(f"시험 준비 실패: {path} 블록을 못 찾았다")
 
@@ -105,7 +119,7 @@ def drop_block(text, path):
 def run(top, cwd, text, *extra):
     f = pathlib.Path(top) / ".claude" / "audit-brief.md"
     f.parent.mkdir(exist_ok=True)
-    f.write_text(text)
+    f.write_text(text, encoding="utf-8", errors="surrogateescape")
     p = subprocess.run([sys.executable, str(CHECK), str(f), *extra], cwd=cwd, capture_output=True, text=True)
     return p.returncode, p.stdout
 
@@ -148,6 +162,18 @@ def main():
             ("자른 파일 대신 빈칸으로 이어지는 딴 경로를 적었다",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py backup`\n"), d, ex),
+            ("자른 파일 대신 백틱 두 개로 감싼 딴 경로를 적었다 — ``app/routes.py`x``",
+             good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
+                 .replace("통과 여부\n", "통과 여부\n- ``app/routes.py`x``\n"), d, ex),
+            ("UTF-8 이 아닌 이름 둘 중 하나를 뺐다", drop_block(good, os.fsdecode(b"bin\xfe")), d, ex),
+            ("바이너리에서 텍스트로 바뀐 파일의 작업트리 몫을 뺐다",
+             good.split("### 작업트리")[0] + "### 작업트리" +
+             drop_block(good.split("### 작업트리")[1], "mixed.txt"), d, ex),
+            ("`--exclude '*'` 로 diff 를 통째로 비웠다 — `*` 는 이름이지 와일드카드가 아니다",
+             good.split("```diff\n")[0] + "```diff\n```\n\n## 이 브리핑이 담지 않은 것\n\n- 없음\n",
+             d, ex + ("--exclude", "*")),
+            ("커맨드의 고정 플래그 없이 뽑았다 — 외부 diff · textconv 가 모양 · 줄 수를 바꿨다",
+             brief(d, ledger_rel, pin=False), d, ex),
             ("「대상」이 지난 HEAD", re.sub(r"(- 대상: `)[0-9a-f]+", r"\g<1>0000000", good), d, ex),
             ("머지 베이스가 틀렸다", re.sub(r"(머지 베이스 `)[0-9a-f]+", r"\g<1>deadbeef", good), d, ex),
             ("git 에 없는 파일의 diff 가 섞였다",
