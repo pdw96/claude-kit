@@ -13,11 +13,13 @@
 
 보는 것:
 
+- 머리 줄(「대상」 · 「기준」 · 「자름」)은 첫 절 앞에서만 읽고, 네 절은 한 번씩만 있는가
 - 「대상」 SHA 가 지금 HEAD 인가 — 지난 회차의 브리핑이면 그 diff 는 이번 근거가 아니다
 - 「기준」 SHA 가 커밋이고, 적힌 머지 베이스가 git 이 구한 것과 같은가
 - git 이 말하는 변경 파일(커밋된 몫 · 작업트리 · 추적 안 된 파일)이 **하나도 빠짐없이**
   diff 절에 있거나 「담지 않은 것」에 경로가 백틱으로 통째로 적혀 있는가
-- 담은 파일마다 +/- 줄 수와 바이너리 블록 수가 git 의 `--numstat` 과 같은가 — 다르면 잘린 것이므로
+- 담은 파일마다 +/- 줄 수 · 바이너리 블록 수 · 블록 수가 git 의 `--numstat` · `--raw` 와 같은가 —
+  이름만 바꾼 블록처럼 줄이 없는 블록도 빠지면 드러난다. 다르면 잘린 것이므로
   「자름: 있음」이고 그 파일이 「담지 않은 것」에 적혀 있어야 한다
 - git 에 없는 파일의 diff 가 들어 있지 않은가 — 지난 회차나 다른 기준의 것이 섞인 것이다
 
@@ -98,7 +100,7 @@ HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
 
 
 def parse_diff(body):
-    """diff 절에서 파일마다 (+, -, 바이너리 블록 수) 를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
+    """diff 절에서 파일마다 (+, -, 바이너리 블록 수, 블록 수) 를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
@@ -146,8 +148,8 @@ def parse_diff(body):
                 path = y
         if path is None:
             continue
-        a, r, b = counts.get(path, (0, 0, 0))
-        counts[path] = (a + add, r + rem, b + binary)
+        a, r, b, n = counts.get(path, (0, 0, 0, 0))
+        counts[path] = (a + add, r + rem, b + binary, n + 1)
     return counts
 
 
@@ -190,6 +192,25 @@ def numstat(top, *args):
     return res
 
 
+def blocks(top, *args):
+    """`git diff --raw -z` → {경로: 블록 수}. 이름 바꿈 · 복사는 새 이름으로. 종류가 바뀐 파일(T)은
+    패치에서 지움 · 새로 만듦 두 블록이 된다. 이름만 바뀐 블록처럼 줄이 없는 몫도 여기서 세므로,
+    같은 경로의 딴 몫이 줄 수를 채워도 블록 하나를 통째로 뺀 것이 드러난다."""
+    parts = git(top, "diff", *PIN, "--raw", "-z", *args).decode("utf-8", "surrogateescape").split("\0")
+    res, i = {}, 0
+    while i < len(parts):
+        if not parts[i].startswith(":"):
+            i += 1
+            continue
+        status = parts[i].split()[-1]
+        if status[0] in "RC":
+            path, i = parts[i + 2], i + 3
+        else:
+            path, i = parts[i + 1], i + 2
+        res[path] = res.get(path, 0) + (2 if status[0] == "T" else 1)
+    return res
+
+
 def expected(top, mb, excludes):
     # literal: `*` 같은 글자가 와일드카드로 풀려 모든 경로를 빼지 않게
     spec = ["--", ":/"] + [f":(top,literal,exclude){e}" for e in excludes]
@@ -202,10 +223,10 @@ def expected(top, mb, excludes):
         else:
             want[path] = tuple(x + y for x, y in zip(old, c))
 
-    for path, c in numstat(top, f"{mb}..HEAD", *spec).items():
-        add(path, c)
-    for path, c in numstat(top, "HEAD", *spec).items():
-        add(path, c)
+    for rng in (f"{mb}..HEAD", "HEAD"):
+        ns, bl = numstat(top, rng, *spec), blocks(top, rng, *spec)
+        for path in set(ns) | set(bl):
+            add(path, ns.get(path, (0, 0, 0)) + (bl.get(path, 0),))
     for path in git(top, "ls-files", "-z", "--others", "--exclude-standard", *spec).decode(
             "utf-8", "surrogateescape").split("\0"):
         if not path:
@@ -218,7 +239,7 @@ def expected(top, mb, excludes):
         # (바이너리) 을 git 과 다르게 셀 틈이 없다
         rec = git(top, "diff", *PIN, "--no-index", "--numstat", "-z", "--", "/dev/null", path,
                   ok=(0, 1)).decode("utf-8", "surrogateescape").split("\0")[0].split("\t")
-        add(path, (0, 0, 1) if rec[0] == "-" else (int(rec[0]), int(rec[1]), 0))
+        add(path, (0, 0, 1, 1) if rec[0] == "-" else (int(rec[0]), int(rec[1]), 0, 1))
     return want
 
 
@@ -244,7 +265,8 @@ def main(argv):
     brief = pathlib.Path(args[0])
     try:
         text = brief.read_text(encoding="utf-8", errors="surrogateescape")
-        top = pathlib.Path(git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+        top = pathlib.Path(git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel").decode(
+            "utf-8", "surrogateescape").strip())  # 저장소 폴더 이름도 UTF-8 이 아닐 수 있다
         head = git(top, "rev-parse", "HEAD").decode().strip()
     except (OSError, RuntimeError) as e:
         print(f"ERROR {e}")
@@ -252,18 +274,22 @@ def main(argv):
 
     bad = []
     for s in SECTIONS:
-        if section(text, s) is None:
+        n = len(re.findall(rf"^{re.escape(s)}[ \t]*$", text, re.M))
+        if n == 0:
             bad.append(f"절이 없다: {s}")
+        elif n > 1:  # 첫 절만 읽히므로 뒤의 절은 대조 없이 감사자에게 간다
+            bad.append(f"절이 {n}번 있다: {s} — 하나로 합쳐야 한다")
+    head_md = re.split(r"^## ", text, maxsplit=1, flags=re.M)[0]  # 머리 줄은 첫 절 앞에서만 읽는다
 
-    m = re.search(r"^- 대상:\s*`([0-9a-f]{4,64})`", text, re.M)
+    m = re.search(r"^- 대상:\s*`([0-9a-f]{4,64})`", head_md, re.M)
     if not m:
         bad.append("「대상」 줄에 HEAD 짧은 SHA 가 없다")
     elif not head.startswith(m.group(1)):
         bad.append(f"「대상」 {m.group(1)} 이 지금 HEAD {head[:12]} 가 아니다 — 지난 회차의 브리핑이다")
 
     mb = None
-    base = re.search(r"^- 기준:.*?=\s*`([0-9a-f]{4,64})`", text, re.M)
-    mbw = re.search(r"^- 기준:.*머지 베이스\s*`([0-9a-f]{4,64})`", text, re.M)
+    base = re.search(r"^- 기준:.*?=\s*`([0-9a-f]{4,64})`", head_md, re.M)
+    mbw = re.search(r"^- 기준:.*머지 베이스\s*`([0-9a-f]{4,64})`", head_md, re.M)
     if not base or not mbw:
         bad.append("「기준」 줄에 기준 SHA 와 머지 베이스가 없다")
     else:
@@ -276,7 +302,7 @@ def main(argv):
         except RuntimeError as e:
             bad.append(f"기준 {base.group(1)} 을 풀지 못했다 — {e}")
 
-    cut = re.search(r"^- 자름:\s*(없음|있음)", text, re.M)
+    cut = re.search(r"^- 자름:\s*(없음|있음)", head_md, re.M)
     if not cut:
         bad.append("「자름」 줄이 없음 · 있음 으로 시작하지 않는다")
 
@@ -294,9 +320,9 @@ def main(argv):
                 continue
             if want[path] is not None and got[path] != want[path]:
                 if not named(omitted, path) or not cut or cut.group(1) != "있음":
-                    bad.append(f"줄 수가 다르다: {path} — 브리핑 +{got[path][0]}/-{got[path][1]} "
-                               f"바이너리 {got[path][2]}, git +{want[path][0]}/-{want[path][1]} "
-                               f"바이너리 {want[path][2]}. 잘랐으면 「자름: 있음」과 "
+                    g, w = got[path], want[path]
+                    bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
+                               f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "
                                f"「담지 않은 것」에 백틱으로 적어야 한다")
         for path in sorted(set(got) - set(want)):
             bad.append(f"git 에 없는 변경이 있다: {path} — 다른 기준 · 지난 회차의 diff 가 섞였다")
