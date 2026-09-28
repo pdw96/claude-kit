@@ -159,10 +159,10 @@ def parse_diff(body):
 def merge_marks(text):
     """풀지 않은 머지의 표시를 경로 · 종류별로 센다 — `diff --cc`/`--combined` 블록과, 블록 없이
     나오는 `* Unmerged path <경로>` 줄(인덱스 몫은 늘, 수정/삭제 충돌은 작업트리 몫도 이것뿐).
-    그 줄의 경로는 따옴표 없이 날것이다(따옴표 모양이면 푼다)."""
+    그 줄의 경로는 git 이 따옴표 없이 날것으로 적으므로 풀지 않는다 — 풀면 `"q"` 와 `q` 가 겹친다."""
     marks = {}
     for m in re.finditer(r"^diff --(?:cc|combined) (.+)$|^\* Unmerged path (.+)$", text, re.M):
-        key = (unquote(m.group(1)), "cc") if m.group(1) is not None else (unquote(m.group(2)), "unmerged")
+        key = (unquote(m.group(1)), "cc") if m.group(1) is not None else (m.group(2), "unmerged")
         marks[key] = marks.get(key, 0) + 1
     return marks
 
@@ -377,10 +377,11 @@ def main(argv):
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
                                f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "
                                f"「담지 않은 것」에 백틱으로 적어야 한다")
-        for path in sorted(unmerged - omitted):
+        for path in sorted(unmerged):
             w = {k: n for (p, k), n in want_marks.items() if p == path}
             g = {k: n for (p, k), n in got_marks.items() if p == path}
-            if g != w:
+            over = any(n > w.get(k, 0) for k, n in g.items())  # 「담지 않은 것」은 모자란 것만 풀어 준다
+            if g != w and (over or path not in omitted):
                 bad.append(f"풀지 않은 머지가 git 과 다르다: {path} — 브리핑 {g or '없음'}, git {w or '없음'} "
                            f"(`diff --cc` 블록 · `* Unmerged path` 줄)")
         for path in sorted({p for p, _ in got_marks} - unmerged):

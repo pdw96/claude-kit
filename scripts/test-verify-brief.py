@@ -60,6 +60,7 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "staged.py").write_text("s\n")      # 작업트리에서 스테이지 몫을 되돌린다
     (d / "conf.txt").write_text("x\n")       # 풀지 않은 머지 — 작업트리 몫은 `diff --cc` 블록
     (d / "gone.txt").write_text("g\n")       # 수정/삭제 충돌 — 블록 없이 `* Unmerged path` 줄만
+    (d / '"gone.txt"').write_text("g\n")     # 그 줄은 경로를 날것으로 적는다 — 풀면 gone.txt 와 겹친다
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -76,6 +77,7 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "mixed.txt").write_text("a\nb\n")
     (d / "conf.txt").write_text("y\n")
     (d / "gone.txt").unlink()
+    (d / '"gone.txt"').unlink()
     (d / "cr.txt").write_bytes(b"a\rb\nnew\n")
     (d / "flip.txt").write_text("a\nbb\n")
     (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
@@ -88,6 +90,7 @@ def make_repo(d, ledger, fmt="sha1"):
     sh(d, "git", "checkout", "-q", "-b", "other", "main")
     (d / "conf.txt").write_text("z\n")
     (d / "gone.txt").write_text("g\nmore\n")
+    (d / '"gone.txt"').write_text("g\nmore\n")
     sh(d, "git", "commit", "-qam", "other")
     sh(d, "git", "checkout", "-q", "topic")
     sh(d, "git", "merge", "-q", "other", ok=(1,))
@@ -251,6 +254,11 @@ def main():
             ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
             ("수정/삭제 충돌의 `* Unmerged path` 줄을 뺐다",
              re.sub(r"^\* Unmerged path gone\.txt\n", "", good, flags=re.M), d, ex),
+            ('`* Unmerged path "gone.txt"` 줄을 `gone.txt` 로 바꿨다 — 날것 경로가 겹치면 안 된다',
+             good.replace('* Unmerged path "gone.txt"\n', "* Unmerged path gone.txt\n"), d, ex),
+            ("`* Unmerged path` 줄을 더 넣고 「담지 않은 것」으로 덮었다 — 면제는 모자란 것만",
+             good.replace("* Unmerged path gone.txt\n", "* Unmerged path gone.txt\n" * 2, 1)
+                 .replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
             ("풀지 않은 머지의 `diff --cc` 블록을 뺐다",
              re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```).*\n)*", "", good, count=1, flags=re.M), d, ex),
             ("이름 바꿈 블록(줄 없음)을 뺐다 — 작업트리 몫이 줄 수를 채운다",

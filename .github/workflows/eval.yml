@@ -127,6 +127,12 @@ jobs:
           if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc5" --force >"$c/out" 2>&1 || [ -e "$c/svc5/.claude/agents" ]; then
             echo "::error::sync-agents.sh --force 가 파일 자리의 폴더를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
           fi
+          # 폴더 자리가 바깥 폴더를 가리키는 링크여도 쓰기 전에 멈춰야 한다 — `-d` 는 링크를 따라가
+          # 바깥에 심고 대장을 옮겼다(Codex 리뷰)
+          mkdir -p "$c/svc6/.claude" "$c/outside"; ln -s "$c/outside" "$c/svc6/.claude/scripts"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc6" >"$c/out" 2>&1 || [ -e "$c/svc6/.claude/agents" ] || [ -n "$(ls -A "$c/outside")" ]; then
+            echo "::error::sync-agents.sh 가 링크로 된 폴더 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
+          fi
           # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
           (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
           if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then

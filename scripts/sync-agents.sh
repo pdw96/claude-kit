@@ -137,6 +137,11 @@ for d in "$TARGET/.claude" "$DEST" "$TARGET/.claude/commands" "$TARGET/.claude/s
     echo "폴더가 설 자리에 폴더가 아닌 것이 있다: $d — 아무것도 심지 않았다." >&2
     exit 1
   fi
+  # 링크로 된 폴더는 `-d` 로는 폴더로 보여, 링크가 가리키는 사본 밖에 심고 대장만 옮긴다(Codex 리뷰)
+  if [ -L "$d" ]; then
+    echo "폴더가 설 자리가 링크다: $d — 사본 밖에 쓰지 않으려고 아무것도 심지 않았다." >&2
+    exit 1
+  fi
 done
 # 파일이 설 자리에 폴더가 있어도 쓰기 전에 멈춘다 — --force 의 cp 는 그 폴더 **안에** 심고 성공하므로
 # 커맨드가 부르는 자리는 여전히 폴더로 남는다(Codex 리뷰)
