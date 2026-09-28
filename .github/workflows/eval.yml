@@ -121,6 +121,12 @@ jobs:
           if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc4" >"$c/out" 2>&1 || [ -e "$c/svc4/.claude/agents" ]; then
             echo "::error::sync-agents.sh 가 끊긴 링크 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
           fi
+          # 파일 자리에 폴더가 있으면 --force 여도 쓰기 전에 멈춰야 한다 — cp 가 그 폴더 안에 심고
+          # 성공한 것으로 대장을 옮겼다(Codex 리뷰)
+          mkdir -p "$c/svc5/.claude/scripts/verify-brief.py"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc5" --force >"$c/out" 2>&1 || [ -e "$c/svc5/.claude/agents" ]; then
+            echo "::error::sync-agents.sh --force 가 파일 자리의 폴더를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
+          fi
           # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
           (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
           if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then

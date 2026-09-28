@@ -138,6 +138,20 @@ for d in "$TARGET/.claude" "$DEST" "$TARGET/.claude/commands" "$TARGET/.claude/s
     exit 1
   fi
 done
+# 파일이 설 자리에 폴더가 있어도 쓰기 전에 멈춘다 — --force 의 cp 는 그 폴더 **안에** 심고 성공하므로
+# 커맨드가 부르는 자리는 여전히 폴더로 남는다(Codex 리뷰)
+for f in "$SRC"/vibe-audit/agents/*.md "$SRC"/vibe-audit/commands/*.md "$SRC"/vibe-audit/scripts/*.py; do
+  [ -e "$f" ] || continue
+  case "$f" in
+    */vibe-audit/agents/*)   o="$DEST/$(basename "$f")" ;;
+    */vibe-audit/commands/*) o="$TARGET/.claude/commands/$(basename "$f")" ;;
+    *)                       o="$TARGET/.claude/scripts/$(basename "$f")" ;;
+  esac
+  if [ -d "$o" ] && [ ! -L "$o" ]; then
+    echo "파일이 설 자리에 폴더가 있다: $o — 아무것도 심지 않았다." >&2
+    exit 1
+  fi
+done
 
 mkdir -p "$DEST"
 

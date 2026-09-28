@@ -58,6 +58,7 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "tmpl.py").write_text("t\n" * 5)
     (d / "cr.txt").write_bytes(b"a\rb\nold\n")  # 헝크 안의 맨 `\r` — 줄로 읽으면 헝크 수가 어긋난다
     (d / "staged.py").write_text("s\n")      # 작업트리에서 스테이지 몫을 되돌린다
+    (d / "conf.txt").write_text("x\n")       # 풀지 않은 머지 — 작업트리 몫은 `diff --cc` 블록
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -72,6 +73,7 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "logo.bin").write_bytes(b"\0\1\2\3")
     (d / "a" / "util.py").write_text("u\n" * 4)
     (d / "mixed.txt").write_text("a\nb\n")
+    (d / "conf.txt").write_text("y\n")
     (d / "cr.txt").write_bytes(b"a\rb\nnew\n")
     (d / "flip.txt").write_text("a\nbb\n")
     (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
@@ -80,6 +82,12 @@ def make_repo(d, ledger, fmt="sha1"):
     sh(d, "git", "add", "-A")
     sh(d, "git", "update-index", "--cacheinfo", f"160000,{'2' * oid},sub")
     sh(d, "git", "commit", "-qm", "change")
+    # 딴 가지에서 conf.txt 를 달리 고쳐 머지하다 멈춘다(충돌)
+    sh(d, "git", "checkout", "-q", "-b", "other", "main")
+    (d / "conf.txt").write_text("z\n")
+    sh(d, "git", "commit", "-qam", "other")
+    sh(d, "git", "checkout", "-q", "topic")
+    sh(d, "git", "merge", "-q", "other", ok=(1,))
     # 작업트리 몫과 추적 안 된 파일
     (d / "app" / "routes.py").write_text((d / "app" / "routes.py").read_text() + "API_KEY = 'sk-live-abcdef123456'\n")
     (d / "new route.py").write_text("a\nb\n")
@@ -97,6 +105,9 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "kind.txt").unlink()
     os.symlink("tmpl.py", d / "kind.txt")
     (d / "줄\n바꿈.py").write_text("n\n")
+    if os.geteuid() != 0:                    # 못 읽는 파일 — 커맨드도 diff 를 못 떠 「담지 않은 것」에(root 는 다 읽는다)
+        (d / "locked.py").write_text("l\n")
+        (d / "locked.py").chmod(0)
     (d / "q").write_text("q\n")          # `"q"` 스팬은 그대로는 `"q"`, 풀면 `q` — 어느 쪽인지 모른다
     (d / '"q"').write_text("q\n")
     sh(d / "app", "git", "init", "-q", str(d / "inner"))  # 안에 든 저장소: `inner/` 로 나오고 diff 는 못 뜬다
@@ -120,7 +131,8 @@ def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True, head_only=False):
         work = sh(d, *g, "diff", *fix, "--cached", *spec) + sh(d, *g, "diff", *fix, *spec)
     untracked, skipped = "", []
     for f in sh(d, *g, "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
-        if f and not ((d / f).is_file() or (d / f).is_symlink()):  # 커맨드의 `[ -f ] || [ -L ] || continue`
+        if f and (not ((d / f).is_file() or (d / f).is_symlink())  # 커맨드의 `[ -f ] || [ -L ] || continue`
+                  or not ((d / f).is_symlink() or os.access(d / f, os.R_OK))):  # 못 읽으면 못 넣는다
             skipped.append(f)
         elif f:
             untracked += sh(d, *g, "diff", *fix, "--no-index", "--", "/dev/null", f, ok=(0, 1))
@@ -200,6 +212,7 @@ def main():
             ("줄바꿈이 든 이름을 git 의 따옴표 모양으로 「담지 않은 것」에 적고 뺐으면",
              drop_block(good, "줄\n바꿈.py").replace("통과 여부\n", '통과 여부\n- `"줄\\n바꿈.py"`\n'), d, ex),
             ("SHA-256 저장소 — 머지 베이스가 64자", good256, d256, ex),
+            ("CRLF 로 저장한 브리핑 — 맨 `\\r` 은 그대로", good.replace("\n", "\r\n"), d, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -233,6 +246,8 @@ def main():
              good.split("### 작업트리")[0] + "### 작업트리" +
              drop_block(good.split("### 작업트리")[1], "flip.txt"), d, ex),
             ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
+            ("풀지 않은 머지의 `diff --cc` 블록을 뺐다",
+             re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```).*\n)*", "", good, count=1, flags=re.M), d, ex),
             ("이름 바꿈 블록(줄 없음)을 뺐다 — 작업트리 몫이 줄 수를 채운다",
              drop_block(good.split("### 작업트리")[0], "new_name.py") + "### 작업트리" +
              good.split("### 작업트리")[1], d, ex),

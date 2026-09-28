@@ -104,13 +104,16 @@ def parse_diff(body):
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
-    counts = {}
+    counts, combined = {}, set()
     body = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", body)  # color.ui=always 로 뽑은 diff
-    for blk in re.split(r"^(?=diff --git )", body, flags=re.M):
-        if not blk.startswith("diff --git "):
+    for blk in re.split(r"^(?=diff --(?:git|cc|combined) )", body, flags=re.M):
+        if not blk.startswith("diff --"):
             continue
         lines = [ln for ln in blk.split("\n") if not ln.startswith("```")]
         head, path, minus_path, renamed = lines[0], None, None, None
+        if head.startswith(("diff --cc ", "diff --combined ")):  # 풀지 않은 머지: 따로 모은다
+            combined.add(unquote(head.split(" ", 2)[2]))
+            continue
         pair = header_pair(head)
         strip = not (pair and pair[0] == pair[1])  # 두 경로가 같으면 접두가 없는 것이다
         add = rem = binary = old_left = new_left = 0
@@ -150,7 +153,7 @@ def parse_diff(body):
             continue
         a, r, b, n = counts.get(path, (0, 0, 0, 0))
         counts[path] = (a + add, r + rem, b + binary, n + 1)
-    return counts
+    return counts, combined
 
 
 def spans(text):
@@ -229,11 +232,17 @@ def expected(top, mb, excludes):
         else:
             want[path] = tuple(x + y for x, y in zip(old, c))
 
+    # 풀지 않은 머지의 경로: 인덱스 몫은 `* Unmerged path` 한 줄, 작업트리 몫은 `diff --cc` 블록이라
+    # 줄 수 · 블록 수를 git 과 같은 틀로 못 센다 — 두 몫은 세지 않고 `diff --cc` 블록을 따로 요구한다
+    unmerged = {rec.split("\t", 1)[1] for rec in git(top, "ls-files", "-u", "-z", *spec).decode(
+        "utf-8", "surrogateescape").split("\0") if "\t" in rec}
     # 커밋된 몫 · 인덱스 몫(HEAD→인덱스) · 작업트리 몫(인덱스→작업트리). `git diff HEAD` 한 번이면
     # 스테이지한 변경을 작업트리에서 되돌렸을 때 둘이 상쇄돼 다음 커밋에 들어갈 것이 안 보인다
     for rng in ((f"{mb}..HEAD",), ("--cached",), ()):
         ns, bl = numstat(top, *rng, *spec), blocks(top, *rng, *spec)
         for path in set(ns) | set(bl):
+            if rng != (f"{mb}..HEAD",) and path in unmerged:
+                continue
             add(path, ns.get(path, (0, 0, 0)) + (bl.get(path, 0),))
     for path in git(top, "ls-files", "-z", "--others", "--exclude-standard", *spec).decode(
             "utf-8", "surrogateescape").split("\0"):
@@ -245,10 +254,14 @@ def expected(top, mb, excludes):
             continue
         # 커맨드와 같은 `--no-index` 로 git 에게 센다 — 링크(대상 한 줄) · `-diff` 속성
         # (바이너리) 을 git 과 다르게 셀 틈이 없다
-        rec = git(top, "diff", *PIN, "--no-index", "--numstat", "-z", "--", "/dev/null", path,
-                  ok=(0, 1)).decode("utf-8", "surrogateescape").split("\0")[0].split("\t")
+        try:
+            rec = git(top, "diff", *PIN, "--no-index", "--numstat", "-z", "--", "/dev/null", path,
+                      ok=(0, 1)).decode("utf-8", "surrogateescape").split("\0")[0].split("\t")
+        except RuntimeError:  # 못 읽는 파일 따위: 커맨드도 diff 를 못 뜬다 — 있는지만(「담지 않은 것」에)
+            want[path] = None
+            continue
         add(path, (0, 0, 1, 1) if rec[0] == "-" else (int(rec[0]), int(rec[1]), 0, 1))
-    return want
+    return want, unmerged
 
 
 def main(argv):
@@ -274,6 +287,8 @@ def main(argv):
     try:
         # 줄 끝을 바꾸지 않고 읽는다 — 헝크 안의 맨 `\r` 이 줄로 바뀌면 헝크 수가 어긋난다
         text = brief.read_bytes().decode("utf-8", "surrogateescape")
+        # CRLF 로 저장한 브리핑도 받는다. `\r\n` 만 `\n` 으로 — 맨 `\r` 은 지키고, 줄 수는 그대로다
+        text = text.replace("\r\n", "\n")
         out = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
         # 저장소 폴더 이름도 UTF-8 이 아닐 수 있고, 빈칸으로 끝날 수도 있다 — git 의 줄 끝만 뗀다
         top = pathlib.Path((out[:-1] if out.endswith(b"\n") else out).decode("utf-8", "surrogateescape"))
@@ -323,8 +338,12 @@ def main(argv):
     body = section(text, "## diff")
     omitted = spans(section(text, "## 이 브리핑이 담지 않은 것") or "")
     if mb and body is not None:
-        got = parse_diff(body)
-        want = expected(top, mb, excludes)
+        got, combined = parse_diff(body)
+        try:
+            want, unmerged = expected(top, mb, excludes)
+        except RuntimeError as e:
+            print(f"ERROR {e}")
+            return 2
         omitted = named_paths(omitted, set(want))
         for path in sorted(want):
             if path not in got:
@@ -341,6 +360,10 @@ def main(argv):
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
                                f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "
                                f"「담지 않은 것」에 백틱으로 적어야 한다")
+        for path in sorted(unmerged - combined - omitted):
+            bad.append(f"빠졌다: {path} 의 풀지 않은 머지 — 작업트리 몫의 `diff --cc` 블록이 없다")
+        for path in sorted(combined - unmerged):
+            bad.append(f"git 에 없는 머지 블록이 있다: {path} — 지금은 풀지 않은 머지가 아니다")
         for path in sorted(set(got) - set(want)):
             bad.append(f"git 에 없는 변경이 있다: {path} — 다른 기준 · 지난 회차의 diff 가 섞였다")
 
