@@ -3,8 +3,8 @@
 
   python3 scripts/test-verify-brief.py
 
-임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 이름) ·
-바이너리 · 이름 바꿈 · 대장 파일을 두고, `/audit-brief` 커맨드와 **같은 git 명령**으로
+임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 · 탭 이름,
+심볼릭 링크 · 끊긴 링크) · 바이너리 · 이름 바꿈 · 대장 파일을 두고, `/audit-brief` 커맨드와 **같은 git 명령**으로
 브리핑을 만든다. 그 브리핑은 통과해야 하고, 한 군데씩 흔든 변조본은 떨어져야 한다.
 검사기를 고치고 이것이 안 돌면, 떨어져야 할 것이 통과해도 아무도 모른다.
 
@@ -55,19 +55,24 @@ def make_repo(d, ledger):
     (d / "app" / "routes.py").write_text((d / "app" / "routes.py").read_text() + "API_KEY = 'sk-live-abcdef123456'\n")
     (d / "new route.py").write_text("a\nb\n")
     (d / "한글.py").write_text("x = 1\n")
+    (d / "탭\t이름.py").write_text("t\n")
+    os.symlink("new_name.py", d / "link")  # git 은 링크 대상을 한 줄로 적는다 — 따라가면 5줄
+    os.symlink("nowhere", d / "dang")      # 끊긴 링크: 따라가면 읽지도 못한다
 
 
-def brief(d, ledger_rel):
+def brief(d, ledger_rel, cfg=()):
+    """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
+    g = ["git", *(x for c in cfg for x in ("-c", c))]
     spec = SPEC + [f":(top,exclude){ledger_rel}"]
-    b = sh(d, "git", "rev-parse", "--verify", "main^{commit}").strip()
-    mb = sh(d, "git", "merge-base", b, "HEAD").strip()
-    head = sh(d, "git", "rev-parse", "--short", "HEAD").strip()
-    committed = sh(d, "git", "diff", f"{b}...HEAD", *spec)
-    work = sh(d, "git", "diff", "HEAD", *spec)
+    b = sh(d, *g, "rev-parse", "--verify", "main^{commit}").strip()
+    mb = sh(d, *g, "merge-base", b, "HEAD").strip()
+    head = sh(d, *g, "rev-parse", "--short", "HEAD").strip()
+    committed = sh(d, *g, "diff", f"{b}...HEAD", *spec)
+    work = sh(d, *g, "diff", "HEAD", *spec)
     untracked = ""
-    for f in sh(d, "git", "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
+    for f in sh(d, *g, "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
         if f:
-            untracked += sh(d, "git", "diff", "--no-index", "--", "/dev/null", f, ok=(0, 1))
+            untracked += sh(d, *g, "diff", "--no-index", "--", "/dev/null", f, ok=(0, 1))
     return (f"# 감사 브리핑\n\n- 만든 시각: 지금\n"
             f"- 기준: `main` = `{b[:7]}` (날짜 base), 머지 베이스 `{mb}`\n"
             f"- 대상: `{head}` (브랜치 `topic`)\n- 커밋 안 된 변경: 있음 — `app/routes.py`, 포함\n"
@@ -113,6 +118,10 @@ def main():
             ("키를 앞 네 글자만 남기고 가려도 — 줄 수는 그대로", good.replace("sk-live-abcdef123456", "sk-l****"), d, ex),
             ("추적 안 된 파일을 「담지 않은 것」에 적고 뺐으면",
              drop_block(good, "한글.py").replace("통과 여부\n", "통과 여부\n- `한글.py` — 못 넣었다\n"), d, ex),
+            ("사용자 설정이 diff.mnemonicPrefix 여도 — 접두 c/ w/ 1/ 2/",
+             brief(d, ledger_rel, ("diff.mnemonicPrefix=true",)), d, ex),
+            ("사용자 설정이 core.quotePath=false 여도 — 한글은 날것, 탭만 이스케이프",
+             brief(d, ledger_rel, ("core.quotePath=false",)), d, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -123,6 +132,9 @@ def main():
             ("말없이 잘랐다 — 「자름: 없음」", good.replace("+extra\n", "", 1), d, ex),
             ("잘랐다고만 하고 어느 파일인지 안 적었다",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음"), d, ex),
+            ("자른 파일 대신 이름이 비슷한 딴 파일을 적었다",
+             good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
+                 .replace("통과 여부\n", "통과 여부\n- `app/routes.py@backup`\n"), d, ex),
             ("「대상」이 지난 HEAD", re.sub(r"(- 대상: `)[0-9a-f]+", r"\g<1>0000000", good), d, ex),
             ("머지 베이스가 틀렸다", re.sub(r"(머지 베이스 `)[0-9a-f]+", r"\g<1>deadbeef", good), d, ex),
             ("git 에 없는 파일의 diff 가 섞였다",
@@ -137,7 +149,7 @@ def main():
                 bad.append(f"통과해야 했다 — {name}\n{out}")
         for name, text, cwd, extra in fail:
             rc, out = run(d, cwd, text, *extra)
-            if rc != 1:
+            if rc != 1 or not out.startswith("FAIL"):  # 예외로 죽어도 종료 1 이다 — 판정으로 떨어져야
                 bad.append(f"떨어져야 했다 — {name} (종료 {rc})\n{out}")
     if bad:
         print(f"FAIL verify-brief.py 가 {len(bad)}건에서 틀렸다")

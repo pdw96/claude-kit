@@ -29,6 +29,7 @@
 
 종료 코드: 0 통과, 1 불일치, 2 쓰는 법 · git 오류. 표준 라이브러리만 쓴다.
 """
+import os
 import pathlib
 import re
 import subprocess
@@ -45,12 +46,32 @@ def git(top, *args):
     return p.stdout
 
 
+ESC = {"a": 7, "b": 8, "t": 9, "n": 10, "v": 11, "f": 12, "r": 13, '"': 34, "\\": 92}
+
+
 def unquote(s):
-    """git 이 따옴표로 감싼 경로(`"a/\\355\\225\\234.py"`)를 푼다. 안 감쌌으면 그대로."""
-    if len(s) >= 2 and s[0] == s[-1] == '"':
-        raw = s[1:-1].encode("latin-1", "backslashreplace").decode("unicode_escape")
-        return raw.encode("latin-1").decode("utf-8", errors="replace")
-    return s
+    """git 이 따옴표로 감싼 경로(`"a/\\355\\225\\234.py"`)를 C 식으로 푼다. 안 감쌌으면 그대로.
+    `\\ooo` 는 바이트, `\\t` 따위는 제 글자, 나머지 글자는 UTF-8 로 모아 한 번에 푼다 —
+    `core.quotePath=false` 로 한글이 날것으로 남고 탭만 이스케이프된 이름도 풀린다."""
+    if not (len(s) >= 2 and s[0] == s[-1] == '"'):
+        return s
+    body, out, i = s[1:-1], bytearray(), 0
+    while i < len(body):
+        if body[i] == "\\" and re.fullmatch(r"[0-7]{3}", body[i + 1:i + 4]):
+            out.append(int(body[i + 1:i + 4], 8) & 0xFF)
+            i += 4
+        elif body[i] == "\\" and body[i + 1:i + 2] in ESC:
+            out.append(ESC[body[i + 1]])
+            i += 2
+        else:
+            out += body[i].encode("utf-8")
+            i += 1
+    return out.decode("utf-8", errors="replace")
+
+
+def unprefix(p):
+    """`a/` · `b/` 만이 아니라 `diff.mnemonicPrefix` 의 `c/ w/ i/ o/ 1/ 2/` 도 벗긴다. 한 겹만."""
+    return p[2:] if re.match(r"[abciwo12]/", p) else p
 
 
 def section(text, head):
@@ -91,11 +112,11 @@ def parse_diff(body):
             elif ln.startswith("+++ "):
                 p = unquote(ln[4:].rstrip("\t"))
                 if p != "/dev/null":
-                    path = p[2:] if p.startswith("b/") else p
+                    path = unprefix(p)
             elif ln.startswith("--- "):
                 p = unquote(ln[4:].rstrip("\t"))
                 if p != "/dev/null":
-                    minus_path = p[2:] if p.startswith("a/") else p
+                    minus_path = unprefix(p)
             elif ln.startswith("rename to ") and path is None:
                 path = unquote(ln[len("rename to "):])
         if path is None:
@@ -104,10 +125,11 @@ def parse_diff(body):
             s = head[len("diff --git "):]
             m = re.fullmatch(r'("(?:[^"\\]|\\.)*") ("(?:[^"\\]|\\.)*")', s)
             if m:
-                path = unquote(m.group(2))[2:]
+                path = unprefix(unquote(m.group(2)))
             elif (len(s) - 5) % 2 == 0:
                 n = (len(s) - 5) // 2
-                if s[2 + n:] == " b/" + s[2:2 + n]:
+                if re.match(r"[abciwo12]/", s) and re.match(r" [abciwo12]/", s[2 + n:]) \
+                        and s[5 + n:] == s[2:2 + n]:
                     path = s[2:2 + n]
         if path is None:
             continue
@@ -117,8 +139,12 @@ def parse_diff(body):
 
 
 def named(text, path):
-    """「담지 않은 것」에 그 경로가 **따로** 적혀 있는가 — `a.py` 가 `data.py` 에 걸리지 않게."""
-    return re.search(rf"(?<![\w./-]){re.escape(path)}(?![\w./-])", text) is not None
+    """「담지 않은 것」에 그 경로가 **따로** 적혀 있는가 — `a.py` 가 `data.py` 에도,
+    `app/routes.py@backup` 에도 걸리지 않게. 앞뒤는 줄 끝 · 빈칸 · 따옴표 · 괄호 · 쉼표 따위만
+    받고, 마침표는 뒤에 빈칸 · 줄 끝이 올 때(문장 끝)만 받는다."""
+    before = r"(?:^|(?<=[\s`'\"(\[{<,;:·]))"
+    after = r"(?=$|[\s`'\")\]}>,;:·—]|\.(?:\s|$))"
+    return re.search(before + re.escape(path) + after, text, re.M) is not None
 
 
 def numstat(top, *args):
@@ -158,7 +184,14 @@ def expected(top, mb, excludes):
             "utf-8", errors="replace").split("\0"):
         if not path:
             continue
-        data = (top / path).read_bytes()
+        f = top / path
+        if f.is_symlink():  # git 은 링크를 따라가지 않고 대상 경로 한 줄을 적는다
+            add(path, (1, 0) if os.readlink(f) else (0, 0))
+            continue
+        if not f.is_file():  # 안에 든 저장소 따위: 있는지만 본다
+            add(path, None)
+            continue
+        data = f.read_bytes()
         lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
         add(path, None if b"\0" in data[:8000] else (lines, 0))
     return want
