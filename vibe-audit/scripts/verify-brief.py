@@ -92,7 +92,7 @@ def header_pair(head):
 
 
 def section(text, head):
-    m = re.search(rf"^{re.escape(head)}[ \t]*\n([\s\S]*?)(?=^## |\Z)", text, re.M)
+    m = re.search(rf"^{re.escape(head)}[ \t]*(?:\n|\Z)([\s\S]*?)(?=^## |\Z)", text, re.M)  # 파일 끝의 머리도 빈 절로
     return m.group(1) if m else None
 
 
@@ -165,12 +165,18 @@ def spans(text):
     return out
 
 
-def named(omitted_spans, path):
-    """「담지 않은 것」에 그 경로가 코드 스팬 하나로 **통째로** 적혀 있는가. 빈칸 · 대시 · `@` 도
-    파일 이름에 들 수 있어, 스팬 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다.
-    줄바꿈이 든 이름은 스팬에 그대로 못 적으므로 git 이 적는 따옴표 모양(`"a\\nb"`)도 받는다."""
-    return path in omitted_spans or any(
-        c[:1] == c[-1:] == '"' and len(c) >= 2 and unquote(c) == path for c in omitted_spans)
+def named_paths(omitted_spans, paths):
+    """「담지 않은 것」에 코드 스팬 하나로 **통째로** 적힌 경로들. 빈칸 · 대시 · `@` 도 파일 이름에
+    들 수 있어, 스팬 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다. 줄바꿈이 든 이름은
+    스팬에 그대로 못 적으므로 git 이 적는 따옴표 모양(`"a\\nb"`)도 받는다. 다만 한 스팬이 그대로도
+    풀어서도 바뀐 경로에 맞으면(`"foo"` 가 `"foo"` 와 `foo` 둘에) 어느 쪽인지 모르므로 치지 않는다."""
+    out = set()
+    for c in omitted_spans:
+        hits = {c} | ({unquote(c)} if len(c) >= 2 and c[0] == c[-1] == '"' else set())
+        hits &= paths
+        if len(hits) == 1:
+            out |= hits
+    return out
 
 
 def numstat(top, *args):
@@ -281,6 +287,10 @@ def main(argv):
         elif n > 1:  # 첫 절만 읽히므로 뒤의 절은 대조 없이 감사자에게 간다
             bad.append(f"절이 {n}번 있다: {s} — 하나로 합쳐야 한다")
     head_md = re.split(r"^## ", text, maxsplit=1, flags=re.M)[0]  # 머리 줄은 첫 절 앞에서만 읽는다
+    for key in ("대상", "기준", "자름"):  # 둘이면 첫 줄만 검사되고 뒤의 줄은 그대로 감사자에게 간다
+        n = len(re.findall(rf"^- {key}:", head_md, re.M))
+        if n > 1:
+            bad.append(f"머리의 「{key}」 줄이 {n}개다 — 하나만 둔다")
 
     m = re.search(r"^- 대상:\s*`([0-9a-f]{4,64})`", head_md, re.M)
     if not m:
@@ -312,9 +322,10 @@ def main(argv):
     if mb and body is not None:
         got = parse_diff(body)
         want = expected(top, mb, excludes)
+        omitted = named_paths(omitted, set(want))
         for path in sorted(want):
             if path not in got:
-                if not named(omitted, path):
+                if path not in omitted:
                     bad.append(f"빠졌다: {path} — git 은 바뀌었다고 하는데 diff 에도 「담지 않은 것」에도 "
                                f"없다(「담지 않은 것」에는 경로를 백틱으로 통째로 적는다 — 줄바꿈이 든 이름은 "
                                f"git 이 적는 따옴표 모양으로)")
@@ -322,7 +333,7 @@ def main(argv):
             if want[path] is not None and got[path] != want[path]:
                 # 자름은 모자란 것만 풀어 준다 — git 보다 많은 줄 · 블록은 딴 데서 온 것이다
                 over = any(g > w for g, w in zip(got[path], want[path]))
-                if over or not named(omitted, path) or not cut or cut.group(1) != "있음":
+                if over or path not in omitted or not cut or cut.group(1) != "있음":
                     g, w = got[path], want[path]
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
                                f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "

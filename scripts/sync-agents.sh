@@ -127,6 +127,16 @@ KNOWN
   fi
 fi
 
+# **쓰기 전에 심을 폴더 자리를 본다.** 그 자리에 파일 · 끊긴 링크가 있으면 앞 폴더에 다 심은
+# 뒤 mkdir 에서 멈춰, 대장에 없는 반쪽 사본이 남는다 — 다시 돌리면 섞인 사본으로 거절되고
+# --force 도 폴더를 못 만든다(Codex 리뷰).
+for d in "$TARGET/.claude" "$DEST" "$TARGET/.claude/commands" "$TARGET/.claude/scripts"; do
+  if { [ -e "$d" ] || [ -L "$d" ]; } && [ ! -d "$d" ]; then
+    echo "폴더가 설 자리에 폴더가 아닌 것이 있다: $d — 아무것도 심지 않았다." >&2
+    exit 1
+  fi
+done
+
 mkdir -p "$DEST"
 
 # 출처는 프론트매터 **뒤**에 넣는다. 앞에 한 줄이라도 있으면 YAML 머리말이

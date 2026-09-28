@@ -35,7 +35,7 @@ git rev-parse --verify "$0^{commit}"
 **둘. 아래를 모읍니다.** 실패한 명령은 그 자리를 비워 두지 말고 **실패를
 브리핑에 적으세요.** `git diff`(`--no-index` 빼고) · `git ls-files` 끝에는 `-- ':/' ':(top,exclude).claude/audits'
 ':(top,exclude).claude/briefs' ':(top,exclude).claude/audit-brief.md'` 를 붙입니다 — 빼지 않으면 지난 기록이 다시 담깁니다.
-레포가 대장을 따로 두었으면 그 파일도 뺍니다.
+레포가 대장을 따로 두었으면 그 파일도 `':(top,literal,exclude)<경로>'` 로 뺍니다.
 모든 `git diff` 에는 `--no-ext-diff --no-textconv --submodule=short --ignore-submodules=none --no-color` 도 붙입니다 — 설정이 바꾼 모양은 대조를 깨뜨립니다.
 
 | 무엇 | 명령 |

@@ -91,6 +91,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "kind.txt").unlink()
     os.symlink("tmpl.py", d / "kind.txt")
     (d / "줄\n바꿈.py").write_text("n\n")
+    (d / "q").write_text("q\n")          # `"q"` 스팬은 그대로는 `"q"`, 풀면 `q` — 어느 쪽인지 모른다
+    (d / '"q"').write_text("q\n")
     sh(d / "app", "git", "init", "-q", str(d / "inner"))  # 안에 든 저장소: `inner/` 로 나오고 diff 는 못 뜬다
     (d / "inner" / "z").write_text("z\n")
     for tail in (b"\xff", b"\xfe"):             # UTF-8 이 아닌 이름 둘 — 풀어서 한 이름이 되면 안 된다
@@ -100,7 +102,7 @@ def make_repo(d, ledger, fmt="sha1"):
 def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True):
     """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
     g = ["git", *(x for c in cfg for x in ("-c", c))]
-    spec = SPEC + [f":(top,exclude){ledger_rel}"]
+    spec = SPEC + [f":(top,literal,exclude){ledger_rel}"]  # 커맨드가 대장을 빼는 모양
     fix = PIN if pin else []
     b = sh(d, *g, "rev-parse", "--verify", "main^{commit}").strip()
     mb = sh(d, *g, "merge-base", b, "HEAD").strip()
@@ -166,7 +168,7 @@ def main():
         # 폴더 이름도 UTF-8 이 아니고 빈칸으로 끝난다
         d, d256 = pathlib.Path(t) / os.fsdecode(b"repo\xff "), pathlib.Path(t256)
         d.mkdir()
-        ledger_rel = "docs/audit/README.md"
+        ledger_rel = "*"  # 대장 이름이 와일드카드 글자여도 커맨드 · 검사기가 이름 그대로 뺀다
         make_repo(d, d / ledger_rel)
         good = brief(d, ledger_rel)
         make_repo(d256, d256 / ledger_rel, "sha256")
@@ -233,6 +235,12 @@ def main():
              good.replace("### 작업트리", _block(good, "app/routes.py") + "### 작업트리", 1)
                  .replace("- 자름: 없음", "- 자름: 있음 — 0줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py`\n"), d, ex),
+            ("머리의 「자름」 줄이 둘 — 뒤의 것은 검사되지 않는다",
+             good.replace("- 자름: 없음\n", "- 자름: 없음\n- 자름: 있음\n"), d, ex),
+            ("`## diff` 가 파일 끝에 빈 채로 — 줄바꿈 없이",
+             good.split("## diff\n")[0] + "## 이 브리핑이 담지 않은 것\n\n- 없음\n\n## diff", d, ex),
+            ('`q` 와 `"q"` 를 다 빼고 `"q"` 스팬 하나로 덮었다 — 한 스팬이 두 경로에 맞는다',
+             drop_block(drop_block(good, "q"), '"q"').replace("통과 여부\n", '통과 여부\n- `"q"`\n'), d, ex),
             ("「자름」을 머리에서 빼고 본문에만 적었다",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음\n", "")
                  .replace("통과 여부\n", "통과 여부\n- 자름: 있음\n- `app/routes.py` 뒷부분\n"), d, ex),
