@@ -58,6 +58,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "tmpl.py").write_text("t\n" * 5)
     (d / "cr.txt").write_bytes(b"a\rb\nold\n")  # 헝크 안의 맨 `\r` — 줄로 읽으면 헝크 수가 어긋난다
     (d / "staged.py").write_text("s\n")      # 작업트리에서 스테이지 몫을 되돌린다
+    (d / "run.sh").write_text("r\n")         # 작업트리에서 실행 비트만 바꾼다 — 줄 없는 블록
+    (d / "blob.bin").write_bytes(b"\0\2")    # 작업트리에서 링크가 된다 — numstat `-/-`, 패치는 바이너리 + 한 줄
     (d / "conf.txt").write_text("x\n")       # 풀지 않은 머지 — 작업트리 몫은 `diff --cc` 블록
     (d / "gone.txt").write_text("g\n")       # 수정/삭제 충돌 — 블록 없이 `* Unmerged path` 줄만
     (d / '"gone.txt"').write_text("g\n")     # 그 줄은 경로를 날것으로 적는다 — 풀면 gone.txt 와 겹친다
@@ -129,6 +131,10 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "kind.txt").unlink()
     os.symlink("tmpl.py", d / "kind.txt")
     (d / "줄\n바꿈.py").write_text("n\n")
+    (d / "run.sh").chmod(0o755)
+    (d / "blob.bin").unlink()
+    os.symlink("run.sh", d / "blob.bin")
+    (d / "empty.txt").write_text("")          # 빈 새 파일 — 머리 정보 줄뿐
     # 인덱스에서 gitlink 이름만 바꾼다 — 온 diff 로는 줄 없는 이름 바꿈 블록, 경로를 좁히면 새 파일(+1)
     sh(d, "git", "update-index", "--force-remove", "rsub")
     sh(d, "git", "update-index", "--add", "--cacheinfo", f"160000,{'3' * oid},rsub2")
@@ -282,6 +288,14 @@ def main():
              good.split("### 작업트리")[0] + "### 작업트리" +
              drop_block(good.split("### 작업트리")[1], "flip.txt"), d, ex),
             ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
+            ("실행 비트만 바뀐 블록에서 모드 줄을 지웠다 — 머리 줄만 남았다",
+             good.replace("old mode 100644\nnew mode 100755\n", "", 1), d, ex),
+            ("빈 새 파일 블록에서 머리 정보 줄을 지웠다",
+             re.sub(r"^(diff --git a/empty\.txt b/empty\.txt\n)new file mode 100644\nindex [0-9a-f]+\.\.[0-9a-f]+\n",
+                    r"\1", good, count=1, flags=re.M), d, ex),
+            ("풀지 않은 머지의 `diff --cc` 블록에서 몸을 지우고 머리 줄만 남겼다",
+             re.sub(r"^(diff --cc conf\.txt\n)(?:(?!diff --|### |```|\* Unmerged path ).*\n)*", r"\1", good,
+                    count=1, flags=re.M), d, ex),
             ("인덱스에서 이름만 바꾼 서브모듈의 블록을 뺐다",
              good.split("### 작업트리")[0] + "### 작업트리" +
              drop_block(good.split("### 작업트리")[1], "rsub2"), d, ex),
