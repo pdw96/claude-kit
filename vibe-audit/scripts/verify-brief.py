@@ -104,15 +104,15 @@ def parse_diff(body):
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
-    counts, combined = {}, set()
+    counts = {}
     body = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", body)  # color.ui=always 로 뽑은 diff
+    marks = merge_marks(body)
     for blk in re.split(r"^(?=diff --(?:git|cc|combined) )", body, flags=re.M):
         if not blk.startswith("diff --"):
             continue
         lines = [ln for ln in blk.split("\n") if not ln.startswith("```")]
         head, path, minus_path, renamed = lines[0], None, None, None
-        if head.startswith(("diff --cc ", "diff --combined ")):  # 풀지 않은 머지: 따로 모은다
-            combined.add(unquote(head.split(" ", 2)[2]))
+        if head.startswith(("diff --cc ", "diff --combined ")):  # 풀지 않은 머지: merge_marks 가 센다
             continue
         pair = header_pair(head)
         strip = not (pair and pair[0] == pair[1])  # 두 경로가 같으면 접두가 없는 것이다
@@ -153,7 +153,18 @@ def parse_diff(body):
             continue
         a, r, b, n = counts.get(path, (0, 0, 0, 0))
         counts[path] = (a + add, r + rem, b + binary, n + 1)
-    return counts, combined
+    return counts, marks
+
+
+def merge_marks(text):
+    """풀지 않은 머지의 표시를 경로 · 종류별로 센다 — `diff --cc`/`--combined` 블록과, 블록 없이
+    나오는 `* Unmerged path <경로>` 줄(인덱스 몫은 늘, 수정/삭제 충돌은 작업트리 몫도 이것뿐).
+    그 줄의 경로는 따옴표 없이 날것이다(따옴표 모양이면 푼다)."""
+    marks = {}
+    for m in re.finditer(r"^diff --(?:cc|combined) (.+)$|^\* Unmerged path (.+)$", text, re.M):
+        key = (unquote(m.group(1)), "cc") if m.group(1) is not None else (unquote(m.group(2)), "unmerged")
+        marks[key] = marks.get(key, 0) + 1
+    return marks
 
 
 def spans(text):
@@ -261,7 +272,13 @@ def expected(top, mb, excludes):
             want[path] = None
             continue
         add(path, (0, 0, 1, 1) if rec[0] == "-" else (int(rec[0]), int(rec[1]), 0, 1))
-    return want, unmerged
+    # 그 경로들에서 git 이 내는 표시를 커맨드와 같은 두 diff 로 센다 — 충돌 종류마다 모양이 다르다
+    want_marks = {}
+    if unmerged:
+        out = b"".join(git(top, "diff", *PIN, *rng, *spec) for rng in (("--cached",), ()))
+        want_marks = {k: v for k, v in merge_marks(out.decode("utf-8", "surrogateescape")).items()
+                      if k[0] in unmerged}
+    return want, unmerged, want_marks
 
 
 def main(argv):
@@ -338,9 +355,9 @@ def main(argv):
     body = section(text, "## diff")
     omitted = spans(section(text, "## 이 브리핑이 담지 않은 것") or "")
     if mb and body is not None:
-        got, combined = parse_diff(body)
+        got, got_marks = parse_diff(body)
         try:
-            want, unmerged = expected(top, mb, excludes)
+            want, unmerged, want_marks = expected(top, mb, excludes)
         except RuntimeError as e:
             print(f"ERROR {e}")
             return 2
@@ -360,10 +377,14 @@ def main(argv):
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
                                f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "
                                f"「담지 않은 것」에 백틱으로 적어야 한다")
-        for path in sorted(unmerged - combined - omitted):
-            bad.append(f"빠졌다: {path} 의 풀지 않은 머지 — 작업트리 몫의 `diff --cc` 블록이 없다")
-        for path in sorted(combined - unmerged):
-            bad.append(f"git 에 없는 머지 블록이 있다: {path} — 지금은 풀지 않은 머지가 아니다")
+        for path in sorted(unmerged - omitted):
+            w = {k: n for (p, k), n in want_marks.items() if p == path}
+            g = {k: n for (p, k), n in got_marks.items() if p == path}
+            if g != w:
+                bad.append(f"풀지 않은 머지가 git 과 다르다: {path} — 브리핑 {g or '없음'}, git {w or '없음'} "
+                           f"(`diff --cc` 블록 · `* Unmerged path` 줄)")
+        for path in sorted({p for p, _ in got_marks} - unmerged):
+            bad.append(f"git 에 없는 머지 표시가 있다: {path} — 지금은 풀지 않은 머지가 아니다")
         for path in sorted(set(got) - set(want)):
             bad.append(f"git 에 없는 변경이 있다: {path} — 다른 기준 · 지난 회차의 diff 가 섞였다")
 
