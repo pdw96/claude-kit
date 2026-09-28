@@ -5,7 +5,7 @@
 
 임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 · 탭 이름,
 심볼릭 링크 · 끊긴 링크 · `-diff` 속성 · UTF-8 이 아닌 이름 둘) · 바이너리 · 바이너리에서
-텍스트로(또 그 반대로) 바뀐 파일 · 이름 바꿈 · 복사 · 서브모듈(gitlink) · 줄바꿈 든 이름 ·
+텍스트로(또 그 반대로) 바뀐 파일 · 이름 바꿈 · 복사 · 서브모듈(gitlink, 작업트리만 더러운 것 포함) · 줄바꿈 든 이름 ·
 안에 든 저장소 · 이름 바꾼 뒤 고친 파일 · 종류가 바뀐 파일(파일→링크) · `a/` 로 시작하는 폴더 ·
 대장 파일을 두고(저장소 폴더 이름도 UTF-8 이 아니다), 외부 diff · 줄 수를 바꾸는 textconv ·
 복사 찾기 · 서브모듈 무시를 켠 저장소에서(SHA-256 저장소 하나 더), `/audit-brief` 커맨드와 **같은 git 명령**으로
@@ -58,6 +58,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "tmpl.py").write_text("t\n" * 5)
     (d / "cr.txt").write_bytes(b"a\rb\nold\n")  # 헝크 안의 맨 `\r` — 줄로 읽으면 헝크 수가 어긋난다
     (d / "staged.py").write_text("s\n")      # 작업트리에서 스테이지 몫을 되돌린다
+    (d / "run.sh").write_text("r\n")         # 작업트리에서 실행 비트만 바꾼다 — 줄 없는 블록
+    (d / "blob.bin").write_bytes(b"\0\2")    # 작업트리에서 링크가 된다 — numstat `-/-`, 패치는 바이너리 + 한 줄
     (d / "conf.txt").write_text("x\n")       # 풀지 않은 머지 — 작업트리 몫은 `diff --cc` 블록
     (d / "gone.txt").write_text("g\n")       # 수정/삭제 충돌 — 블록 없이 `* Unmerged path` 줄만
     (d / '"gone.txt"').write_text("g\n")     # 그 줄은 경로를 날것으로 적는다 — 풀면 gone.txt 와 겹친다
@@ -67,10 +69,16 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "cr\r").write_text("g\n")          # 맨 `\r` 로 끝나는 이름 — 그 줄 끝이 `\r\n` 이 된다
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
+    (d / "rsub").mkdir()                      # 꺼내지 않은 서브모듈 — 뒤에 인덱스에서 이름만 바꾼다
+    sh(d, "git", "init", "-q", f"--object-format={fmt}", "dsub")  # 꺼낸 서브모듈 — 작업트리만 더럽힌다
+    (d / "dsub" / "f").write_text("f\n")
+    sh(d / "dsub", "git", "add", "f")
+    sh(d / "dsub", "git", "commit", "-qm", "f")
     ledger.parent.mkdir(parents=True, exist_ok=True)
     ledger.write_text("# 대장\n")
     sh(d, "git", "add", "-A")
     sh(d, "git", "update-index", "--add", "--cacheinfo", f"160000,{'1' * oid},sub")
+    sh(d, "git", "update-index", "--add", "--cacheinfo", f"160000,{'3' * oid},rsub")
     sh(d, "git", "commit", "-qm", "base")
     sh(d, "git", "checkout", "-qb", "topic")
     txt = (d / "app" / "routes.py").read_text().replace("line 3\n", "line 3 changed\nextra\n")
@@ -123,6 +131,14 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "kind.txt").unlink()
     os.symlink("tmpl.py", d / "kind.txt")
     (d / "줄\n바꿈.py").write_text("n\n")
+    (d / "run.sh").chmod(0o755)
+    (d / "blob.bin").unlink()
+    os.symlink("run.sh", d / "blob.bin")
+    (d / "empty.txt").write_text("")          # 빈 새 파일 — 머리 정보 줄뿐
+    # 인덱스에서 gitlink 이름만 바꾼다 — 온 diff 로는 줄 없는 이름 바꿈 블록, 경로를 좁히면 새 파일(+1)
+    sh(d, "git", "update-index", "--force-remove", "rsub")
+    sh(d, "git", "update-index", "--add", "--cacheinfo", f"160000,{'3' * oid},rsub2")
+    (d / "dsub" / "f").write_text("dirty\n")  # 기록된 커밋은 그대로 — numstat 0/0, 패치는 `-dirty` 두 줄
     if os.geteuid() != 0:                    # 못 읽는 파일 — 커맨드도 diff 를 못 떠 「담지 않은 것」에(root 는 다 읽는다)
         (d / "locked.py").write_text("l\n")
         (d / "locked.py").chmod(0)
@@ -272,6 +288,20 @@ def main():
              good.split("### 작업트리")[0] + "### 작업트리" +
              drop_block(good.split("### 작업트리")[1], "flip.txt"), d, ex),
             ("서브모듈 변경을 뺐다", drop_block(good, "sub"), d, ex),
+            ("실행 비트만 바뀐 블록에서 모드 줄을 지웠다 — 머리 줄만 남았다",
+             good.replace("old mode 100644\nnew mode 100755\n", "", 1), d, ex),
+            ("빈 새 파일 블록에서 머리 정보 줄을 지웠다",
+             re.sub(r"^(diff --git a/empty\.txt b/empty\.txt\n)new file mode 100644\nindex [0-9a-f]+\.\.[0-9a-f]+\n",
+                    r"\1", good, count=1, flags=re.M), d, ex),
+            ("풀지 않은 머지의 `diff --cc` 블록에서 몸을 지우고 머리 줄만 남겼다",
+             re.sub(r"^(diff --cc conf\.txt\n)(?:(?!diff --|### |```|\* Unmerged path ).*\n)*", r"\1", good,
+                    count=1, flags=re.M), d, ex),
+            ("인덱스에서 이름만 바꾼 서브모듈의 블록을 뺐다",
+             good.split("### 작업트리")[0] + "### 작업트리" +
+             drop_block(good.split("### 작업트리")[1], "rsub2"), d, ex),
+            ("작업트리만 더러운 서브모듈의 블록을 뺐다",
+             good.split("### 작업트리")[0] + "### 작업트리" +
+             drop_block(good.split("### 작업트리")[1], "dsub"), d, ex),
             ("수정/삭제 충돌의 `* Unmerged path` 줄을 뺐다",
              re.sub(r"^\* Unmerged path gone\.txt\n(?!x\n)", "", good, flags=re.M), d, ex),
             ('`* Unmerged path "gone.txt"` 줄을 `gone.txt` 로 바꿨다 — 날것 경로가 겹치면 안 된다',
