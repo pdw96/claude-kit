@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 감사자 여섯과 브리핑 커맨드를 대상 레포의 .claude/ 에 심는다.
+# 감사자 여섯과 브리핑 커맨드 · 브리핑 검사기를 대상 레포의 .claude/ 에 심는다.
 #
 # 클라우드 레인은 마켓플레이스 설치를 받지 못하므로(README 의 이슈 셋) 파일이
 # 레포에 있어야 뜬다. 이 스크립트는 그 사본을 만들고 머리에 출처를 박는다.
@@ -39,7 +39,7 @@ DEST="$TARGET/.claude/agents"
 # **커밋 안 된 원본은 심지 않는다.** 심는 것은 작업트리의 바이트인데 출처에는
 # HEAD 를 적으므로, 고치던 중인 감사자를 심으면 대장이 「그 커밋에서 왔다」고
 # 거짓을 적는다. 사본 경로가 안 닿는 CI 는 그 출처를 그대로 믿는다(Codex 리뷰).
-dirty="$(git -C "$SRC" status --porcelain -- vibe-audit/agents vibe-audit/commands 2>/dev/null || true)"
+dirty="$(git -C "$SRC" status --porcelain -- vibe-audit/agents vibe-audit/commands vibe-audit/scripts 2>/dev/null || true)"
 if [ -n "$dirty" ]; then
   echo "원본에 커밋 안 된 변경이 있다 — 출처를 적을 커밋이 없으므로 심지 않는다:" >&2
   echo "$dirty" >&2
@@ -51,7 +51,7 @@ fi
 # 안 보여 주는데 아래 고리는 *.md 를 다 심는다 — `.git/info/exclude` 에 넣은 커맨드가 출처 없이
 # 퍼졌고, 그 커밋에 없던 이름이라 verify-copies.py 도 레포 고유 파일로 봤다(Codex 리뷰).
 untracked=""
-for f in "$SRC"/vibe-audit/agents/*.md "$SRC"/vibe-audit/commands/*.md; do
+for f in "$SRC"/vibe-audit/agents/*.md "$SRC"/vibe-audit/commands/*.md "$SRC"/vibe-audit/scripts/*.py; do
   [ -e "$f" ] || continue
   rel="${f#"$SRC"/}"
   git -C "$SRC" cat-file -e "HEAD:$rel" 2>/dev/null || untracked="$untracked $rel"
@@ -97,6 +97,10 @@ if [ "$FORCE" -eq 0 ]; then
   for f in "$SRC"/vibe-audit/commands/*.md; do
     [ -e "$f" ] || continue
     if [ -e "$TARGET/.claude/commands/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
+  done
+  for f in "$SRC"/vibe-audit/scripts/*.py; do
+    [ -e "$f" ] || continue
+    if [ -e "$TARGET/.claude/scripts/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   if [ -n "$existing" ]; then
     python3 - "$SRC/copies.json" "$DEST" <<'KNOWN' || {
@@ -173,6 +177,28 @@ for f in "$SRC"/vibe-audit/commands/*.md; do
   cmds=$((cmds + 1))
 done
 
+# 브리핑 검사기도 심는다. 커맨드가 감사자를 부르기 전에 브리핑을 git 과 대조하는데,
+# 플러그인 커맨드 본문에서는 플러그인 폴더 경로가 안 풀리므로(`${CLAUDE_PLUGIN_ROOT}` 는
+# 훅 · MCP 설정에서만) 사본은 레포 안의 `.claude/scripts/` 에서 부른다. 머리말을 붙이지
+# 않고 바이트 그대로 옮긴다 — 파이썬 파일이라 붙일 자리가 마땅치 않고, 출처는 대장이 든다.
+SCRIPTDEST="$TARGET/.claude/scripts"
+scripts=0
+sskipped=0
+for f in "$SRC"/vibe-audit/scripts/*.py; do
+  [ -e "$f" ] || continue
+  name="$(basename "$f")"
+  out="$SCRIPTDEST/$name"
+  if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
+    echo "  건너뜀 $name — 이미 있다 (되돌리려면 --force)"
+    sskipped=$((sskipped + 1))
+    continue
+  fi
+  mkdir -p "$SCRIPTDEST"
+  cp "$f" "$out"
+  echo "  심음   $name"
+  scripts=$((scripts + 1))
+done
+
 # **--force 면 원본에서 물러난 것을 지운다.** 원본 역사에는 있었는데 지금 커밋에 없는
 # 감사자 · 커맨드가 사본에 남으면, 대장은 새 커밋을 적는데 옛 커맨드는 여전히 불리고
 # verify-copies.py 는 그것을 물러난 것으로 떨어뜨린다(Codex 리뷰). 원본에 한 번도 없던
@@ -182,6 +208,7 @@ if [ "$FORCE" -eq 1 ]; then
     case "$gone" in
       vibe-audit/agents/*.md)   dir="$DEST" ;;
       vibe-audit/commands/*.md) dir="$CMDDEST" ;;
+      vibe-audit/scripts/*.py)  dir="$SCRIPTDEST" ;;
       *) continue ;;
     esac
     [ -e "$SRC/$gone" ] && continue
@@ -189,7 +216,7 @@ if [ "$FORCE" -eq 1 ]; then
       rm -f "$dir/$(basename "$gone")"
       echo "  지움   $(basename "$gone") — 원본에서 물러났다"
     fi
-  done < <(git -C "$SRC" log --format= --name-only -- vibe-audit/agents vibe-audit/commands | sort -u)
+  done < <(git -C "$SRC" log --format= --name-only -- vibe-audit/agents vibe-audit/commands vibe-audit/scripts | sort -u)
 fi
 
 # **하나라도 건너뛰었으면 출처를 다시 적지 않는다.** 건너뛴 파일은 예전 원본에서
@@ -197,9 +224,9 @@ fi
 # 사본이 「지금 것」으로 적힌다. CI 에서는 사본 경로가 안 닿아 verify-copies.py 가
 # 대조를 못 하므로 그 거짓 출처를 그대로 믿고 거리 0 을 찍는다(Codex 리뷰).
 # 출처는 전부 새로 심었을 때만 옮긴다 — 그 사본이 정말 이 커밋의 것일 때만.
-if [ "$skipped" -gt 0 ] || [ "$cskipped" -gt 0 ]; then
+if [ "$skipped" -gt 0 ] || [ "$cskipped" -gt 0 ] || [ "$sskipped" -gt 0 ]; then
   echo
-  echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped, 커맨드 심음 $cmds · 건너뜀 $cskipped)"
+  echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped, 커맨드 심음 $cmds · 건너뜀 $cskipped, 검사기 심음 $scripts · 건너뜀 $sskipped)"
   echo "  건너뛴 것이 있어 출처를 옮기지 않았다 — README · copies.json 은 그대로다."
   echo "  사본을 따라잡았으면 verify-copy.py 로 PASS 를 확인한 뒤 출처를 손으로 옮긴다."
   exit 0
@@ -258,5 +285,6 @@ REG
 echo
 echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped)"
 echo "→ $CMDDEST (커맨드 심음 $cmds)"
+echo "→ $SCRIPTDEST (검사기 심음 $scripts)"
 echo "  호출: @audit-secrets · @audit-data · @audit-quality · @audit-ops · @audit-contract · @audit-internal"
 echo "  PR · 커밋 범위를 볼 때는 먼저: /audit-brief <기준> <감사자>"

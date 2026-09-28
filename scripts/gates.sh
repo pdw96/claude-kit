@@ -27,11 +27,14 @@ main() {
   python3 scripts/verify-graders.py
   python3 scripts/verify-budget.py
 
+  # 브리핑 검사기가 무는지 — 임시 저장소에 통과 · 실패 모양을 만들어 돌린다.
+  python3 scripts/test-verify-brief.py
+
   # 원본을 자기 자신과 견준다. 사본 대조는 verify-copies.py 가 대장을 보고 한다.
   python3 scripts/verify-copy.py vibe-audit/agents
 
   echo
-  echo "여섯 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "일곱 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 
