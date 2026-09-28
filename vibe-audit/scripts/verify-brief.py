@@ -16,7 +16,7 @@
 - 「대상」 SHA 가 지금 HEAD 인가 — 지난 회차의 브리핑이면 그 diff 는 이번 근거가 아니다
 - 「기준」 SHA 가 커밋이고, 적힌 머지 베이스가 git 이 구한 것과 같은가
 - git 이 말하는 변경 파일(커밋된 몫 · 작업트리 · 추적 안 된 파일)이 **하나도 빠짐없이**
-  diff 절에 있거나 「담지 않은 것」에 이름이 적혀 있는가
+  diff 절에 있거나 「담지 않은 것」에 경로가 백틱으로 통째로 적혀 있는가
 - 담은 파일마다 +/- 줄 수가 git 의 `--numstat` 과 같은가 — 다르면 잘린 것이므로
   「자름: 있음」이고 그 파일이 「담지 않은 것」에 적혀 있어야 한다
 - git 에 없는 파일의 diff 가 들어 있지 않은가 — 지난 회차나 다른 기준의 것이 섞인 것이다
@@ -29,7 +29,6 @@
 
 종료 코드: 0 통과, 1 불일치, 2 쓰는 법 · git 오류. 표준 라이브러리만 쓴다.
 """
-import os
 import pathlib
 import re
 import subprocess
@@ -39,9 +38,9 @@ DEFAULT_EXCLUDE = (".claude/audits", ".claude/briefs", ".claude/audit-brief.md")
 SECTIONS = ("## 변경 파일", "## 커밋", "## diff", "## 이 브리핑이 담지 않은 것")
 
 
-def git(top, *args):
-    p = subprocess.run(["git", "-C", str(top), *args], capture_output=True)
-    if p.returncode != 0:
+def git(top, *args, ok=(0,)):
+    p = subprocess.run(["git", "-c", "color.ui=never", "-C", str(top), *args], capture_output=True)
+    if p.returncode not in ok:
         raise RuntimeError(f"git {' '.join(args)} 실패: {p.stderr.decode(errors='replace').strip()}")
     return p.stdout
 
@@ -69,9 +68,22 @@ def unquote(s):
     return out.decode("utf-8", errors="replace")
 
 
-def unprefix(p):
-    """`a/` · `b/` 만이 아니라 `diff.mnemonicPrefix` 의 `c/ w/ i/ o/ 1/ 2/` 도 벗긴다. 한 겹만."""
-    return p[2:] if re.match(r"[abciwo12]/", p) else p
+def unprefix(p, strip=True):
+    """`a/` · `b/` 만이 아니라 `diff.mnemonicPrefix` 의 `c/ w/ i/ o/ 1/ 2/` 도 벗긴다. 한 겹만.
+    `strip` 이 거짓이면(`diff.noprefix` — 머리 줄의 두 경로가 같다) 벗기지 않는다."""
+    return p[2:] if strip and re.match(r"[abciwo12]/", p) else p
+
+
+def header_pair(head):
+    """머리 줄 `diff --git X Y` 를 (X, Y) 로. 이름 바꿈처럼 가를 수 없으면 None."""
+    s = head[len("diff --git "):]
+    m = re.fullmatch(r'("(?:[^"\\]|\\.)*") ("(?:[^"\\]|\\.)*")', s)
+    if m:
+        return unquote(m.group(1)), unquote(m.group(2))
+    n = (len(s) - 1) // 2
+    if len(s) % 2 == 1 and s[n] == " ":
+        return s[:n], s[n + 1:]
+    return None
 
 
 def section(text, head):
@@ -88,11 +100,14 @@ def parse_diff(body):
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
     counts = {}
+    body = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", body)  # color.ui=always 로 뽑은 diff
     for blk in re.split(r"^(?=diff --git )", body, flags=re.M):
         if not blk.startswith("diff --git "):
             continue
         lines = [ln for ln in blk.split("\n") if not ln.startswith("```")]
-        head, path, minus_path = lines[0], None, None
+        head, path, minus_path, renamed = lines[0], None, None, None
+        pair = header_pair(head)
+        strip = not (pair and pair[0] == pair[1])  # 두 경로가 같으면 접두가 없는 것이다
         add = rem = old_left = new_left = 0
         for ln in lines[1:]:
             if old_left > 0 or new_left > 0:
@@ -112,25 +127,18 @@ def parse_diff(body):
             elif ln.startswith("+++ "):
                 p = unquote(ln[4:].rstrip("\t"))
                 if p != "/dev/null":
-                    path = unprefix(p)
+                    path = unprefix(p, strip)
             elif ln.startswith("--- "):
                 p = unquote(ln[4:].rstrip("\t"))
                 if p != "/dev/null":
-                    minus_path = unprefix(p)
-            elif ln.startswith("rename to ") and path is None:
-                path = unquote(ln[len("rename to "):])
-        if path is None:
-            path = minus_path
-        if path is None:  # 모드만 바뀐 파일 · 내용 없는 새 파일: 머리 줄 `a/P b/P` 에서 가른다
-            s = head[len("diff --git "):]
-            m = re.fullmatch(r'("(?:[^"\\]|\\.)*") ("(?:[^"\\]|\\.)*")', s)
-            if m:
-                path = unprefix(unquote(m.group(2)))
-            elif (len(s) - 5) % 2 == 0:
-                n = (len(s) - 5) // 2
-                if re.match(r"[abciwo12]/", s) and re.match(r" [abciwo12]/", s[2 + n:]) \
-                        and s[5 + n:] == s[2:2 + n]:
-                    path = s[2:2 + n]
+                    minus_path = unprefix(p, strip)
+            elif ln.startswith("rename to "):  # 접두가 없는 줄이라 설정에 안 흔들린다
+                renamed = unquote(ln[len("rename to "):])
+        path = renamed or path or minus_path
+        if path is None and pair:  # 모드만 바뀐 파일 · 내용 없는 새 파일: 머리 줄에서 가른다
+            x, y = unprefix(pair[0], strip), unprefix(pair[1], strip)
+            if x == y:
+                path = y
         if path is None:
             continue
         a, r = counts.get(path, (0, 0))
@@ -139,12 +147,9 @@ def parse_diff(body):
 
 
 def named(text, path):
-    """「담지 않은 것」에 그 경로가 **따로** 적혀 있는가 — `a.py` 가 `data.py` 에도,
-    `app/routes.py@backup` 에도 걸리지 않게. 앞뒤는 줄 끝 · 빈칸 · 따옴표 · 괄호 · 쉼표 따위만
-    받고, 마침표는 뒤에 빈칸 · 줄 끝이 올 때(문장 끝)만 받는다."""
-    before = r"(?:^|(?<=[\s`'\"(\[{<,;:·]))"
-    after = r"(?=$|[\s`'\")\]}>,;:·—]|\.(?:\s|$))"
-    return re.search(before + re.escape(path) + after, text, re.M) is not None
+    """「담지 않은 것」에 그 경로가 백틱으로 **통째로** 적혀 있는가. 빈칸 · 대시 · `@` 도
+    파일 이름에 들 수 있어, 백틱 없이는 `app/routes.py backup` 같은 딴 경로와 못 가른다."""
+    return f"`{path}`" in text
 
 
 def numstat(top, *args):
@@ -185,15 +190,14 @@ def expected(top, mb, excludes):
         if not path:
             continue
         f = top / path
-        if f.is_symlink():  # git 은 링크를 따라가지 않고 대상 경로 한 줄을 적는다
-            add(path, (1, 0) if os.readlink(f) else (0, 0))
-            continue
-        if not f.is_file():  # 안에 든 저장소 따위: 있는지만 본다
+        if not (f.is_symlink() or f.is_file()):  # 안에 든 저장소 따위: 있는지만 본다
             add(path, None)
             continue
-        data = f.read_bytes()
-        lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
-        add(path, None if b"\0" in data[:8000] else (lines, 0))
+        # 커맨드와 같은 `--no-index` 로 git 에게 센다 — 링크(대상 한 줄) · `-diff` 속성
+        # (바이너리) 을 git 과 다르게 셀 틈이 없다
+        rec = git(top, "diff", "--no-index", "--numstat", "-z", "--", "/dev/null", path,
+                  ok=(0, 1)).decode("utf-8", errors="replace").split("\0")[0].split("\t")
+        add(path, None if rec[0] == "-" else (int(rec[0]), int(rec[1])))
     return want
 
 
@@ -202,7 +206,11 @@ def main(argv):
     it = iter(argv[1:])
     for a in it:
         if a == "--exclude":
-            excludes.append(next(it, "").strip("/"))
+            e = next(it, "").strip("/")
+            if not e:  # 빈 제외는 `:(top,exclude)` 가 되어 모든 경로를 뺀다 — 대조가 꺼진다
+                print("ERROR --exclude 뒤에 경로가 없다")
+                return 2
+            excludes.append(e)
         elif a.startswith("-"):
             print(__doc__)
             return 2
@@ -258,13 +266,14 @@ def main(argv):
         for path in sorted(want):
             if path not in got:
                 if not named(omitted, path):
-                    bad.append(f"빠졌다: {path} — git 은 바뀌었다고 하는데 diff 에도 「담지 않은 것」에도 없다")
+                    bad.append(f"빠졌다: {path} — git 은 바뀌었다고 하는데 diff 에도 「담지 않은 것」에도 "
+                               f"없다(「담지 않은 것」에는 경로를 백틱으로 통째로 적는다)")
                 continue
             if want[path] is not None and got[path] != want[path]:
                 if not named(omitted, path) or not cut or cut.group(1) != "있음":
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{got[path][0]}/-{got[path][1]}, "
                                f"git +{want[path][0]}/-{want[path][1]}. 잘랐으면 「자름: 있음」과 "
-                               f"「담지 않은 것」에 적어야 한다")
+                               f"「담지 않은 것」에 백틱으로 적어야 한다")
         for path in sorted(set(got) - set(want)):
             bad.append(f"git 에 없는 변경이 있다: {path} — 다른 기준 · 지난 회차의 diff 가 섞였다")
 

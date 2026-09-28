@@ -202,15 +202,16 @@ jobs:
           fi
 
           # verify-copies.py — 그 커밋에서 그대로 심은 사본은 통과하고, 커맨드를 지운
-          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드와 검사기를 가진
-          # 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면(스쿼시 머지 직후
-          # main 처럼 커맨드가 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
+          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드 · 사본 검사기 ·
+          # 브리핑 검사기를 가진 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면
+          # (스쿼시 머지 직후 main 처럼 그것들이 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
           # 따로 물므로, 역사의 모양을 얕은 것으로 오인하지 않는다(Codex 리뷰).
           c=$(mktemp -d); mkdir -p "$c/.claude/agents" "$c/.claude/commands"
           old=$(git rev-parse HEAD)
           for k in $(git rev-list --skip=1 --max-count=200 HEAD); do
             if git cat-file -e "$k:vibe-audit/commands/audit-brief.md" 2>/dev/null \
-               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null; then
+               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null \
+               && git cat-file -e "$k:vibe-audit/scripts/verify-brief.py" 2>/dev/null; then
               old=$k; break
             fi
           done
@@ -247,14 +248,17 @@ jobs:
             git checkout -- copies.json
             echo "::error::verify-copies.py 가 /audit-brief 가 빠진 사본을 통과시켰다"; exit 1
           fi
-          # 그 커밋에 검사기가 있었으면, 검사기가 빠진 사본도 실패해야 한다
-          if [ -f "$c/.claude/scripts/verify-brief.py" ]; then
-            git show "$old:vibe-audit/commands/audit-brief.md" > "$c/.claude/commands/audit-brief.md"
-            rm "$c/.claude/scripts/verify-brief.py"
-            if python3 scripts/verify-copies.py >/dev/null 2>&1; then
-              git checkout -- copies.json
-              echo "::error::verify-copies.py 가 브리핑 검사기가 빠진 사본을 통과시켰다"; exit 1
-            fi
+          # 검사기가 빠진 사본도 실패해야 한다. 적는 커밋은 검사기를 가진 것으로 골랐다 —
+          # 없는 커밋을 고르면 이 변조가 늘 건너뛰어져 아무것도 안 본다(Codex 리뷰)
+          if [ ! -f "$c/.claude/scripts/verify-brief.py" ]; then
+            git checkout -- copies.json
+            echo "::error::적는 커밋 $old 에 브리핑 검사기가 없다 — 검사기 빠진 사본 변조를 못 한다"; exit 1
+          fi
+          git show "$old:vibe-audit/commands/audit-brief.md" > "$c/.claude/commands/audit-brief.md"
+          rm "$c/.claude/scripts/verify-brief.py"
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 브리핑 검사기가 빠진 사본을 통과시켰다"; exit 1
           fi
           git checkout -- copies.json
 

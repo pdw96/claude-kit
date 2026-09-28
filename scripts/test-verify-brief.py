@@ -4,7 +4,8 @@
   python3 scripts/test-verify-brief.py
 
 임시 저장소를 만들어 커밋된 변경 · 작업트리 변경 · 추적 안 된 파일(빈칸 · 한글 · 탭 이름,
-심볼릭 링크 · 끊긴 링크) · 바이너리 · 이름 바꿈 · 대장 파일을 두고, `/audit-brief` 커맨드와 **같은 git 명령**으로
+심볼릭 링크 · 끊긴 링크 · `-diff` 속성) · 바이너리 · 이름 바꿈 · `a/` 로 시작하는 폴더 ·
+대장 파일을 두고, `/audit-brief` 커맨드와 **같은 git 명령**으로
 브리핑을 만든다. 그 브리핑은 통과해야 하고, 한 군데씩 흔든 변조본은 떨어져야 한다.
 검사기를 고치고 이것이 안 돌면, 떨어져야 할 것이 통과해도 아무도 모른다.
 
@@ -39,6 +40,9 @@ def make_repo(d, ledger):
     (d / "app" / "routes.py").write_text("".join(f"line {i}\n" for i in range(30)))
     (d / "old_name.py").write_text("keep\n" * 5)
     (d / "logo.bin").write_bytes(b"\0\1\2")
+    (d / "a").mkdir()  # diff.noprefix 면 `a/util.py` 의 `a/` 는 접두가 아니라 경로다
+    (d / "a" / "util.py").write_text("u\n" * 3)
+    (d / ".gitattributes").write_text("*.dat -diff\n")
     ledger.parent.mkdir(parents=True, exist_ok=True)
     ledger.write_text("# 대장\n")
     sh(d, "git", "add", "-A")
@@ -48,6 +52,7 @@ def make_repo(d, ledger):
     (d / "app" / "routes.py").write_text(txt)
     sh(d, "git", "mv", "old_name.py", "new_name.py")
     (d / "logo.bin").write_bytes(b"\0\1\2\3")
+    (d / "a" / "util.py").write_text("u\n" * 4)
     ledger.write_text("# 대장\n| NC-1 | x |\n")
     sh(d, "git", "add", "-A")
     sh(d, "git", "commit", "-qm", "change")
@@ -58,6 +63,7 @@ def make_repo(d, ledger):
     (d / "탭\t이름.py").write_text("t\n")
     os.symlink("new_name.py", d / "link")  # git 은 링크 대상을 한 줄로 적는다 — 따라가면 5줄
     os.symlink("nowhere", d / "dang")      # 끊긴 링크: 따라가면 읽지도 못한다
+    (d / "data.dat").write_text("p\nq\n")    # -diff 속성: git 은 텍스트여도 바이너리로 적는다
 
 
 def brief(d, ledger_rel, cfg=()):
@@ -122,6 +128,10 @@ def main():
              brief(d, ledger_rel, ("diff.mnemonicPrefix=true",)), d, ex),
             ("사용자 설정이 core.quotePath=false 여도 — 한글은 날것, 탭만 이스케이프",
              brief(d, ledger_rel, ("core.quotePath=false",)), d, ex),
+            ("사용자 설정이 diff.noprefix 여도 — `a/util.py` 의 `a/` 를 벗기면 안 된다",
+             brief(d, ledger_rel, ("diff.noprefix=true",)), d, ex),
+            ("사용자 설정이 color.ui=always 여도 — 색 코드가 섞인 diff",
+             brief(d, ledger_rel, ("color.ui=always",)), d, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -135,6 +145,9 @@ def main():
             ("자른 파일 대신 이름이 비슷한 딴 파일을 적었다",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py@backup`\n"), d, ex),
+            ("자른 파일 대신 빈칸으로 이어지는 딴 경로를 적었다",
+             good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
+                 .replace("통과 여부\n", "통과 여부\n- `app/routes.py backup`\n"), d, ex),
             ("「대상」이 지난 HEAD", re.sub(r"(- 대상: `)[0-9a-f]+", r"\g<1>0000000", good), d, ex),
             ("머지 베이스가 틀렸다", re.sub(r"(머지 베이스 `)[0-9a-f]+", r"\g<1>deadbeef", good), d, ex),
             ("git 에 없는 파일의 diff 가 섞였다",
@@ -151,6 +164,11 @@ def main():
             rc, out = run(d, cwd, text, *extra)
             if rc != 1 or not out.startswith("FAIL"):  # 예외로 죽어도 종료 1 이다 — 판정으로 떨어져야
                 bad.append(f"떨어져야 했다 — {name} (종료 {rc})\n{out}")
+        # 빈 제외는 `:(top,exclude)` 가 되어 모든 경로를 뺀다 — 쓰는 법 오류로 멈춰야
+        for extra in (("--exclude",), ("--exclude", ""), ("--exclude", "/")):
+            rc, out = run(d, d, good, *extra)
+            if rc != 2:
+                bad.append(f"쓰는 법 오류여야 했다 — {extra} (종료 {rc})\n{out}")
     if bad:
         print(f"FAIL verify-brief.py 가 {len(bad)}건에서 틀렸다")
         for b in bad:
