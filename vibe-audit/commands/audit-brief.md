@@ -48,7 +48,7 @@ git rev-parse --verify "$0^{commit}"
 | 추적 안 된 파일 | `git ls-files -z --others --exclude-standard` |
 
 작업트리에 커밋 안 된 변경이 있으면(`git status --short -uno` 가 비어 있지 않으면)
-`<B>...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff HEAD` 를 diff
+`<B>...HEAD` 는 그것을 담지 않습니다. 그 사실을 머리에 적고 `git diff --cached` 와 `git diff` 를 diff
 절의 `### 작업트리` 아래에 따로 넣으세요 — 커밋된 몫과 섞이면 빠졌는지 못 가립니다.
 
 **추적 안 된 파일(`??`)은 어느 diff 에도 안 나옵니다** — 새 라우트 · 키가 박힌

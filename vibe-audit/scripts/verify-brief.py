@@ -229,8 +229,10 @@ def expected(top, mb, excludes):
         else:
             want[path] = tuple(x + y for x, y in zip(old, c))
 
-    for rng in (f"{mb}..HEAD", "HEAD"):
-        ns, bl = numstat(top, rng, *spec), blocks(top, rng, *spec)
+    # 커밋된 몫 · 인덱스 몫(HEAD→인덱스) · 작업트리 몫(인덱스→작업트리). `git diff HEAD` 한 번이면
+    # 스테이지한 변경을 작업트리에서 되돌렸을 때 둘이 상쇄돼 다음 커밋에 들어갈 것이 안 보인다
+    for rng in ((f"{mb}..HEAD",), ("--cached",), ()):
+        ns, bl = numstat(top, *rng, *spec), blocks(top, *rng, *spec)
         for path in set(ns) | set(bl):
             add(path, ns.get(path, (0, 0, 0)) + (bl.get(path, 0),))
     for path in git(top, "ls-files", "-z", "--others", "--exclude-standard", *spec).decode(
@@ -270,7 +272,8 @@ def main(argv):
         return 2
     brief = pathlib.Path(args[0])
     try:
-        text = brief.read_text(encoding="utf-8", errors="surrogateescape")
+        # 줄 끝을 바꾸지 않고 읽는다 — 헝크 안의 맨 `\r` 이 줄로 바뀌면 헝크 수가 어긋난다
+        text = brief.read_bytes().decode("utf-8", "surrogateescape")
         out = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
         # 저장소 폴더 이름도 UTF-8 이 아닐 수 있고, 빈칸으로 끝날 수도 있다 — git 의 줄 끝만 뗀다
         top = pathlib.Path((out[:-1] if out.endswith(b"\n") else out).decode("utf-8", "surrogateescape"))

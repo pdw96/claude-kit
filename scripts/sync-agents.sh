@@ -92,15 +92,15 @@ if [ "$FORCE" -eq 0 ]; then
   existing=""
   missing=""
   for f in "$SRC"/vibe-audit/agents/*.md; do
-    if [ -e "$DEST/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
+    if [ -e "$DEST/$(basename "$f")" ] || [ -L "$DEST/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   for f in "$SRC"/vibe-audit/commands/*.md; do
     [ -e "$f" ] || continue
-    if [ -e "$TARGET/.claude/commands/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
+    if [ -e "$TARGET/.claude/commands/$(basename "$f")" ] || [ -L "$TARGET/.claude/commands/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   for f in "$SRC"/vibe-audit/scripts/*.py; do
     [ -e "$f" ] || continue
-    if [ -e "$TARGET/.claude/scripts/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
+    if [ -e "$TARGET/.claude/scripts/$(basename "$f")" ] || [ -L "$TARGET/.claude/scripts/$(basename "$f")" ]; then existing="$existing $(basename "$f")"; else missing="$missing $(basename "$f")"; fi
   done
   if [ -n "$existing" ]; then
     python3 - "$SRC/copies.json" "$DEST" <<'KNOWN' || {
@@ -127,6 +127,8 @@ KNOWN
   fi
 fi
 
+# 있는지는 `-e` 와 `-L` 로 함께 본다 — 끊긴 링크는 `-e` 로는 없는 것처럼 보여 앞 폴더에 다
+# 심은 뒤 cp 에서 멈춘다(Codex 리뷰). --force 로 덮을 때 링크는 지우고 새 파일로 쓴다.
 # **쓰기 전에 심을 폴더 자리를 본다.** 그 자리에 파일 · 끊긴 링크가 있으면 앞 폴더에 다 심은
 # 뒤 mkdir 에서 멈춰, 대장에 없는 반쪽 사본이 남는다 — 다시 돌리면 섞인 사본으로 거절되고
 # --force 도 폴더를 못 만든다(Codex 리뷰).
@@ -150,11 +152,12 @@ skipped=0
 for f in "$SRC"/vibe-audit/agents/*.md; do
   name="$(basename "$f")"
   out="$DEST/$name"
-  if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
+  if { [ -e "$out" ] || [ -L "$out" ]; } && [ "$FORCE" -eq 0 ]; then
     echo "  건너뜀 $name — 이미 있다 (특화됐을 수 있다. 되돌리려면 --force)"
     skipped=$((skipped + 1))
     continue
   fi
+  if [ -L "$out" ]; then rm -f "$out"; fi  # 링크를 따라 사본 밖에 쓰지 않는다
   awk -v hdr="$HDR" '
     /^---$/ { c++; print; if (c == 2) { print ""; print hdr } next }
     { print }
@@ -174,11 +177,12 @@ for f in "$SRC"/vibe-audit/commands/*.md; do
   [ -e "$f" ] || continue
   name="$(basename "$f")"
   out="$CMDDEST/$name"
-  if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
+  if { [ -e "$out" ] || [ -L "$out" ]; } && [ "$FORCE" -eq 0 ]; then
     echo "  건너뜀 $name — 이미 있다 (되돌리려면 --force)"
     cskipped=$((cskipped + 1))
     continue
   fi
+  if [ -L "$out" ]; then rm -f "$out"; fi  # 링크를 따라 사본 밖에 쓰지 않는다
   awk -v hdr="$HDR" '
     /^---$/ { c++; print; if (c == 2) { print ""; print hdr } next }
     { print }
@@ -198,11 +202,12 @@ for f in "$SRC"/vibe-audit/scripts/*.py; do
   [ -e "$f" ] || continue
   name="$(basename "$f")"
   out="$SCRIPTDEST/$name"
-  if [ -e "$out" ] && [ "$FORCE" -eq 0 ]; then
+  if { [ -e "$out" ] || [ -L "$out" ]; } && [ "$FORCE" -eq 0 ]; then
     echo "  건너뜀 $name — 이미 있다 (되돌리려면 --force)"
     sskipped=$((sskipped + 1))
     continue
   fi
+  if [ -L "$out" ]; then rm -f "$out"; fi  # 링크를 따라 사본 밖에 쓰지 않는다
   mkdir -p "$SCRIPTDEST"
   cp "$f" "$out"
   echo "  심음   $name"

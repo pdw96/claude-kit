@@ -30,12 +30,12 @@ SPEC = ["--", ":/", ":(top,exclude).claude/audits", ":(top,exclude).claude/brief
 
 
 def sh(cwd, *args, ok=(0,)):
-    p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, errors="surrogateescape",
+    p = subprocess.run(args, cwd=cwd, capture_output=True,
                        env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
                             "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
     if p.returncode not in ok:
-        sys.exit(f"준비 실패: {' '.join(args)}\n{p.stderr}")
-    return p.stdout
+        sys.exit(f"준비 실패: {' '.join(map(str, args))}\n{p.stderr.decode(errors='replace')}")
+    return p.stdout.decode("utf-8", "surrogateescape")  # 줄 끝을 바꾸지 않는다 — 맨 `\r` 을 지킨다
 
 
 def make_repo(d, ledger, fmt="sha1"):
@@ -56,6 +56,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "mixed.txt").write_bytes(b"\0\1")  # 커밋 몫은 바이너리, 작업트리 몫은 텍스트
     (d / "flip.txt").write_text("a\nb\n")     # 커밋 몫은 텍스트, 작업트리 몫은 바이너리
     (d / "tmpl.py").write_text("t\n" * 5)
+    (d / "cr.txt").write_bytes(b"a\rb\nold\n")  # 헝크 안의 맨 `\r` — 줄로 읽으면 헝크 수가 어긋난다
+    (d / "staged.py").write_text("s\n")      # 작업트리에서 스테이지 몫을 되돌린다
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -70,6 +72,7 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "logo.bin").write_bytes(b"\0\1\2\3")
     (d / "a" / "util.py").write_text("u\n" * 4)
     (d / "mixed.txt").write_text("a\nb\n")
+    (d / "cr.txt").write_bytes(b"a\rb\nnew\n")
     (d / "flip.txt").write_text("a\nbb\n")
     (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
     (d / "tmpl.py").write_text("t\n" * 6)
@@ -87,6 +90,9 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "data.dat").write_text("p\nq\n")    # -diff 속성: git 은 텍스트여도 바이너리로 적는다
     (d / "mixed.txt").write_text("a\nb\nc\n")
     (d / "flip.txt").write_bytes(b"\0\0")
+    (d / "staged.py").write_text("SECRET = 1\n")  # 스테이지하고 작업트리만 되돌린다 — `git diff HEAD` 는 비고
+    sh(d, "git", "add", "staged.py")               # 다음 커밋에는 SECRET 이 들어간다
+    (d / "staged.py").write_text("s\n")
     (d / "new_name.py").write_text("keep\n" * 5 + "more\n")  # 커밋 몫은 이름만 바꿈(줄 없음), 작업트리 몫은 줄
     (d / "kind.txt").unlink()
     os.symlink("tmpl.py", d / "kind.txt")
@@ -99,7 +105,7 @@ def make_repo(d, ledger, fmt="sha1"):
         (pathlib.Path(os.fsdecode(bytes(d) + b"/bin" + tail))).write_bytes(b"\0x")
 
 
-def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True):
+def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True, head_only=False):
     """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
     g = ["git", *(x for c in cfg for x in ("-c", c))]
     spec = SPEC + [f":(top,literal,exclude){ledger_rel}"]  # 커맨드가 대장을 빼는 모양
@@ -108,7 +114,10 @@ def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True):
     mb = sh(d, *g, "merge-base", b, "HEAD").strip()
     head = sh(d, *g, "rev-parse", "--short", "HEAD").strip()
     committed = sh(d, *g, "diff", *fix, f"{b}...HEAD", *spec)
-    work = sh(d, *g, "diff", *fix, "HEAD", *spec)
+    if head_only:  # 옛 커맨드 모양 — 스테이지 몫이 작업트리 되돌림과 상쇄된다
+        work = sh(d, *g, "diff", *fix, "HEAD", *spec)
+    else:          # 커맨드: 인덱스 몫과 작업트리 몫을 따로
+        work = sh(d, *g, "diff", *fix, "--cached", *spec) + sh(d, *g, "diff", *fix, *spec)
     untracked, skipped = "", []
     for f in sh(d, *g, "ls-files", "-z", "--others", "--exclude-standard", *spec).split("\0"):
         if f and not ((d / f).is_file() or (d / f).is_symlink()):  # 커맨드의 `[ -f ] || [ -L ] || continue`
@@ -235,6 +244,8 @@ def main():
              good.replace("### 작업트리", _block(good, "app/routes.py") + "### 작업트리", 1)
                  .replace("- 자름: 없음", "- 자름: 있음 — 0줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py`\n"), d, ex),
+            ("`git diff HEAD` 하나로 작업트리 몫을 뽑았다 — 되돌린 작업트리가 스테이지한 SECRET 을 가린다",
+             brief(d, ledger_rel, head_only=True), d, ex),
             ("머리의 「자름」 줄이 둘 — 뒤의 것은 검사되지 않는다",
              good.replace("- 자름: 없음\n", "- 자름: 없음\n- 자름: 있음\n"), d, ex),
             ("`## diff` 가 파일 끝에 빈 채로 — 줄바꿈 없이",
