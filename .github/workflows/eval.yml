@@ -98,12 +98,40 @@ jobs:
           if ! grep -q '"agents_path": "~/svc/.claude/agents"' "$c/src/copies.json"; then
             echo "::error::sync-agents.sh 가 대장에 홈 기준이 아닌 경로를 적었다"; cat "$c/src/copies.json"; exit 1
           fi
+          # 브리핑 검사기도 심어야 한다 — 커맨드는 사본 안의 .claude/scripts/ 에서 부른다
+          if [ ! -f "$c/svc/.claude/scripts/verify-brief.py" ]; then
+            echo "::error::sync-agents.sh 가 브리핑 검사기를 심지 않았다"; exit 1
+          fi
           rm "$c/svc/.claude/commands/audit-brief.md"
           if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
             echo "::error::sync-agents.sh 가 일부만 있는 사본에 빠진 커맨드만 심었다"; cat "$c/out"; exit 1
           fi
           if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
             echo "::error::sync-agents.sh --force 가 빠진 커맨드를 못 심었다"; cat "$c/out"; exit 1
+          fi
+          # 심을 폴더 자리에 파일이 있으면 **아무것도 쓰기 전에** 멈춰야 한다 — 앞 폴더에 다 심고
+          # mkdir 에서 죽으면 대장에 없는 반쪽 사본이 남는다(Codex 리뷰)
+          mkdir -p "$c/svc3/.claude"; : > "$c/svc3/.claude/scripts"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc3" >"$c/out" 2>&1 || [ -e "$c/svc3/.claude/agents" ]; then
+            echo "::error::sync-agents.sh 가 폴더 자리의 파일을 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
+          fi
+          # 심을 파일 자리에 끊긴 링크가 있어도 쓰기 전에 멈춰야 한다 — `-e` 로는 없는 것처럼 보여
+          # 앞 폴더에 다 심고 cp 에서 죽었다(Codex 리뷰)
+          mkdir -p "$c/svc4/.claude/scripts"; ln -s nowhere "$c/svc4/.claude/scripts/verify-brief.py"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc4" >"$c/out" 2>&1 || [ -e "$c/svc4/.claude/agents" ]; then
+            echo "::error::sync-agents.sh 가 끊긴 링크 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
+          fi
+          # 파일 자리에 폴더가 있으면 --force 여도 쓰기 전에 멈춰야 한다 — cp 가 그 폴더 안에 심고
+          # 성공한 것으로 대장을 옮겼다(Codex 리뷰)
+          mkdir -p "$c/svc5/.claude/scripts/verify-brief.py"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc5" --force >"$c/out" 2>&1 || [ -e "$c/svc5/.claude/agents" ]; then
+            echo "::error::sync-agents.sh --force 가 파일 자리의 폴더를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
+          fi
+          # 폴더 자리가 바깥 폴더를 가리키는 링크여도 쓰기 전에 멈춰야 한다 — `-d` 는 링크를 따라가
+          # 바깥에 심고 대장을 옮겼다(Codex 리뷰)
+          mkdir -p "$c/svc6/.claude" "$c/outside"; ln -s "$c/outside" "$c/svc6/.claude/scripts"
+          if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc6" >"$c/out" 2>&1 || [ -e "$c/svc6/.claude/agents" ] || [ -n "$(ls -A "$c/outside")" ]; then
+            echo "::error::sync-agents.sh 가 링크로 된 폴더 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
           fi
           # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
           (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
@@ -198,23 +226,25 @@ jobs:
           fi
 
           # verify-copies.py — 그 커밋에서 그대로 심은 사본은 통과하고, 커맨드를 지운
-          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드와 검사기를 가진
-          # 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면(스쿼시 머지 직후
-          # main 처럼 커맨드가 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
+          # 사본은 실패해야 한다. 적는 커밋은 머리보다 앞서면서 커맨드 · 사본 검사기 ·
+          # 브리핑 검사기를 가진 가장 가까운 것 — sync-agents.sh 가 적는 모양이다. 없으면
+          # (스쿼시 머지 직후 main 처럼 그것들이 한 커밋에서 처음 생긴 역사) 머리로 본다. 얕은지는 위에서
           # 따로 물므로, 역사의 모양을 얕은 것으로 오인하지 않는다(Codex 리뷰).
           c=$(mktemp -d); mkdir -p "$c/.claude/agents" "$c/.claude/commands"
           old=$(git rev-parse HEAD)
           for k in $(git rev-list --skip=1 --max-count=200 HEAD); do
             if git cat-file -e "$k:vibe-audit/commands/audit-brief.md" 2>/dev/null \
-               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null; then
+               && git cat-file -e "$k:scripts/verify-copy.py" 2>/dev/null \
+               && git cat-file -e "$k:vibe-audit/scripts/verify-brief.py" 2>/dev/null; then
               old=$k; break
             fi
           done
           echo "사본을 심은 커밋으로 적는 것: $old"
-          for f in $(git ls-tree --name-only "$old" vibe-audit/agents/ vibe-audit/commands/); do
+          for f in $(git ls-tree --name-only "$old" vibe-audit/agents/ vibe-audit/commands/ vibe-audit/scripts/); do
             case "$f" in
               vibe-audit/agents/audit-*.md) git show "$old:$f" > "$c/.claude/agents/${f##*/}" ;;
               vibe-audit/commands/*.md)     git show "$old:$f" > "$c/.claude/commands/${f##*/}" ;;
+              vibe-audit/scripts/*.py)      mkdir -p "$c/.claude/scripts"; git show "$old:$f" > "$c/.claude/scripts/${f##*/}" ;;
             esac
           done
           python3 - "$c/.claude/agents" "$old" <<'PY'
@@ -241,6 +271,18 @@ jobs:
           if python3 scripts/verify-copies.py >/dev/null 2>&1; then
             git checkout -- copies.json
             echo "::error::verify-copies.py 가 /audit-brief 가 빠진 사본을 통과시켰다"; exit 1
+          fi
+          # 검사기가 빠진 사본도 실패해야 한다. 적는 커밋은 검사기를 가진 것으로 골랐다 —
+          # 없는 커밋을 고르면 이 변조가 늘 건너뛰어져 아무것도 안 본다(Codex 리뷰)
+          if [ ! -f "$c/.claude/scripts/verify-brief.py" ]; then
+            git checkout -- copies.json
+            echo "::error::적는 커밋 $old 에 브리핑 검사기가 없다 — 검사기 빠진 사본 변조를 못 한다"; exit 1
+          fi
+          git show "$old:vibe-audit/commands/audit-brief.md" > "$c/.claude/commands/audit-brief.md"
+          rm "$c/.claude/scripts/verify-brief.py"
+          if python3 scripts/verify-copies.py >/dev/null 2>&1; then
+            git checkout -- copies.json
+            echo "::error::verify-copies.py 가 브리핑 검사기가 빠진 사본을 통과시켰다"; exit 1
           fi
           git checkout -- copies.json
 
@@ -562,7 +604,7 @@ jobs:
             echo "::error::verify-manifest.py 가 견줄 수 없는 라이선스 선언을 통과시켰다"; exit 1
           fi
 
-          echo "게이트 여섯 중 변조본으로 확인한 여섯: manifest · copies · copy · evals · graders · budget"
+          echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · evals · graders · budget · brief(스스로 변조본을 돌린다)"
 
           # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
           # 앞쪽이 깨지면 낭비로 끝나지만 뒤쪽이 깨지면 **문구를 고친 PR 이 수트 없이

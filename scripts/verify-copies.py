@@ -28,7 +28,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "copies.json"
 NEEDED = ("repo", "agents_path", "synced_commit", "synced_at")
-WATCHED = ("vibe-audit/agents", "vibe-audit/commands")
+WATCHED = ("vibe-audit/agents", "vibe-audit/commands", "vibe-audit/scripts")
 
 
 def git(*args):
@@ -93,6 +93,21 @@ def commands_missing(sha, agents_dir):
                 fields[k.strip()] = v.strip()
         if head is None or fields.get("name") != name.stem or not fields.get("description"):
             out.append(f"커맨드 {name.name} 의 머리말이 성하지 않다 (name: {name.stem} · description 이 있어야)")
+    return out
+
+
+def scripts_missing(sha, agents_dir):
+    """sha 의 원본 검사기(`vibe-audit/scripts/*.py`)가 사본 쪽 `scripts/` 에 있는지 본다.
+
+    커맨드는 감사자를 부르기 전에 `.claude/scripts/verify-brief.py` 로 브리핑을 git 과
+    대조한다. 검사기가 빠진 사본은 그 대조를 건너뛰고 「못 돌림」으로 감사자를 부른다 —
+    예전 검사기가 운영에서 한 번도 안 돈 것과 같은 자리다. 내용은 견주지 않는다(커맨드와 같다)."""
+    names = git("ls-tree", "--name-only", sha, "vibe-audit/scripts/").stdout.split()
+    out = []
+    for n in names:
+        name = pathlib.PurePosixPath(n).name
+        if name.endswith(".py") and not (agents_dir.parent / "scripts" / name).is_file():
+            out.append(f"검사기 {name} 가 {agents_dir.parent / 'scripts'} 에 없다")
     return out
 
 
@@ -164,6 +179,7 @@ def main():
         # 실패가 아니라고 적어 놓고(루트 README) 게이트는 그것을 실패로 셌다(Codex
         # 리뷰). 규칙도 판마다 자랐으므로 그 판의 규칙으로 잰다. 앞선 만큼은 drift 로 찍는다.
         bad += [f"{who}: {m}" for m in commands_missing(sha, path)]
+        bad += [f"{who}: {m}" for m in scripts_missing(sha, path)]
 
         # **예전 원본에 있던 감사자가 사본에 남아 있으면 실패다.** 이름을 바꾸거나 뺀
         # 감사자는 `--force` 로 다시 심어도 지워지지 않고, 위 대조는 원본 이름만 돌아
