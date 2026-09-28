@@ -123,9 +123,9 @@ def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True):
             + "".join(f"- `{f}` — 파일이 아니라 건너뜀\n" for f in skipped if name_skipped))
 
 
-def drop_block(text, path):
-    """diff 절에서 그 경로의 블록 하나를 지운다. git 은 한글 이름을 따옴표 · 8진수로 적으므로
-    검사기의 `unquote` · `header_pair` 로 `+++ b/` 줄이나 머리 줄을 풀어 맞춘다."""
+def _find_block(text, path):
+    """diff 절을 블록으로 가르고, 그 경로의 첫 블록 번호를 준다. git 은 한글 이름을 따옴표 · 8진수로
+    적으므로 검사기의 `unquote` · `header_pair` 로 `+++ b/` 줄이나 머리 줄을 풀어 맞춘다."""
     spec = importlib.util.spec_from_file_location("vb", CHECK)
     vb = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(vb)
@@ -136,8 +136,20 @@ def drop_block(text, path):
         m = re.search(r"^\+\+\+ (.*)$", blk, re.M)  # 바이너리 블록에는 없어 머리 줄로도 본다
         pair = vb.header_pair(blk.split("\n", 1)[0])
         if (m and vb.unquote(m.group(1).rstrip("\t")) == f"b/{path}") or (pair and pair[1] == f"b/{path}"):
-            return "".join(parts[:k] + parts[k + 1:])
+            return parts, k
     sys.exit(f"시험 준비 실패: {path} 블록을 못 찾았다")
+
+
+def drop_block(text, path):
+    """diff 절에서 그 경로의 블록 하나를 지운다."""
+    parts, k = _find_block(text, path)
+    return "".join(parts[:k] + parts[k + 1:])
+
+
+def _block(text, path):
+    """diff 절에서 그 경로의 첫 블록을 그대로 꺼낸다(블록을 두 번 넣는 변조용)."""
+    parts, k = _find_block(text, path)
+    return parts[k]
 
 
 def run(top, cwd, text, *extra):
@@ -151,7 +163,8 @@ def run(top, cwd, text, *extra):
 def main():
     bad = []
     with tempfile.TemporaryDirectory() as t, tempfile.TemporaryDirectory() as t256:
-        d, d256 = pathlib.Path(t) / os.fsdecode(b"repo\xff"), pathlib.Path(t256)  # 폴더 이름도 UTF-8 이 아니다
+        # 폴더 이름도 UTF-8 이 아니고 빈칸으로 끝난다
+        d, d256 = pathlib.Path(t) / os.fsdecode(b"repo\xff "), pathlib.Path(t256)
         d.mkdir()
         ledger_rel = "docs/audit/README.md"
         make_repo(d, d / ledger_rel)
@@ -216,6 +229,10 @@ def main():
              good.replace("## 이 브리핑이 담지 않은 것", "## diff\n\n```diff\ndiff --git a/ghost.py b/ghost.py\n"
                           "--- a/ghost.py\n+++ b/ghost.py\n@@ -1 +1 @@\n-a\n+b\n```\n\n## 이 브리핑이 담지 않은 것"),
              d, ex),
+            ("같은 블록을 두 번 넣고 「자름: 있음」 · 「담지 않은 것」으로 덮었다 — 자름은 많은 것을 못 푼다",
+             good.replace("### 작업트리", _block(good, "app/routes.py") + "### 작업트리", 1)
+                 .replace("- 자름: 없음", "- 자름: 있음 — 0줄")
+                 .replace("통과 여부\n", "통과 여부\n- `app/routes.py`\n"), d, ex),
             ("「자름」을 머리에서 빼고 본문에만 적었다",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음\n", "")
                  .replace("통과 여부\n", "통과 여부\n- 자름: 있음\n- `app/routes.py` 뒷부분\n"), d, ex),

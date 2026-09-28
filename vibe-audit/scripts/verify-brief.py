@@ -19,7 +19,7 @@
 - git 이 말하는 변경 파일(커밋된 몫 · 작업트리 · 추적 안 된 파일)이 **하나도 빠짐없이**
   diff 절에 있거나 「담지 않은 것」에 경로가 백틱으로 통째로 적혀 있는가
 - 담은 파일마다 +/- 줄 수 · 바이너리 블록 수 · 블록 수가 git 의 `--numstat` · `--raw` 와 같은가 —
-  이름만 바꾼 블록처럼 줄이 없는 블록도 빠지면 드러난다. 다르면 잘린 것이므로
+  이름만 바꾼 블록처럼 줄이 없는 블록도 빠지면 드러난다. git 보다 많으면 늘 불일치다. 모자라면 잘린 것이므로
   「자름: 있음」이고 그 파일이 「담지 않은 것」에 적혀 있어야 한다
 - git 에 없는 파일의 diff 가 들어 있지 않은가 — 지난 회차나 다른 기준의 것이 섞인 것이다
 
@@ -265,8 +265,9 @@ def main(argv):
     brief = pathlib.Path(args[0])
     try:
         text = brief.read_text(encoding="utf-8", errors="surrogateescape")
-        top = pathlib.Path(git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel").decode(
-            "utf-8", "surrogateescape").strip())  # 저장소 폴더 이름도 UTF-8 이 아닐 수 있다
+        out = git(pathlib.Path.cwd(), "rev-parse", "--show-toplevel")
+        # 저장소 폴더 이름도 UTF-8 이 아닐 수 있고, 빈칸으로 끝날 수도 있다 — git 의 줄 끝만 뗀다
+        top = pathlib.Path((out[:-1] if out.endswith(b"\n") else out).decode("utf-8", "surrogateescape"))
         head = git(top, "rev-parse", "HEAD").decode().strip()
     except (OSError, RuntimeError) as e:
         print(f"ERROR {e}")
@@ -319,7 +320,9 @@ def main(argv):
                                f"git 이 적는 따옴표 모양으로)")
                 continue
             if want[path] is not None and got[path] != want[path]:
-                if not named(omitted, path) or not cut or cut.group(1) != "있음":
+                # 자름은 모자란 것만 풀어 준다 — git 보다 많은 줄 · 블록은 딴 데서 온 것이다
+                over = any(g > w for g, w in zip(got[path], want[path]))
+                if over or not named(omitted, path) or not cut or cut.group(1) != "있음":
                     g, w = got[path], want[path]
                     bad.append(f"줄 수가 다르다: {path} — 브리핑 +{g[0]}/-{g[1]} 바이너리 {g[2]} 블록 {g[3]}, "
                                f"git +{w[0]}/-{w[1]} 바이너리 {w[2]} 블록 {w[3]}. 잘랐으면 「자름: 있음」과 "
