@@ -61,6 +61,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "conf.txt").write_text("x\n")       # 풀지 않은 머지 — 작업트리 몫은 `diff --cc` 블록
     (d / "gone.txt").write_text("g\n")       # 수정/삭제 충돌 — 블록 없이 `* Unmerged path` 줄만
     (d / '"gone.txt"').write_text("g\n")     # 그 줄은 경로를 날것으로 적는다 — 풀면 gone.txt 와 겹친다
+    (d / "gone.txt\nx").write_text("g\n")   # 줄바꿈 든 이름 — 그 줄이 두 줄에 걸치고 앞머리가 gone.txt 다
+    (d / "del\nme.txt").write_text("g\n")   # 줄바꿈 든 이름 — 첫 줄 `del` 은 충돌 경로가 아니다
     (d / "kind.txt").write_text("k\n")         # 작업트리에서 링크로 바뀐다 — 패치 블록 둘, numstat 한 줄
     (d / "sub").mkdir()                       # 빈 폴더 = 꺼내지 않은 서브모듈
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +80,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "conf.txt").write_text("y\n")
     (d / "gone.txt").unlink()
     (d / '"gone.txt"').unlink()
+    (d / "gone.txt\nx").unlink()
+    (d / "del\nme.txt").unlink()
     (d / "cr.txt").write_bytes(b"a\rb\nnew\n")
     (d / "flip.txt").write_text("a\nbb\n")
     (d / "tmpl_copy.py").write_text((d / "tmpl.py").read_text())
@@ -91,6 +95,8 @@ def make_repo(d, ledger, fmt="sha1"):
     (d / "conf.txt").write_text("z\n")
     (d / "gone.txt").write_text("g\nmore\n")
     (d / '"gone.txt"').write_text("g\nmore\n")
+    (d / "gone.txt\nx").write_text("g\nmore\n")
+    (d / "del\nme.txt").write_text("g\nmore\n")
     sh(d, "git", "commit", "-qam", "other")
     sh(d, "git", "checkout", "-q", "topic")
     sh(d, "git", "merge", "-q", "other", ok=(1,))
@@ -122,12 +128,12 @@ def make_repo(d, ledger, fmt="sha1"):
         (pathlib.Path(os.fsdecode(bytes(d) + b"/bin" + tail))).write_bytes(b"\0x")
 
 
-def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True, head_only=False):
+def brief(d, ledger_rel, cfg=(), pin=True, name_skipped=True, head_only=False, base="main"):
     """`cfg` 는 사용자 git 설정 흉내 — `diff.mnemonicPrefix` 면 접두가 `c/ w/ 1/ 2/` 가 된다."""
     g = ["git", *(x for c in cfg for x in ("-c", c))]
     spec = SPEC + [f":(top,literal,exclude){ledger_rel}"]  # 커맨드가 대장을 빼는 모양
     fix = PIN if pin else []
-    b = sh(d, *g, "rev-parse", "--verify", "main^{commit}").strip()
+    b = sh(d, *g, "rev-parse", "--verify", f"{base}^{{commit}}").strip()
     mb = sh(d, *g, "merge-base", b, "HEAD").strip()
     head = sh(d, *g, "rev-parse", "--short", "HEAD").strip()
     committed = sh(d, *g, "diff", *fix, f"{b}...HEAD", *spec)
@@ -198,6 +204,7 @@ def main():
         ledger_rel = "*"  # 대장 이름이 와일드카드 글자여도 커맨드 · 검사기가 이름 그대로 뺀다
         make_repo(d, d / ledger_rel)
         good = brief(d, ledger_rel)
+        good_head = brief(d, ledger_rel, base="HEAD")
         make_repo(d256, d256 / ledger_rel, "sha256")
         good256 = brief(d256, ledger_rel)
         ex = ("--exclude", ledger_rel)
@@ -219,6 +226,10 @@ def main():
              drop_block(good, "줄\n바꿈.py").replace("통과 여부\n", '통과 여부\n- `"줄\\n바꿈.py"`\n'), d, ex),
             ("SHA-256 저장소 — 머지 베이스가 64자", good256, d256, ex),
             ("CRLF 로 저장한 브리핑 — 맨 `\\r` 은 그대로", good.replace("\n", "\r\n"), d, ex),
+            ("기준이 HEAD 라 커밋된 몫이 없는데 충돌의 cc 블록을 잘라 「담지 않은 것」에 적었으면",
+             re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```|\* Unmerged path ).*\n)*", "", good_head, count=1, flags=re.M)
+                 .replace("- 자름: 없음", "- 자름: 있음 — conf.txt 블록").replace("통과 여부\n", "통과 여부\n- `conf.txt`\n"),
+             d, ex),
             ("자른 파일을 「자름: 있음」과 「담지 않은 것」에 적었으면",
              good.replace("+extra\n", "", 1).replace("- 자름: 없음", "- 자름: 있음 — 1줄")
                  .replace("통과 여부\n", "통과 여부\n- `app/routes.py` 뒷부분\n"), d, ex),
@@ -259,8 +270,10 @@ def main():
             ("`* Unmerged path` 줄을 더 넣고 「담지 않은 것」으로 덮었다 — 면제는 모자란 것만",
              good.replace("* Unmerged path gone.txt\n", "* Unmerged path gone.txt\n" * 2, 1)
                  .replace("통과 여부\n", "통과 여부\n- `gone.txt`\n"), d, ex),
+            ("줄바꿈 든 이름의 `* Unmerged path` 줄을 앞머리 이름(gone.txt)의 줄로 바꿨다",
+             good.replace("* Unmerged path gone.txt\nx\n", "* Unmerged path gone.txt\n"), d, ex),
             ("풀지 않은 머지의 `diff --cc` 블록을 뺐다",
-             re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```).*\n)*", "", good, count=1, flags=re.M), d, ex),
+             re.sub(r"^diff --cc conf\.txt\n(?:(?!diff --|### |```|\* Unmerged path ).*\n)*", "", good, count=1, flags=re.M), d, ex),
             ("이름 바꿈 블록(줄 없음)을 뺐다 — 작업트리 몫이 줄 수를 채운다",
              drop_block(good.split("### 작업트리")[0], "new_name.py") + "### 작업트리" +
              good.split("### 작업트리")[1], d, ex),

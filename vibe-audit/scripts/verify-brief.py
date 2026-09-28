@@ -99,14 +99,14 @@ def section(text, head):
 HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
 
 
-def parse_diff(body):
+def parse_diff(body, unmerged=frozenset()):
     """diff 절에서 파일마다 (+, -, 바이너리 블록 수, 블록 수) 를 모은다. 같은 경로가 두 번(커밋 몫 · 작업트리 몫)
     나오면 더한다. 헝크 안의 줄은 `@@ -a,b +c,d @@` 가 적은 수만큼만 먹는다 — 줄 모양으로
     짐작하지 않으므로 헝크 뒤에 붙은 글 · 헝크 안의 `--- a/` 모양 줄에 흔들리지 않는다.
     경로는 `+++ b/` · `rename to` · `--- a/` · 머리 줄 순서로 잡는다."""
     counts = {}
     body = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", body)  # color.ui=always 로 뽑은 diff
-    marks = merge_marks(body)
+    marks = merge_marks(body, unmerged)
     for blk in re.split(r"^(?=diff --(?:git|cc|combined) )", body, flags=re.M):
         if not blk.startswith("diff --"):
             continue
@@ -156,14 +156,28 @@ def parse_diff(body):
     return counts, marks
 
 
-def merge_marks(text):
+def merge_marks(text, unmerged):
     """풀지 않은 머지의 표시를 경로 · 종류별로 센다 — `diff --cc`/`--combined` 블록과, 블록 없이
     나오는 `* Unmerged path <경로>` 줄(인덱스 몫은 늘, 수정/삭제 충돌은 작업트리 몫도 이것뿐).
-    그 줄의 경로는 git 이 따옴표 없이 날것으로 적으므로 풀지 않는다 — 풀면 `"q"` 와 `q` 가 겹친다."""
+    그 줄의 경로는 git 이 따옴표 없이 날것으로 적는다 — 풀면 `"q"` 와 `q` 가 겹치고, 줄바꿈이 든
+    이름은 두 줄에 걸친다. 그래서 줄 단위로 가르지 않고 `ls-files -u -z` 의 경로와 긴 것부터 통째로
+    맞춘다(짧은 이름이 긴 이름의 앞머리에 걸리지 않게). 어느 경로에도 안 맞는 줄은 첫 줄을 경로로 센다."""
     marks = {}
-    for m in re.finditer(r"^diff --(?:cc|combined) (.+)$|^\* Unmerged path (.+)$", text, re.M):
-        key = (unquote(m.group(1)), "cc") if m.group(1) is not None else (m.group(2), "unmerged")
+
+    def bump(key):
         marks[key] = marks.get(key, 0) + 1
+
+    for m in re.finditer(r"^diff --(?:cc|combined) (.+)$", text, re.M):
+        bump((unquote(m.group(1)), "cc"))
+    used = set()
+    for p in sorted(unmerged, key=len, reverse=True):
+        for m in re.finditer(r"^\* Unmerged path " + re.escape(p) + r"(?=\n|\Z)", text, re.M):
+            if m.start() not in used:
+                used.add(m.start())
+                bump((p, "unmerged"))
+    for m in re.finditer(r"^\* Unmerged path (.*)$", text, re.M):
+        if m.start() not in used:
+            bump((m.group(1), "unmerged"))
     return marks
 
 
@@ -276,7 +290,7 @@ def expected(top, mb, excludes):
     want_marks = {}
     if unmerged:
         out = b"".join(git(top, "diff", *PIN, *rng, *spec) for rng in (("--cached",), ()))
-        want_marks = {k: v for k, v in merge_marks(out.decode("utf-8", "surrogateescape")).items()
+        want_marks = {k: v for k, v in merge_marks(out.decode("utf-8", "surrogateescape"), unmerged).items()
                       if k[0] in unmerged}
     return want, unmerged, want_marks
 
@@ -355,13 +369,14 @@ def main(argv):
     body = section(text, "## diff")
     omitted = spans(section(text, "## 이 브리핑이 담지 않은 것") or "")
     if mb and body is not None:
-        got, got_marks = parse_diff(body)
         try:
             want, unmerged, want_marks = expected(top, mb, excludes)
         except RuntimeError as e:
             print(f"ERROR {e}")
             return 2
-        omitted = named_paths(omitted, set(want))
+        got, got_marks = parse_diff(body, unmerged)
+        # 충돌 경로는 커밋된 몫이 없으면(기준이 HEAD 등) want 에 없으므로 따로 더한다
+        omitted = named_paths(omitted, set(want) | unmerged)
         for path in sorted(want):
             if path not in got:
                 if path not in omitted:
