@@ -236,9 +236,16 @@
           "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
         }
       ],
-      "status": "defect",
-      "reason": "묶음 D · FB-14 와 함께 — 평가셋 교체는 특화, 「검사가 무는지는 어긋내 봐야 안다」만 일반",
-      "decided_at": "2026-10-05"
+      "status": "fed_back",
+      "reason": "묶음 D · FB-14 와 함께 — 평가셋 교체는 특화, 「검사가 무는지는 어긋내 봐야 안다」만 일반 — 2026-10-05 되먹임: 기존 「무엇을 잡는가」 칸에 「어긋내 본 근거가 있을 때만, 없으면 확인불가」. 케이스 gate-catches-unproven 옛 0/3 · 새 3/3",
+      "decided_at": "2026-10-05",
+      "feedback": {
+        "commit": "e315a39a90765d526bbd5085c0327f3c382f0090",
+        "cases": [
+          "gate-catches-unproven"
+        ],
+        "budget_delta": 235
+      }
     },
     {
       "id": "FB-14",
@@ -253,9 +260,16 @@
           "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
         }
       ],
-      "status": "defect",
-      "reason": "묶음 D · 혼합 — 새 항목이 아니라 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다, 근거가 없으면 확인불가(저자 결정). 평가셋 다섯 교체는 특화",
-      "decided_at": "2026-10-05"
+      "status": "fed_back",
+      "reason": "묶음 D · 혼합 — 새 항목이 아니라 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다, 근거가 없으면 확인불가(저자 결정). 평가셋 다섯 교체는 특화 — 2026-10-05 되먹임: 기존 「무엇을 잡는가」 칸에 「어긋내 본 근거가 있을 때만, 없으면 확인불가」. 케이스 gate-catches-unproven 옛 0/3 · 새 3/3",
+      "decided_at": "2026-10-05",
+      "feedback": {
+        "commit": "e315a39a90765d526bbd5085c0327f3c382f0090",
+        "cases": [
+          "gate-catches-unproven"
+        ],
+        "budget_delta": 235
+      }
     },
     {
       "id": "FB-15",
@@ -321,9 +335,16 @@
           "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
         }
       ],
-      "status": "defect",
-      "reason": "FB-13 · FB-14 를 한 덩어리로 본 것 — 비교기가 정규화한 줄로 견주게 되면서(Codex 리뷰) 빈 줄 하나를 사이에 둔 둘이 합쳐졌다. 판정은 둘을 따른다: 묶음 D, 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다. 평가셋 다섯 교체는 특화",
-      "decided_at": "2026-10-05"
+      "status": "fed_back",
+      "reason": "FB-13 · FB-14 를 한 덩어리로 본 것 — 비교기가 정규화한 줄로 견주게 되면서(Codex 리뷰) 빈 줄 하나를 사이에 둔 둘이 합쳐졌다. 판정은 둘을 따른다: 묶음 D, 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다. 평가셋 다섯 교체는 특화 — 2026-10-05 되먹임: 기존 「무엇을 잡는가」 칸에 「어긋내 본 근거가 있을 때만, 없으면 확인불가」. 케이스 gate-catches-unproven 옛 0/3 · 새 3/3",
+      "decided_at": "2026-10-05",
+      "feedback": {
+        "commit": "e315a39a90765d526bbd5085c0327f3c382f0090",
+        "cases": [
+          "gate-catches-unproven"
+        ],
+        "budget_delta": 235
+      }
     }
   ]
 }
