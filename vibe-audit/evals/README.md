@@ -1791,21 +1791,38 @@ diff 가 「이번에 주의 예산을 얼마나 더 썼는가」다. 천장(상
 | `gate-root-cause-auth` | FB-17 | `audit-secrets` 「담당이 아닌 것은 부적합이 아닙니다」 끝 — 넘기는 것은 원인이지 실패가 아니다 | 송장이 ID 만으로 남의 회사에 읽히는데 뿌리가 스키마(소유 열 없음)다 — 실패를 통째로 `audit-data` 에 넘기면 떨어진다 | JWT 서명 미검증 |
 | `gate-comment-owned` | FB-6 · 7 · 8 | `audit-internal` 머리 · 항목 1 · 새 항목 13 — 결정이 사는 자리, 주석 · 독스트링도 그 자리 | 「재시도하지 않는다(결정)」 주석 아래서 세 번 재시도한다 — 기준 문서가 아니라며 빼거나 넘기면 떨어진다 | `CLAUDE.md` 의 FastAPI 버전과 의존성이 다르다 |
 
-**둘 다 아직 모델로 재지 않았다.** 이 저장소의 CI 는 PR 에서 `route-*` 만 돌리고, 수동 실행은
-케이스를 고를 수 없는 전수(천장 $40)다 — 월 한도 $20(PRD 조각 1)을 넘는다. 그래서 저자가
-로컬에서 잰다(ADR 0001 과 같은 방향).
+**재 봤다 — 두 케이스 다 옛 문구를 가르지 못한다** (2026-10-05, claude-sonnet-5, 3회씩,
+`--ablation none`, 합계 $6.40).
+
+| 케이스 | 새 문구 | 옛 문구(`4999711`) |
+|---|---|---|
+| `gate-root-cause-auth` | 1.000 (3/3) | **1.000 (3/3)** |
+| `gate-comment-owned` | 1.000 (3/3) | **1.000 (3/3)** |
+
+**이 케이스들은 이 되먹임을 지키지 않는다** — 문구를 되돌려도 초록이다. 새 문구가 틀렸다는
+뜻이 아니라, 이 픽스처로는 차이가 안 잰다는 뜻이다. 옛 감사자도 이만큼 노골적인 자리는 잡는다.
+
+- `gate-root-cause-auth` — ERP 에서 샌 것은 「누가 특채를 냈는지 남지 않는다」, **체크 항목 어디에도
+  딱 맞지 않는** 감사 추적의 실패였다. 픽스처는 항목 5(소유자 확인)에 그대로 걸리는 모양이라 옛
+  문구도 자기 NC 로 적었다.
+- `gate-comment-owned` — 옛 문구도 주석과 코드가 정반대인 자리를 스스로 잡았다. 처음 판은
+  픽스처의 `CLAUDE.md` 가 「약속은 주석에 적는다」를 적고 있어 그 길로 잡을 수 있었는데, 그 줄을
+  뺀 판에서도 같았다.
+
+그래서 **FB-6 · 7 · 8 · 17 은 `defect` 로 둔다** — `fed_back` 은 「되먹였고 그것이 지켜진다」를
+뜻하는데 뒤쪽이 아직 없다. 케이스는 지우지 않는다. 회귀 표본으로는 쓸모가 있고(두 감사자가 이
+자리에서 거꾸로 가면 떨어진다), 무는 픽스처를 다시 만들 때의 출발점이다. 다시 만들 때 볼 것:
+체크 항목에 바로 걸리지 않는 실패, 원인이 스키마에 **더 크게** 보이는 모양, 주석 말고도 볼 것이
+많은 저장소.
+
+다시 잴 때는 옛 문구를 **별도 worktree** 에서 돌린다 — 작업트리의 감사자를 되돌리면 그동안의
+커밋에 옛 문구가 섞일 수 있고, `HEAD~1` 같은 상대 이름은 측정 중에 커밋하면 가리키는 것이 바뀐다.
 
 ```bash
-./scripts/run-evals.sh --case 'gate-root-cause-auth' --runs 3
-./scripts/run-evals.sh --case 'gate-comment-owned' --runs 3
+git worktree add --detach ../old HEAD
+git -C ../old checkout <되먹임 커밋>^ -- vibe-audit/agents/audit-secrets.md vibe-audit/agents/audit-internal.md
+(cd ../old && ./scripts/run-evals.sh --case gate-root-cause-auth --runs 3 --ablation none)
 ```
-
-무는지 보려면 **옛 문구로도** 한 번씩 돌린다 — 두 감사자만 되먹임 커밋의 부모로 되돌려
-(`git checkout <되먹임 커밋>^ -- vibe-audit/agents/audit-secrets.md vibe-audit/agents/audit-internal.md`)
-돌리고, `git checkout HEAD -- <같은 두 파일>` 로 되돌린다. 옛 문구에서
-함정 그레이더가 떨어지고 새 문구에서 통과해야 이 케이스가 그 되먹임을 지킨다. 옛 문구에서도
-통과하면 픽스처가 함정을 못 만든 것이고, 케이스를 고친다. 결과가 나오면 `feedback.json` 의
-해당 후보를 `fed_back` 으로 옮긴다.
 
 ## 얼마나 걸리나
 
