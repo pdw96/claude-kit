@@ -74,12 +74,46 @@ def check_feedback(who, fb):
         bad.append(f"{who}: feedback.cases 가 비었다 — 되먹임 한 건에 케이스 하나")
     else:
         for c in cases:
+            # **기록한 커밋에서 찾는다.** 지금 작업트리에서 찾으면 케이스보다 앞선 커밋을 적어도
+            # 나중에 케이스가 생기는 순간 통과하고, 케이스 이름을 바꾸면 맞던 기록이 떨어진다
+            # (Codex 리뷰). 되먹임 커밋과 케이스는 같은 시점의 증거여야 한다.
             if not isinstance(c, str) or not re.fullmatch(r"[\w.-]+", c) \
-                    or not (ROOT / "vibe-audit" / "evals" / c / "case.yaml").is_file():
-                bad.append(f"{who}: 케이스 {c!r} 가 vibe-audit/evals/ 에 없다")
+                    or not SHA.match(commit) \
+                    or subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e",
+                                       f"{commit}:vibe-audit/evals/{c}/case.yaml"],
+                                      capture_output=True).returncode != 0:
+                bad.append(f"{who}: 케이스 {c!r} 가 feedback.commit 의 vibe-audit/evals/ 에 없다")
     if not isinstance(fb.get("budget_delta"), int) or isinstance(fb.get("budget_delta"), bool):
         bad.append(f"{who}: feedback.budget_delta 가 정수가 아니다 — 호출 시 문자 증감")
     return bad
+
+
+def history(path):
+    """대장이 이 저장소에서 추적되는 파일이면, 지난 판마다 적힌 {id: hash}. 아니면 None.
+
+    지금 판만 보면 끝 후보를 지우거나, 가운데를 지우고 뒤를 당겨도 번호가 이어져 통과한다 —
+    그 번호가 딴 후보에 다시 붙으면 `FB-n` 을 가리키던 기록이 엉뚱한 것을 가리킨다(Codex 리뷰).
+    """
+    try:
+        rel = path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return None
+    log = subprocess.run(["git", "-C", str(ROOT), "log", "--format=%H", "--", rel],
+                         capture_output=True, text=True)
+    if log.returncode != 0:
+        return None
+    seen = {}
+    for rev in log.stdout.split():
+        body = subprocess.run(["git", "-C", str(ROOT), "show", f"{rev}:{rel}"],
+                              capture_output=True, text=True)
+        try:
+            rows = json.loads(body.stdout).get("candidates", [])
+        except (ValueError, AttributeError):
+            continue
+        for c in rows if isinstance(rows, list) else []:
+            if isinstance(c, dict) and isinstance(c.get("id"), str):
+                seen.setdefault(c["id"], (c.get("hash"), rev))
+    return seen
 
 
 def main():
@@ -130,6 +164,15 @@ def main():
             bad += check_feedback(who, c.get("feedback"))
         elif "feedback" in c:
             bad.append(f"{who}: 되먹임 완료가 아닌데 feedback 이 있다 — 상태와 기록이 어긋난다")
+
+    past = history(path)
+    if past:
+        now = {c.get("id"): c.get("hash") for c in cands if isinstance(c, dict)}
+        for fid, (h, rev) in sorted(past.items()):
+            if fid not in now:
+                bad.append(f"{fid}: 지난 판({rev[:7]})에 있던 번호가 사라졌다 — 판정은 고치되 줄은 지우지 않는다")
+            elif now[fid] != h:
+                bad.append(f"{fid}: 지난 판({rev[:7]})과 hash 가 다르다 — 번호의 주인이 바뀌었다")
 
     if sorted(ids) != list(range(1, len(ids) + 1)):
         bad.append(f"id 가 FB-1 부터 이어지지 않거나 겹친다: {sorted(ids)}")

@@ -78,19 +78,23 @@ def strip_provenance(lines):
 
 
 def hunks(orig_text, copy_text):
-    """(사본 줄 번호, 원본 쪽 줄, 사본 쪽 줄) — 공백만 다른 덩어리는 뺀다."""
-    a = orig_text.splitlines()
-    b = strip_provenance(copy_text.splitlines())
-    bt = [ln for _, ln in b]
-    sm = difflib.SequenceMatcher(None, a, bt, autojunk=False)
+    """(사본 줄 번호, 원본 쪽 줄, 사본 쪽 줄) — 공백만 다른 자리는 덩어리를 만들지 않는다.
+
+    **정규화한 줄로 견준다.** 날 줄로 견주고 나서 정규화하면, 뜻이 바뀐 줄 옆에 공백만
+    바뀐 줄이 붙어 있을 때 둘이 한 덩어리로 묶여 해시가 달라진다 — 같은 고침이 사본마다
+    다른 후보가 되고, 판정한 후보가 이웃 공백 하나로 다시 올라온다(Codex 리뷰). 빈 줄은
+    견줄 목록에서 빼고, 보여 줄 때만 날 줄과 줄 번호를 쓴다."""
+    def keyed(numbered):
+        rows = [(n, ln, " ".join(ln.split())) for n, ln in numbered]
+        return [r for r in rows if r[2]]
+    a = keyed(enumerate(orig_text.splitlines(), 1))
+    b = keyed(strip_provenance(copy_text.splitlines()))
+    sm = difflib.SequenceMatcher(None, [r[2] for r in a], [r[2] for r in b], autojunk=False)
     for op, i1, i2, j1, j2 in sm.get_opcodes():
         if op == "equal":
             continue
-        o, c = a[i1:i2], bt[j1:j2]
-        if norm(o) == norm(c):
-            continue
         at = b[j1][0] if j1 < len(b) else (b[-1][0] + 1 if b else 1)
-        yield at, o, c
+        yield at, [r[1] for r in a[i1:i2]], [r[1] for r in b[j1:j2]]
 
 
 def preflight(c):
@@ -127,6 +131,17 @@ def preflight(c):
     dirty = rg("status", "--porcelain", "--untracked-files=all", "--", rel).stdout.strip()
     if dirty:
         stop.append(f"{who}: 사본 자리에 커밋 안 된 것이 있다 — {len(dirty.splitlines())} 개")
+    # **견줄 감사자 파일은 HEAD 에 추적돼 있어야 한다.** 사본 레포가 `.claude/` 를 무시하면
+    # status 는 그 파일을 안 보여 주고, 아래 `git show HEAD:` 는 감사자를 다 지운 것으로 읽어
+    # 거짓 「삭제」 후보를 낸다(Codex 리뷰). 디스크에 있는데 HEAD 에 없으면 멈춘다.
+    if not stop:
+        names = git("ls-tree", "--name-only", sha, "vibe-audit/agents/").stdout.split()
+        loose = [pathlib.PurePosixPath(n).name for n in names
+                 if (path / pathlib.PurePosixPath(n).name).exists()
+                 and rg("cat-file", "-e", f"HEAD:{rel}/{pathlib.PurePosixPath(n).name}" if rel != "." else
+                        f"HEAD:{pathlib.PurePosixPath(n).name}").returncode != 0]
+        if loose:
+            stop.append(f"{who}: 사본 자리의 감사자가 HEAD 에 없다(무시됐거나 추적 안 됨) — {', '.join(loose)}")
     if stop:
         return stop, None
     head = rg("rev-parse", "HEAD").stdout.strip()

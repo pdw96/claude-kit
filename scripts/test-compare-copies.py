@@ -178,6 +178,20 @@ def main():
         expect("원격 origin 이 없는 사본에서 안 멈췄다", rc == 1, out[-400:])
         sh(copy, "git", "remote", "rename", "away", "origin")
 
+        # 무시된 파일 — 디스크에는 있는데 HEAD 에 없다(Codex 리뷰)
+        sh(copy, "git", "rm", "-q", "--cached", ".claude/agents/audit-b.md")
+        (copy / ".gitignore").write_text(".claude/agents/audit-b.md\n")
+        commit(copy, "감사자 하나를 무시")
+        sh(copy, "git", "push", "-q")
+        rc, _, out = compare()
+        expect("무시돼 HEAD 에 없는 감사자 파일이 있는데 안 멈췄다", rc == 1 and "HEAD 에 없다" in out, out[-400:])
+        (copy / ".gitignore").unlink()
+        sh(copy, "git", "add", "-A")
+        commit(copy, "되돌림")
+        sh(copy, "git", "push", "-q")
+        rc, _, out = compare()
+        expect("무시를 푼 뒤에도 멈췄다", rc == 0, out[-400:])
+
         # 원본에 없는 커밋
         bad = t / "bad.json"
         bad.write_text(json.dumps({"copies": [{"repo": "x", "agents_path": str(agents),
@@ -197,6 +211,18 @@ def main():
 
         rc, _, out = compare()
         expect("되돌린 뒤에도 멈췄다", rc == 0, out[-400:])
+
+    # 뜻이 바뀐 줄 옆에 공백만 바뀐 줄이 붙어도 같은 후보다(Codex 리뷰) — 함수로 직접 본다
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cc", script)
+    cc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cc)
+    one = {cc.content_hash(o, c) for _, o, c in cc.hunks("A\nB\n", "A\nC\n")}
+    two = {cc.content_hash(o, c) for _, o, c in cc.hunks("A\nB\n", "A  \nC\n")}
+    if one == two and len(one) == 1:
+        passes += 1
+    else:
+        fails.append(f"이웃 줄의 공백만 다른 두 고침이 다른 후보가 됐다 — {one} / {two}")
 
     if fails:
         for f in fails:

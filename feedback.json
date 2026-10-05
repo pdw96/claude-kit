@@ -293,6 +293,23 @@
       "status": "defect",
       "reason": "묶음 A — 밖에서 보이는 권한 실패는 뿌리가 데이터 모델에 있어도 이 감사자의 NC, 넘길 것은 모델이 옳은가뿐. 공통 절 「담당은 고침이 어디에 있는가로」와 맞물림을 한 줄. ERP 이름은 뺀다",
       "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-18",
+      "hash": "sha256:ee43296c53138aca8808d69bdf84f33f4916c2d3dee1edbbb4471f9a0c89cc63",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "FB-13 · FB-14 를 한 덩어리로 본 것 — 비교기가 정규화한 줄로 견주게 되면서(Codex 리뷰) 빈 줄 하나를 사이에 둔 둘이 합쳐졌다. 판정은 둘을 따른다: 묶음 D, 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다. 평가셋 다섯 교체는 특화",
+      "decided_at": "2026-10-05"
     }
   ]
 }
