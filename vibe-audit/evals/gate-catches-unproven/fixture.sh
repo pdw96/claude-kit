@@ -53,5 +53,5 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest ruff
       - run: ruff check . || true
-      - run: pytest -q
+      - run: python -m pytest -q
 YML
