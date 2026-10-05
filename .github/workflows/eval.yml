@@ -29,6 +29,13 @@ on:
 # **같은 PR 의 앞선 실행은 취소한다.** 한 커밋에 pull_request 실행이 1초 차로 둘 떠 수트를
 # 두 번 돌린 일이 있었고(run 35999877690 · 35999878954), 구독 토큰의 사용량 한도를 두 배로
 # 썼다. 새 커밋을 올리면 앞 커밋의 수트도 쓸모가 없으므로 같이 끊는다.
+# **러너와 액션 판 (2026-10-05, 저자가 정했다).** 러너는 `ubuntu-24.04` 로 박는다 —
+# `ubuntu-latest` 는 10월 19일부터 Ubuntu 26 을 가리켜, 이 파일을 안 고쳐도 도는 곳이
+# 바뀐다. 26 으로는 직접 올린다. 액션은 Node 24 로 도는 최신 메이저(checkout · setup-node
+# v7, cache v6, upload-artifact v7) — v4 는 Node 20 이라 잡마다 폐기 경고와 punycode ·
+# url.parse 경고를 냈다. setup-node 는 v5 부터 package.json 을 보고 캐시를 켜는데, 이
+# 저장소엔 package.json 이 없고 eval 잡은 시크릿을 받으므로 `package-manager-cache: false`
+# 로 끈다(그 액션 README 의 권고).
 concurrency:
   group: eval-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -36,7 +43,7 @@ concurrency:
 jobs:
   # 키 없이 도는 것. 언제나 물어야 한다.
   gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       has_key: ${{ steps.key.outputs.has_key }}
       # 같은 지문이 이미 통과했으면 false. 찾아보지 않은 경우(workflow_dispatch)엔
@@ -48,12 +55,13 @@ jobs:
       # 받아, 대장에 한 줄이라도 생기는 순간 「심었다는 커밋이 없다」로 gate 가 떨어진다
       # — sync-agents.sh 는 대장을 적는 커밋보다 앞선 HEAD 를 적으므로 늘 그렇다
       # (Codex 리뷰 · 깊이 1 클론에서 재현).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          package-manager-cache: false
       - run: npm install -g @anthropic-ai/claude-code
 
       - name: 키 없이 도는 게이트
@@ -372,7 +380,7 @@ jobs:
           out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
           for i in range(3):
               (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
-              (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+              (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
           gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
           # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
           gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
@@ -420,7 +428,7 @@ jobs:
           python3 - "$f/ra.json" <<'PY'
           import json, pathlib, sys
           # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
-          tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
           rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
                   if p.stem not in ("auditor-fired", "trap-not-an-nc")]
           runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
@@ -462,7 +470,7 @@ jobs:
           f = pathlib.Path(sys.argv[1])
           names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
           disk = lambda n: [p.stem for p in sorted(pathlib.Path(f"vibe-audit/evals/{n}/graders").glob("*.md"))]
-          (f / "ok.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          (f / "ok.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
           ok = lambda n: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"),
                           "graders": [{"name": g, "passed": True, "weight": 3, "scored": True} for g in disk(n)]}
           def case(n, runs):
@@ -494,7 +502,7 @@ jobs:
           json.dump({"cases": [two(n, ok) for n in names]}, open(f / "wook.json", "w"))
           json.dump({"cases": [two(n, lambda n: dict(ok(n), graders=[])) for n in names]}, open(f / "woempty.json", "w"))
           PY
-          mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"claude-sonnet-5":{}}}' > "$f/words/trace.jsonl"
+          mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"claude-sonnet-5-5":{}}}' > "$f/words/trace.jsonl"
           for m in miss:3 lim:6 empty:3 limpass:6 ratetext:0 allok:0 errrun:3 errlim:6; do
             set +e
             FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
@@ -517,7 +525,7 @@ jobs:
           json_one=$(mktemp); python3 - "$json_one" <<'PY'
           import json, pathlib, sys
           g = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/route-quiet/graders").glob("*.md"))]
-          tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5":{}}}\n')
+          tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
           run = {"score": 1.0, "passed": True, "tracePath": str(tr),
                  "graders": [{"name": n, "passed": True, "weight": 3, "scored": True} for n in g]}
           json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
@@ -530,7 +538,7 @@ jobs:
           if [ "$st" != 3 ]; then
             echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
           fi
-          # 트레이스에 요청한 모델(claude-sonnet-5)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
+          # 트레이스에 요청한 모델(claude-sonnet-5-5)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
           printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5":{}}}' > "$f/haiku.jsonl"
           python3 -c "
           import json
@@ -545,6 +553,31 @@ jobs:
           set -e
           if [ "$st" != 3 ]; then
             echo "::error::run-evals.sh 가 요청한 모델이 안 보이는 회차를 받았다 (exit $st)"; exit 1
+          fi
+          # 이름이 겹치는 딴 모델은 같은 모델이 아니다 — claude-sonnet-5 를 요청했는데
+          # claude-sonnet-5-5 로 돈 회차(→ 3). 부분 문자열로 견주던 러너는 이것을 받았다.
+          # 거꾸로 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)은 받아야 한다(→ 0).
+          set +e
+          FAKE_RESULT="$f/allok.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model claude-sonnet-5 >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 3 ]; then
+            echo "::error::run-evals.sh 가 claude-sonnet-5 를 요청했는데 claude-sonnet-5-5 로 돈 회차를 받았다 (exit $st)"; exit 1
+          fi
+          printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5-20251001":{}}}' > "$f/dated.jsonl"
+          python3 -c "
+          import json
+          d = json.load(open('$f/allok.json'))
+          for c in d['cases']:
+              for r in c['arms']['with']:
+                  r['tracePath'] = '$f/dated.jsonl'
+          json.dump(d, open('$f/dated.json', 'w'))"
+          set +e
+          FAKE_RESULT="$f/dated.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model claude-haiku-4-5 >/dev/null 2>&1
+          st=$?
+          set -e
+          if [ "$st" != 0 ]; then
+            echo "::error::run-evals.sh 가 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)을 받지 않았다 (exit $st)"; exit 1
           fi
           # 회차가 다 채점됐어도 트레이스가 없으면 무효다 — 모델 · 한도를 볼 수 없다(→ 3)
           python3 -c "
@@ -740,7 +773,7 @@ jobs:
       - name: 같은 입력이 이미 통과했는가
         id: seen
         if: steps.key.outputs.has_key == 'true' && github.event_name != 'workflow_dispatch'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .eval-pass
           key: ${{ steps.fp.outputs.key }}
@@ -771,7 +804,7 @@ jobs:
   # `--ablation none` — 플러그인 없는 팔은 감사자를 부를 수 없어 트리거
   # 케이스에서 늘 0 이다. 재는 것이 없는데 값은 두 배다.
   eval:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: gate
     if: needs.gate.outputs.has_key == 'true' && needs.gate.outputs.fresh == 'true'
     # 전수의 CI 실측은 아직 없다. README 의 123분은 동시성이 1 이던 때 열세 케이스를
@@ -779,10 +812,11 @@ jobs:
     # 넉넉히 둔다 — 잘리면 결과도 아티팩트도 안 남는다(Codex 리뷰).
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          package-manager-cache: false
       - run: npm install -g @anthropic-ai/claude-code
 
       # **이 자격을 받는 사람은 쓰기 권한자뿐이다 — 저자가 이 위험을 받아들였다.**
@@ -826,7 +860,11 @@ jobs:
             # 입력이 캐시에 「통과」로 남는다(Codex 리뷰). route 는 심판 없는 결정론 채점이고
             # 실측이 여러 번 24/24 라 흔들림 여유를 둘 까닭이 없다. 판정 케이스(전수)는 심판이
             # 갈리므로 0.8 을 둔다.
-            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 1.0 --max-cost-usd 10
+            #
+            # -j 8 은 시험이다(2026-10-05, 저자가 정했다). 러너 기본 -j 4 로 24회가 16분 남짓
+            # 걸렸다. 같은 자격의 요금 한도에 부딪혀 더 느려지면 이 깃발을 뺀다 — 결과는
+            # evals/README 「CI 정비」.
+            ./scripts/run-evals.sh --case 'route-*' --ablation none --runs 3 --threshold 1.0 --max-cost-usd 10 -j 8
           fi
 
       # 통과한 입력만 적어 둔다. 지문은 이 잡에서 다시 낸다 — gate 잡과 CLI 가
@@ -840,13 +878,13 @@ jobs:
           echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" > .eval-pass/run.txt
           echo "key=$(python3 scripts/eval-key.py route)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: steps.pass.outcome == 'success'
         with:
           path: .eval-pass
           key: ${{ steps.pass.outputs.key }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: eval-result
@@ -859,7 +897,7 @@ jobs:
   # 통과했다(gate 의 지문 캐시). 자격이 없어 안 돈 것은 **실패**다 — 안 돌린 것을
   # 통과로 세지 않는다.
   verdict:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [gate, eval]
     if: always()
     steps:
