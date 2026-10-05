@@ -10,7 +10,7 @@ agent  audit-contract      891   10115
 agent  audit-data          816   10838
 agent  audit-internal      804   10937
 agent  audit-ops           686   10255
-agent  audit-quality       777   10593
+agent  audit-quality       777   10828
 agent  audit-secrets       885   10256
 skill  audit-brief         283    4456
        — 상시 합계            5142
