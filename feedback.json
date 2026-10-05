@@ -52,9 +52,16 @@
           "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
         }
       ],
-      "status": "defect",
-      "reason": "묶음 B — 「통과하는 동안 쓰기가 멈추는가」는 어느 DB 마이그레이션에서도 같은 질문",
-      "decided_at": "2026-10-05"
+      "status": "fed_back",
+      "reason": "묶음 B — 「통과하는 동안 쓰기가 멈추는가」는 어느 DB 마이그레이션에서도 같은 질문 — 2026-10-05 되먹임: 일반형(엔진 · 판 먼저, 못 하면 확인불가 · 피할 형태가 있는데 안 썼으면 부적합). 케이스 gate-ddl-lock 옛 0/3 · 새 3/3",
+      "decided_at": "2026-10-05",
+      "feedback": {
+        "commit": "910132c5326ec6693eba4d6cd96b34bc546233f3",
+        "cases": [
+          "gate-ddl-lock"
+        ],
+        "budget_delta": 1187
+      }
     },
     {
       "id": "FB-4",
@@ -69,9 +76,16 @@
           "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
         }
       ],
-      "status": "defect",
-      "reason": "묶음 B · 혼합 — 일반: 통과해도 잠금으로 쓰기가 멈출 수 있다 · DDL 이 무엇을 하는가를 구문으로 · 적혀 있는가/맞는가 짝 · 트랜잭션 범위. DB 엔진·버전을 모르면 잠금 판정은 확인불가. 뺄 것: 「적으면 적합」(ERP 에 배포처가 없어서 나온 말) · Alembic 열 · PG 실측 · NC-21",
-      "decided_at": "2026-10-05"
+      "status": "fed_back",
+      "reason": "묶음 B · 혼합 — 일반: 통과해도 잠금으로 쓰기가 멈출 수 있다 · DDL 이 무엇을 하는가를 구문으로 · 적혀 있는가/맞는가 짝 · 트랜잭션 범위. DB 엔진·버전을 모르면 잠금 판정은 확인불가. 뺄 것: 「적으면 적합」(ERP 에 배포처가 없어서 나온 말) · Alembic 열 · PG 실측 · NC-21 — 2026-10-05 되먹임: 일반형(엔진 · 판 먼저, 못 하면 확인불가 · 피할 형태가 있는데 안 썼으면 부적합). 케이스 gate-ddl-lock 옛 0/3 · 새 3/3",
+      "decided_at": "2026-10-05",
+      "feedback": {
+        "commit": "910132c5326ec6693eba4d6cd96b34bc546233f3",
+        "cases": [
+          "gate-ddl-lock"
+        ],
+        "budget_delta": 1187
+      }
     },
     {
       "id": "FB-5",
