@@ -1,0 +1,315 @@
+{
+  "candidates": [
+    {
+      "id": "FB-1",
+      "hash": "sha256:7f945f59095da36e1348c17ea226fa0923f6a5e2ed9fe7e5ce93088e5f7bafdc",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-contract.md",
+            "audit-data.md",
+            "audit-internal.md",
+            "audit-ops.md",
+            "audit-quality.md",
+            "audit-secrets.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "ERP 의 대장 경로와 그 레포의 절차(ADR 0010 · 0011, 낮음은 이슈로)",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-2",
+      "hash": "sha256:44745f39a4a8051af8d7b0645db3a01775aa00784d1ddfd80662ae6161eeb399",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-contract.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "ERP 사본에만 있는 .claude/agents/README.md 를 가리킨다",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-3",
+      "hash": "sha256:7042630df9a8b7cec341825a7004082bd8cd7191f4b95549632147ce2bea5526",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-data.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 B — 「통과하는 동안 쓰기가 멈추는가」는 어느 DB 마이그레이션에서도 같은 질문",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-4",
+      "hash": "sha256:c9b9a17b656191594c5a19e04d70c58cb74fcc8eee40964969d122979560ea04",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-data.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 B · 혼합 — 일반: 통과해도 잠금으로 쓰기가 멈출 수 있다 · DDL 이 무엇을 하는가를 구문으로 · 적혀 있는가/맞는가 짝 · 트랜잭션 범위. DB 엔진·버전을 모르면 잠금 판정은 확인불가. 뺄 것: 「적으면 적합」(ERP 에 배포처가 없어서 나온 말) · Alembic 열 · PG 실측 · NC-21",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-5",
+      "hash": "sha256:9e44f914ef27c42b83c59bbb1b47b08c3cbc8baf0cc51115875e6de0fb76de8d",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "설명은 호출을 거는 글 — 묶음 C 를 받아들여도 「ADR」을 바꿀 까닭이 없다(저자 결정 2026-10-05)",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-6",
+      "hash": "sha256:2da312b4a66410b30ce410789c1cd455302e61c4c78d91c76c3a7b5bbbc809e1",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 C1 · 혼합 — 일반: 기준 문서를 고정 목록으로 두지 않고 저장소가 결정을 남기기로 적은 자리를 따른다 · 주석·독스트링의 말과 코드가 맞는가도 이 감사가 본다(원본 audit-data · quality 가 이미 internal 로 넘긴다) · CHECKLIST.md 는 결정이 아니라 절차라 기준 문서에서 뺀다(저자 결정). 특화: ERP 의 목록 · CLAUDE.md 인용",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-7",
+      "hash": "sha256:2c1e23744d6ebb23750b456a82b3015091380373954d90c729e058ec472ec086",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 C1 · 혼합 — FB-6 을 항목 1 에. 목록은 특화",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-8",
+      "hash": "sha256:0001f06de28e6ddb8e8b4e61921fc5dc35013738ce205e51395c92f5c8412765",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 C2 · 혼합 — 일반: 결정은 ADR 밖(주석·독스트링)에도 산다 — 코드는 고치고 이유를 적은 주석은 그대로 둔 모양. 「ADR 은 고치지 않고 대체한다」는 레포 관례라 옮기지 않는다(반박자 지적)",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-9",
+      "hash": "sha256:14acdc80b67902d4e4172e21aef7fec725f1092b7ebda75100d96ce2f137d102",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "공통 절 「판정은 넷이다」가 여섯 감사자 모두에 같은 규칙을 이미 둔다 — 되먹일 것이 없다(초안의 「원본 안의 어긋남」은 틀렸다)",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-10",
+      "hash": "sha256:080fcf235f548a9dd954dee2f9f4392b6ff15f33c5d1c94c687e630e01be4ac9",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "LLM 없는 제품에 맞춘 설명",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-11",
+      "hash": "sha256:7d6a299a1b67a708f0f8dea0beea328c3c68729caaf227246f19c6b776d46236",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "LLM 없는 제품에 맞춘 예시",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-12",
+      "hash": "sha256:772f6f81fc15ec67063597dc21b0fe328bd8ff064010175dffc239af1768848b",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "LLM 없는 제품에 맞춘 예시",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-13",
+      "hash": "sha256:16982688cdc7f352e898f3cacf69bd5671fc6c10d30f2f8b08ae775b3e9783d2",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 D · FB-14 와 함께 — 평가셋 교체는 특화, 「검사가 무는지는 어긋내 봐야 안다」만 일반",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-14",
+      "hash": "sha256:d85e52258afabf7cbd526e6a814eafcbec8127af678d2bdac2a20c0c92233676",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 D · 혼합 — 새 항목이 아니라 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다, 근거가 없으면 확인불가(저자 결정). 평가셋 다섯 교체는 특화",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-15",
+      "hash": "sha256:dea73dde72c2389c65dfe45388d3f917575f3f523e22563e6a41ad02be34e9c8",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "두 문단의 순서만 바뀜 — 되먹일 내용 없음",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-16",
+      "hash": "sha256:c3e8a064e385ffe91178fe620c8f0a7fa8fff8a541b98c7bdf792ea4b788998f",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-15 의 짝",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-17",
+      "hash": "sha256:9151d86f9898130955f2e9368927d7b5c1a31c8d8c6385cda504551bbb795203",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-secrets.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "묶음 A — 밖에서 보이는 권한 실패는 뿌리가 데이터 모델에 있어도 이 감사자의 NC, 넘길 것은 모델이 옳은가뿐. 공통 절 「담당은 고침이 어디에 있는가로」와 맞물림을 한 줄. ERP 이름은 뺀다",
+      "decided_at": "2026-10-05"
+    },
+    {
+      "id": "FB-18",
+      "hash": "sha256:ee43296c53138aca8808d69bdf84f33f4916c2d3dee1edbbb4471f9a0c89cc63",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "6d9cd8907c2c2ddede9ee86be642b52438854822",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "FB-13 · FB-14 를 한 덩어리로 본 것 — 비교기가 정규화한 줄로 견주게 되면서(Codex 리뷰) 빈 줄 하나를 사이에 둔 둘이 합쳐졌다. 판정은 둘을 따른다: 묶음 D, 기존 「무엇을 잡는가」 칸을 어긋내 본 근거 없이 채우지 않는다. 평가셋 다섯 교체는 특화",
+      "decided_at": "2026-10-05"
+    }
+  ]
+}
