@@ -1777,9 +1777,35 @@ diff 가 「이번에 주의 예산을 얼마나 더 썼는가」다. 천장(상
   description 은 상태 조건을 약하게만 적고 있고 잰 적이 없다.
   그리고 `audit-secrets` 프론트매터는 이제 **여유가 15자**다. 무언가 더하려면
   먼저 덜어 내야 한다.
-- **여섯 중 넷** — `audit-quality` · `audit-contract` · `audit-internal` 에는
-  아직 케이스가 없다. 되먹임에 기록된 거짓 판정이 그 셋에서는 안 나왔기
-  때문이고, 나오면 그때 붙인다.
+- **여섯 중 다섯** — `audit-quality` · `audit-contract` 에는 아직 케이스가 없다.
+  되먹임에 기록된 거짓 판정이 그 둘에서는 안 나왔기 때문이고, 나오면 그때 붙인다.
+  `audit-internal` 은 사본 비교에서 온 되먹임으로 `gate-comment-owned` 가 섰다(아래).
+
+## 사본 비교에서 온 되먹임 — 케이스 둘 (2026-10-05)
+
+`scripts/compare-copies.py` 가 ERP 사본(`6d9cd89`)에서 뽑은 후보 17 을 저자가 판정했고
+(`feedback.json`), 그 가운데 첫 회차(묶음 A · C1)를 원본에 옮기며 케이스를 하나씩 붙였다.
+
+| 케이스 | 되먹임 | 원본 문구 | 함정 | 대조군 |
+|---|---|---|---|---|
+| `gate-root-cause-auth` | FB-17 | `audit-secrets` 「담당이 아닌 것은 부적합이 아닙니다」 끝 — 넘기는 것은 원인이지 실패가 아니다 | 송장이 ID 만으로 남의 회사에 읽히는데 뿌리가 스키마(소유 열 없음)다 — 실패를 통째로 `audit-data` 에 넘기면 떨어진다 | JWT 서명 미검증 |
+| `gate-comment-owned` | FB-6 · 7 · 8 | `audit-internal` 머리 · 항목 1 · 새 항목 13 — 결정이 사는 자리, 주석 · 독스트링도 그 자리 | 「재시도하지 않는다(결정)」 주석 아래서 세 번 재시도한다 — 기준 문서가 아니라며 빼거나 넘기면 떨어진다 | `CLAUDE.md` 의 FastAPI 버전과 의존성이 다르다 |
+
+**둘 다 아직 모델로 재지 않았다.** 이 저장소의 CI 는 PR 에서 `route-*` 만 돌리고, 수동 실행은
+케이스를 고를 수 없는 전수(천장 $40)다 — 월 한도 $20(PRD 조각 1)을 넘는다. 그래서 저자가
+로컬에서 잰다(ADR 0001 과 같은 방향).
+
+```bash
+./scripts/run-evals.sh --case 'gate-root-cause-auth' --runs 3
+./scripts/run-evals.sh --case 'gate-comment-owned' --runs 3
+```
+
+무는지 보려면 **옛 문구로도** 한 번씩 돌린다 — 두 감사자만 되먹임 커밋의 부모로 되돌려
+(`git checkout <되먹임 커밋>^ -- vibe-audit/agents/audit-secrets.md vibe-audit/agents/audit-internal.md`)
+돌리고, `git checkout HEAD -- <같은 두 파일>` 로 되돌린다. 옛 문구에서
+함정 그레이더가 떨어지고 새 문구에서 통과해야 이 케이스가 그 되먹임을 지킨다. 옛 문구에서도
+통과하면 픽스처가 함정을 못 만든 것이고, 케이스를 고친다. 결과가 나오면 `feedback.json` 의
+해당 후보를 `fed_back` 으로 옮긴다.
 
 ## 얼마나 걸리나
 
