@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: gate-root-cause-auth
+description: |
+  사본 되먹임(ERP, 2026-10-05 · feedback.json FB-17). 원본 audit-secrets 는
+  「가장 흔히 새는 자리는 스키마 설계」라며 데이터 모델의 옳고 그름을 넘기는데,
+  그 문장이 **밖에서 보이는 권한 실패까지** 통째로 audit-data 에 넘기게 읽혔다.
+  audit-data 는 권한을 보지 않으므로 그 실패는 아무도 적지 않는다.
+expected_outcome: |
+  남의 송장이 ID 만으로 읽히는 실패는 audit-secrets 의 NC 로 남는다. audit-data
+  에 넘어가는 것은 「송장에 소유자 열이 없는 모델이 옳은가」뿐이다.
+tags: [gate, secrets, feedback-copy-erp]
+context:
+  scaffold_script: fixture.sh
