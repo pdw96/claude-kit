@@ -10,7 +10,7 @@
 - Claude Code CLI 2.1.28x — `claude plugin validate` · `claude plugin eval`. CLI 버전은 수트
   지문(`eval-key.py`)에 들어간다.
 - CI: GitHub Actions `eval.yml` — gate(키 없음) · eval(키 필요) · verdict(필수 체크).
-- 수트 모델 `claude-sonnet-5` · 심판 sonnet — `run-evals.sh` 가 박는다.
+- 수트 모델 `claude-sonnet-5-5`(2026-10-05 부터) · 심판 sonnet — `run-evals.sh` 가 박는다.
 
 ## 앵커볼트 — 바꾸려면 먼저 물어볼 것
 

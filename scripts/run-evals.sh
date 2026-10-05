@@ -59,11 +59,14 @@ CONC=()
 if [ "$jflag" = 1 ]; then CONC=(-j 4); fi
 
 # **모델을 박는다.** 안 박으면 회차는 돌리는 사람 계정의 기본 모델로 돈다 —
-# 사람마다, 요금제마다, CI 와 로컬이 서로 다른 모델을 재게 된다. 이 수트의
-# 트리거 숫자(README 「트리거 정확도」)는 전부 claude-sonnet-5 로 쟀으므로
-# 같은 모델로 재야 견줄 수 있다. 다른 모델로 재고 싶으면 --model 을 직접 줘라.
-# 실제로 그 모델로 돌았는지는 아래 결과 정리에서 트레이스를 읽어 찍는다.
-DEFAULT_MODEL=claude-sonnet-5
+# 사람마다, 요금제마다, CI 와 로컬이 서로 다른 모델을 재게 된다. 다른 모델로
+# 재고 싶으면 --model 을 직접 줘라. 실제로 그 모델로 돌았는지는 아래 결과
+# 정리에서 트레이스를 읽어 찍는다.
+#
+# **2026-10-05 에 claude-sonnet-5 → claude-sonnet-5-5 로 바꿨다 — 저자가 정했다.**
+# 감사자는 `model: inherit` 라 실제로는 사용자 세션의 모델로 돈다. 그날까지의 숫자
+# (README 「트리거 정확도」 등)는 claude-sonnet-5 로 쟀으므로 그 뒤 숫자와 견주지 않는다.
+DEFAULT_MODEL=claude-sonnet-5-5
 MODEL=()
 if [ "$mflag" = 1 ]; then MODEL=(--model "$DEFAULT_MODEL"); fi
 
@@ -74,6 +77,10 @@ python3 scripts/verify-graders.py
 OUT="vibe-audit/evals/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 mkdir -p "$OUT"
 
+# **`⚠ kept …` 줄은 거른다.** `--keep-temp` 로 남긴 임시 디렉터리마다 하네스가 한 줄씩
+# 찍는다(route 24회면 24줄). 남기는 것은 아래 정리가 트레이스의 모델을 읽고 실패 회차를
+# 옮기려는 것이고, 정리가 끝나면 지운다 — 사람이 열 일이 없는 줄이 로그를 덮는다.
+# 종료코드는 하네스의 것을 쓴다(PIPESTATUS).
 set +e
 claude plugin eval ./vibe-audit \
   --scaffold \
@@ -85,8 +92,8 @@ claude plugin eval ./vibe-audit \
   --json "$OUT/result.json" \
   "${CONC[@]}" \
   "${MODEL[@]}" \
-  "$@"
-status=$?
+  "$@" 2>&1 | grep --line-buffered -v '^⚠ kept /tmp/claude-eval-'
+status=${PIPESTATUS[0]}
 set -e
 
 # 실패한 회차의 트레이스만 남기고 임시 디렉터리는 지운다.
@@ -246,8 +253,12 @@ for case in d.get("cases", []):
                 seen = {"(트레이스 없음)"}
             for m in (seen or {"(기록 없음)"}):
                 models[m] += 1
+            # 이름이 같거나, 뒤에 날짜(`-20251001`) · 꼬리표(`[1m]`)만 붙은 것만 같은 모델이다.
+            # 부분 문자열로 견주면 `claude-sonnet-5` 를 요청했는데 `claude-sonnet-5-5` 로 돈
+            # 회차가 통과한다 — 기본 모델을 5-5 로 올리며 드러났다.
             if want_model and not (run.get("error") and not run.get("score")) \
-                    and not any(m == want_model or want_model in m for m in seen):
+                    and not any(re.fullmatch(re.escape(want_model) + r"(-\d{8})?(\[[^\]]*\])?", m)
+                                for m in seen):
                 wrong_model.append(f"{case.get('name')}.{arm}.run{i} ({', '.join(sorted(seen)) or '기록 없음'})")
 print("모델: " + " · ".join(f"{m} {n}회" for m, n in models.most_common()))
 

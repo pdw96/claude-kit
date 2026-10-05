@@ -596,6 +596,9 @@ GitHub 은 건너뛴 잡을 필수 체크에서 성공으로 센다. 그래서 `
 값을 쓴다). 그리고 러너가 트레이스를 지우기 전에 `modelUsage` 를 읽어
 `모델: claude-sonnet-5 24회` 처럼 **실제로 돈 모델**을 매번 찍는다.
 
+**2026-10-05 에 `claude-sonnet-5-5` 로 바꿨다 — 저자가 정했다.** 아래 「CI 정비」. 이 절과 그날까지의
+숫자는 전부 `claude-sonnet-5` 로 잰 것이다.
+
 **effort 는 기본값으로 둔다 — `low` 를 재 보고 버렸다(2026-09-23).** 구독
 사용량을 줄이려고 `CLAUDE_CODE_EFFORT_LEVEL` 을 쟀다. 이 변수는 하네스의 자식
 회차까지 닿는다(같은 케이스 3회에서 thinking 토큰이 2,197~12,399 → 534~1,697).
@@ -1825,6 +1828,29 @@ git -C ../old checkout <되먹임 커밋>^ -- vibe-audit/agents/audit-secrets.md
 (cd ../old && ./scripts/run-evals.sh --case gate-root-cause-auth --runs 3 --ablation none)
 ```
 
+## CI 정비 — 경고 · 러너 · 모델 · 동시성 (2026-10-05)
+
+저자가 CI 로그를 보고 셋을 짚었다 — 오래 걸린다, 경고가 계속 뜬다, 왜 Sonnet 5.5 가 아닌가.
+인터뷰로 정했다.
+
+| 무엇 | 전 | 후 | 까닭 |
+|---|---|---|---|
+| 액션 | `checkout` · `setup-node` · `cache` · `upload-artifact` 모두 `@v4` | `checkout@v7` · `setup-node@v7` · `cache/*@v6` · `upload-artifact@v7` | v4 는 Node 20 이라 잡마다 「Node.js 20 is deprecated」와 `punycode` · `url.parse()` 폐기 경고를 냈다. 넷 다 `action.yml` 이 `node24` 인 것을 그 태그에서 확인했다. 깨는 변경은 setup-node 의 자동 캐시(v5) · `always-auth` 제거(v6) · ESM(v7), checkout 의 자격 파일 위치(v6) · 포크 PR 거절(v7, `pull_request_target` 만) — 이 워크플로는 package.json · `always-auth` · `pull_request_target` 을 안 쓴다. 자동 캐시는 시크릿을 받는 잡이라 `package-manager-cache: false` 로 끈다 |
+| 러너 | `ubuntu-latest` | `ubuntu-24.04` | 10월 19일부터 `ubuntu-latest` 가 Ubuntu 26 을 가리킨다는 안내가 잡마다 떴다. 파일을 안 고쳐도 도는 곳이 바뀌는 것을 막는다. 26 으로는 직접 올린다 |
+| `⚠ kept …` 줄 | 회차마다 한 줄(route 24줄) | 러너가 거른다 | `--keep-temp` 의 안내다. 남기는 것은 정리가 트레이스의 모델을 읽고 실패 회차를 옮기려는 것이고, 정리가 끝나면 지운다. 깃발은 그대로 — 종료코드는 `PIPESTATUS` 로 하네스의 것을 쓴다 |
+| 수트 모델 | `claude-sonnet-5` | `claude-sonnet-5-5` | 감사자는 `model: inherit` 라 실제로는 사용자 세션의 모델로 돈다. 그날까지의 숫자와는 견주지 않는다. 판정 케이스의 새 기준은 다음 전수(`workflow_dispatch`) 때 잰다 |
+| 모델 확인 | 요청한 이름이 트레이스 모델 이름에 **부분 문자열**로 들어 있으면 같은 모델 | 이름이 같거나 뒤에 날짜(`-20251001`) · 꼬리표(`[1m]`)만 붙은 것 | `claude-sonnet-5` 는 `claude-sonnet-5-5` 의 부분 문자열이다 — `--model claude-sonnet-5` 로 재는데 5.5 로 돈 회차가 통과했을 것이다. 「게이트가 무는가」에 둘을 더했다: 그 회차(→ 3)와 날짜가 붙은 같은 모델(→ 0). 옛 러너에 대면 앞의 것이 `exit 0` 으로 떨어진다(로컬 확인) |
+| route 동시성 | 러너 기본 `-j 4`, 24회에 16분 남짓 | `-j 8` — **시험** | 아래 「얼마나 걸리나」의 우려(같은 자격의 요금 한도)를 CI 에서 잰다. 더 느려지거나 한도 오류가 나면 뺀다. 모델을 같은 때 바꿨으므로 시간 차이를 동시성 하나에 돌리지 않는다 |
+
+**#8 의 `route-unasked-secret` 과잉 트리거.** 같은 날 #8 의 CI(`b1a172c`)에서 이 케이스의 한 회차가
+`audit-secrets` 뒤에 `audit-contract` 를 이어 불러 0.889 로 떨어졌다. 픽스처가 새 엔드포인트를 라우터에
+거는 변경이라, 본 세션이 감사자의 「안 본 것」(공개 API 호환성 → `audit-contract`)을 따라간 것으로
+보인다(트레이스는 산출물에 있고 이 세션에서는 못 연다). 그 PR 의 문구 탓인지 이 케이스만 5회씩 쟀다 —
+새 문구 5/5, 옛 문구(`3dfc9da`, 별도 worktree) 5/5, CI 까지 합쳐 7/8 대 8/8. 회귀라는 근거는 없었고
+저자가 한 번 다시 돌리기로 했고, 실패한 잡만 다시 돌려 24/24 였다(#8 은 그 뒤 머지). 다만 **「흔들림」은 원인이 아니다** — 본 세션이 넘김을 따라 다음 감사자를
+부르는 경로는 실제로 있고, 이 케이스는 그것을 `audit-contract` 에 대해서는 허용하지 않는다. 다시 나면
+허용 곁불로 볼지를 저자에게 올린다.
+
 ## 얼마나 걸리나
 
 한 회차가 감사 한 번 전체다 — 최대 60턴, 파일 전수, 250줄짜리 기록. 그리고
@@ -1834,7 +1860,7 @@ git -C ../old checkout <되먹임 커밋>^ -- vibe-audit/agents/audit-secrets.md
 `run-evals.sh` 가 `-j 4` 를 기본으로 박는다. 같은 자격을 나눠 쓰므로 한 요금
 한도에 걸리고, 여덟은 한도에 부딪혀 오히려 느려질 수 있어 넷으로 뒀다. 결과와
 보고서는 케이스 순서를 지키므로 **점수에는 영향이 없다.** `-j` 를 직접 주면
-그 값이 쓰인다.
+그 값이 쓰인다. CI 의 route 는 2026-10-05 부터 `-j 8` 을 시험한다 — 위 「CI 정비」.
 
 ## 변동성
 
