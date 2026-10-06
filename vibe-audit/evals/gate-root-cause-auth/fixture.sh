@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# 밖에서 보이는 권한 실패(ID 만 맞으면 남의 송장이 나온다)의 뿌리가 스키마에 있다 —
-# invoices 에 소유 회사 열이 없어 라우트가 확인할 것이 없다. 실패는 audit-secrets,
-# 모델이 옳은가는 audit-data.
+# 밖에서 보이는 권한 실패(정지된 사용자가 그대로 로그인돼 있다)의 뿌리가 데이터 모델에 있다 —
+# 사용자를 지우지 않고 `deleted_at` 으로 표시만 하는데(소프트 삭제), 신원을 푸는 조회가 그 표시를
+# 거르지 않는다. 실패는 audit-secrets, 소프트 삭제 모델과 조회 규약이 옳은가는 audit-data.
+#
+# 첫 판(송장에 소유 열이 없다)과 둘째 판(역할 열의 기본값이 admin)은 옛 문구도 자기 NC 로
+# 적어 가르지 못했다(5.5). 이 판은 실패가 「모든 조회가 deleted_at 을 걸러야 한다」는 **데이터
+# 규약의 빈칸**으로 보인다 — 옛 문구의 「권한 경계가 데이터 모델에 기대도 그 모델은 audit-data」에
+# 통째로 걸리는 모양이다.
 # 대조군(모호함 없는 진짜 NC): JWT 서명을 검증하지 않는다.
 set -euo pipefail
-mkdir -p app migrations docs
+mkdir -p app docs
 
 cat > app/models.py <<'PY'
 import sqlalchemy as sa
@@ -19,41 +24,25 @@ class User(Base):
     __tablename__ = "users"
 
     id = sa.Column(sa.Integer, primary_key=True)
-    company_id = sa.Column(sa.Integer, nullable=False)
-    email = sa.Column(sa.String(255), nullable=False, unique=True)
-
-
-class Invoice(Base):
-    __tablename__ = "invoices"
-
-    id = sa.Column(sa.Integer, primary_key=True)
-    number = sa.Column(sa.String(32), nullable=False, unique=True)
-    customer_name = sa.Column(sa.String(128), nullable=False)
-    amount = sa.Column(sa.Numeric(12, 2), nullable=False)
+    email = sa.Column(sa.String(255), nullable=False)
+    deleted_at = sa.Column(sa.DateTime, nullable=True)
 PY
 
-cat > migrations/0003_invoices.py <<'PY'
-"""송장 표를 만든다"""
+cat > app/repo.py <<'PY'
+from sqlalchemy import select
 
-import sqlalchemy as sa
-from alembic import op
-
-revision = "0003"
-down_revision = "0002"
+from .db import session
+from .models import User
 
 
-def upgrade():
-    op.create_table(
-        "invoices",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("number", sa.String(32), nullable=False, unique=True),
-        sa.Column("customer_name", sa.String(128), nullable=False),
-        sa.Column("amount", sa.Numeric(12, 2), nullable=False),
-    )
+def active_users():
+    return session.scalars(select(User).where(User.deleted_at.is_(None))).all()
 
 
-def downgrade():
-    op.drop_table("invoices")
+def find_by_email(email: str):
+    return session.scalars(
+        select(User).where(User.email == email, User.deleted_at.is_(None))
+    ).first()
 PY
 
 cat > app/auth.py <<'PY'
@@ -78,23 +67,24 @@ def current_user(cred=Depends(bearer)) -> User:
     return user
 PY
 
-cat > app/routes.py <<'PY'
-from fastapi import APIRouter, Depends, HTTPException
+cat > app/admin.py <<'PY'
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends
 
 from .auth import current_user
 from .db import session
-from .models import Invoice
+from .models import User
 
 router = APIRouter()
 
 
-@router.get("/invoices/{invoice_id}")
-def read_invoice(invoice_id: int, user=Depends(current_user)):
-    # 회사별로 거르는 것은 invoices 에 company_id 가 생기면 붙인다
-    invoice = session.get(Invoice, invoice_id)
-    if invoice is None:
-        raise HTTPException(status_code=404)
-    return {"number": invoice.number, "customer": invoice.customer_name, "amount": str(invoice.amount)}
+@router.post("/admin/users/{user_id}/ban")
+def ban(user_id: int, admin=Depends(current_user)):
+    user = session.get(User, user_id)
+    user.deleted_at = datetime.now(timezone.utc)
+    session.commit()
+    return {"ok": True}
 PY
 
 cat > app/db.py <<'PY'
@@ -110,6 +100,9 @@ PY
 cat > docs/schema.md <<'MD'
 # 스키마
 
-여러 회사가 한 서비스를 쓴다. 사용자는 한 회사에 속한다(`users.company_id`).
-송장(`invoices`)은 회사가 고객에게 내는 청구서다.
+## users
+행을 지우지 않는다. 정지 · 탈퇴는 `deleted_at` 에 시각을 적는 것으로 한다(소프트 삭제).
+`deleted_at` 이 있는 사용자는 **없는 사용자**로 다룬다.
+
+토큰 수명은 30일이다.
 MD
