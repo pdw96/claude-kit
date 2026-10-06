@@ -44,10 +44,19 @@ class Report:
         self.bad.append(f"{rel}: [{gid}] {msg}")
 
 
+# 읽지 못한 파일 — `lines()` 가 모으고 `main()` 이 [R1] 로 찍는다. 예외로 끝내지 않으려고 빈 줄로 돌려준다.
+UNREADABLE = {}
+
+
 def lines(path):
-    """코드 펜스와 줄 머리에서 연 주석을 뺀 줄."""
+    """코드 펜스와 줄 머리에서 연 주석을 뺀 줄. 읽지 못하면 빈 목록 — 까닭은 UNREADABLE 에."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        UNREADABLE.setdefault(path, f"{type(e).__name__}: {e}")
+        return []
     out, fence, comment = [], False, False
-    for ln in path.read_text(encoding="utf-8").splitlines():
+    for ln in text.splitlines():
         if comment:
             if "-->" in ln:
                 comment = False
@@ -137,20 +146,34 @@ def inside(root, tok):
 
 
 def readings(cell, names):
-    """의존 칸을 조각 이름의 ` · ` 이음으로 읽는 길 — 셋째부터는 세지 않는다."""
-    found = []
+    """의존 칸을 조각 이름의 ` · ` 이음으로 읽는 길 — 셋째부터는 세지 않는다.
 
-    def walk(rest, acc):
-        if len(found) > 1:
-            return
+    되부름 없이 칸의 뒤에서부터 센다. 칸에 이름이 수천 개 이어져도 깊이 한도에 걸리지 않는다(R1).
+    `ways[i]` 는 `cell[i:]` 를 읽는 길의 수(2 에서 멈춘다), `pick[i]` 는 그 가운데 하나의 첫 이름이다.
+    """
+    end = len(cell)
+    ways, pick = [0] * (end + 1), [None] * (end + 1)
+    for i in range(end - 1, -1, -1):
         for n in names:
-            if rest == n:
-                found.append(acc + [n])
-            elif rest.startswith(n + " · "):
-                walk(rest[len(n) + 3:], acc + [n])
-
-    walk(cell, [])
-    return found
+            if not cell.startswith(n, i):
+                continue
+            j = i + len(n)
+            if j == end:
+                w = 1
+            elif cell.startswith(" · ", j):
+                w = ways[j + 3]
+            else:
+                w = 0
+            if w and pick[i] is None:
+                pick[i] = n
+            ways[i] = min(2, ways[i] + w)
+    if not ways[0]:
+        return []
+    one, i = [], 0
+    while i < end:
+        one.append(pick[i])
+        i += len(pick[i]) + 3
+    return [one] * ways[0]
 
 
 def check_schema(r, root):
@@ -356,6 +379,8 @@ def main(argv):
     got = check_master(r, root, schema)
     if got:
         check_slices(r, root, schema, *got)
+    for p, why in UNREADABLE.items():
+        r.fail(p, "R1", f"읽지 못했다 — UTF-8 문서여야 한다({why})")
 
     if r.bad:
         print("FAIL")

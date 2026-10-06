@@ -151,6 +151,8 @@ CASES = [
     ("I3 제목이 펜스 안", "I3", "INTENT.md", lambda t: sub(t, "INTENT.md", "\n## Why\n", "\n```\n## Why\n```\n")),
     ("I3 제목이 주석 안", "I3", "INTENT.md", lambda t: sub(t, "INTENT.md", "\n## Why\n", "\n<!--\n## Why\n-->\n")),
     ("I3 제목 순서", "I3", "INTENT.md", lambda t: swap(t, "INTENT.md", "\n## Why\n", "\n## What\n")),
+    ("R1 의도 문서가 UTF-8 이 아니다", "R1", "INTENT.md", lambda t: (
+        (t / "INTENT.md").unlink(), (t / "INTENT.md").write_bytes(b"\xff\xfe## Why\n"))),
     ("M1 범위 변경이 없다", "M1", MP, lambda t: sub(t, MP, "\n## 범위 변경\n", "\n")),
     ("M1 제목 순서", "M1", MP, lambda t: swap(t, MP, "\n## 조각 나눔\n", "\n## 범위 변경\n")),
     ("M2 없는 파일", "M2", MP, lambda t: sub(t, MP, "| 설치와 배포 경로 | `README.md`", "| 설치와 배포 경로 | `NOPE.md`")),
@@ -220,6 +222,9 @@ CONTROLS = [
         t, f"{TEST}/requirements.md", "\n## 닫으며 생각할 것\n")),
     ("긴 의존 사슬(1,100 줄) — 깊이 한도에 걸리지 않는다", lambda t: add_rows(
         t, *(f"| — | 사슬 {k} | x | {f'사슬 {k + 1}' if k < 1099 else '—'} | 예정 | — |" for k in range(1100)))),
+    ("넓은 의존 칸(이름 1,100 개) — 깊이 한도에 걸리지 않는다", lambda t: (
+        add_rows(t, *(f"| — | 넓이 {k} | x | — | 예정 | — |" for k in range(1100))),
+        set_cell(t, PLAN, 3, " · ".join(f"넓이 {k}" for k in range(1100))))),
     ("닫힌 조각의 지난 모양", lambda t: (
         sub(t, "docs/slices/2-procedure-map/design.md", "\n## ③ 받는 입력\n", "\n"),
         sub(t, "docs/slices/2-procedure-map/requirements.md", "\n## 제약\n", "\n"))),

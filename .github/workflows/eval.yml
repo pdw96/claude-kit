@@ -386,6 +386,7 @@ jobs:
                    'elif not any(CLOSING.match(h) for h in headings(lines(req))):|elif False:' \
                    'if ln.startswith("```"):|if False:' \
                    'if ln.startswith("<!--"):|if False:' \
+                   'except (OSError, UnicodeDecodeError) as e:|except ZeroDivisionError as e:' \
                    'if r.bad:|if True:'; do
             python3 - "${m%%|*}" "${m##*|}" "$cc/d.py" <<'PY'
           import pathlib, sys
