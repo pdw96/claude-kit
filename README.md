@@ -135,7 +135,7 @@ python3 scripts/compare-copies.py      # 대장의 사본마다, 아직 판정 �
 사본을 **심을 때의 원본**과 견줘 차이를 내용 해시로 묶어 찍는다. 특화인지 결함인지는 사람이
 정해 `feedback.json` 에 적고, 적힌 것은 다음부터 안 나온다. 사본이 원격보다 뒤거나 더러우면
 견주지 않고 멈춘다 — 낡은 사본으로 한 판정은 대장에 남아 오래 간다. 왜 이렇게 생겼는지는
-`PRD.md` 조각 1 · `docs/schema.md` · `docs/adr/`.
+`docs/slices/1-copy-comparison/` · `docs/schema.md` · `docs/adr/`.
 
 ## 감사 계획과 부적합 대장
 
