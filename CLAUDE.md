@@ -19,7 +19,7 @@
 - **감사자의 `tools`** — 읽기 전용 셋. 고칠 도구가 없다는 것이 이 플러그인의 주장이다.
 - **감사자 공통 절의 문구** — 사본이 글자 단위로 견준다(`verify-copy.py`). 바꾸면 모든 사본이 갈린다.
 - **대장의 모양** — `copies.json` · `feedback.json`. `docs/schema.md`.
-- **마스터플랜 · 기획 · 설계 문서의 모양** — 절 제목. `docs/procedure.md`.
+- **의도 · 마스터플랜 · 요구사항 · 설계 문서의 모양** — 절 제목. `docs/procedure.md`.
 - **고정 영역** — `AGENTS.md` 「Review guidelines」.
 
 ## 가변 — 자유롭게 바꿔도 되는 것
@@ -35,7 +35,7 @@
 - **새 검사를 세우면 CI 「게이트가 무는가」에 변조본으로 떨어지는 것을 함께 넣는다.** 물지 않는
   검사는 게이트가 아니다. 키 없이 도는 검사의 목록은 `gates.sh` 한 군데에만 둔다.
 - 대안이 있던 결정은 `docs/adr/` 에 남긴다. 고치지 않고 새 ADR 로 대체한다.
-- **조각은 `docs/master-plan.md` 의 조각 나눔에서 꺼내 `docs/procedure.md` 대로 간다.** 살아 있는 문서와 기록의
+- **프로젝트의 의도는 `INTENT.md` 가 든다. 조각은 `docs/master-plan.md` 의 조각 나눔에서 꺼내 `docs/procedure.md` 대로 간다.** 살아 있는 문서와 기록의
   규칙도 거기.
 
 ## 금지
