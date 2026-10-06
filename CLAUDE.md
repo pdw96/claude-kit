@@ -19,7 +19,8 @@
 - **감사자의 `tools`** — 읽기 전용 셋. 고칠 도구가 없다는 것이 이 플러그인의 주장이다.
 - **감사자 공통 절의 문구** — 사본이 글자 단위로 견준다(`verify-copy.py`). 바꾸면 모든 사본이 갈린다.
 - **대장의 모양** — `copies.json` · `feedback.json`. `docs/schema.md`.
-- **의도 · 마스터플랜 · 요구사항 · 설계 문서의 모양** — 절 제목. `docs/procedure.md`.
+- **의도 · 마스터플랜 · 요구사항 · 설계 문서의 모양** — 절 제목. `docs/procedure.md`. 그 파일 「…의 칸」 네 절의 제목과
+  표 서식도 — 문서 대조 검사(`verify-docs.py`)가 그것으로 원천을 찾는다(ADR 0010).
 - **고정 영역** — `AGENTS.md` 「Review guidelines」.
 
 ## 가변 — 자유롭게 바꿔도 되는 것

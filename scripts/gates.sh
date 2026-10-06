@@ -40,8 +40,14 @@ main() {
   # 원본을 자기 자신과 견준다. 사본 대조는 verify-copies.py 가 대장을 보고 한다.
   python3 scripts/verify-copy.py vibe-audit/agents
 
+  # 문서의 모양 — 절 제목 · 경로 · 조각 나눔 · 닫는 기록(조각 3 설계 ②).
+  python3 scripts/verify-docs.py
+
+  # 문서 대조 검사가 무는지 — 베낀 트리에 변조본을 하나씩 만들어 돌린다.
+  python3 scripts/test-verify-docs.py
+
   echo
-  echo "열 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "열둘 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 
