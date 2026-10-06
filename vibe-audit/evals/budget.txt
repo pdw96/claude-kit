@@ -7,10 +7,10 @@
 
 [vibe-audit]
 agent  audit-contract      891   10161
-agent  audit-data          816   10915
+agent  audit-data          816   10926
 agent  audit-internal      804   10937
 agent  audit-ops           686   10301
 agent  audit-quality       777   10874
-agent  audit-secrets       885   10338
+agent  audit-secrets       885   10384
 skill  audit-brief         283    4456
        — 상시 합계            5142
