@@ -2021,7 +2021,7 @@ FB-18 은 FB-13 · 14 를 비교기가 한 덩어리로 본 것이라 같은 되
 | 다섯 감사자의 `audit-internal` 몫 | 「문서 준수(`audit-internal`)」→ 「… — CLAUDE.md · PRD 에 적은 스택 · 규칙과 코드 · 의존성의 어긋남」 |
 | `audit-secrets` 「성능도 보지 않습니다」 · `audit-data` 「쿼리 성능 … 이번 범위가 아닙니다」 | 성능은 — 쿼리 성능도 — 여섯 누구의 담당도 아니다(`audit-data` 도 보지 않는다). 보이면 「범위 밖」으로 적고 끝내지 말고 「담당 없음」으로 올린다 |
 | `gap-unowned` 픽스처 | CLAUDE.md 스택에서 버전을 뺐다 — 아래 |
-| `gate-out-of-scope/handoff-named` | CI 를 `ci.yml` 이름 대신 결함(`continue-on-error` · `|| true`)으로 짚은 넘김도 받는다 |
+| `gate-out-of-scope/handoff-named` | CI 를 `ci.yml` 이름 대신 결함(`continue-on-error` · `\|\| true`)으로 짚은 넘김도 받는다 |
 
 **`gap-unowned` 픽스처가 겹쳐 있었다.** 첫 고침(audit-internal 몫만 구체화)으로 재니 `gate-no-fake-owner` 가 6 중 5 떨어졌다.
 원문을 보니 감사자가 `python:latest` · `sqlalchemy>=1.4` 를 「CLAUDE.md 는 Python 3.12 · SQLAlchemy 2.x 다 — 문서 대비 준수,
