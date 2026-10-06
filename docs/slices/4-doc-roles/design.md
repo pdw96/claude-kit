@@ -142,16 +142,23 @@
 **PR B**
 
 - L1 — `git show <기준>:vibe-audit/evals/README.md | cmp - docs/eval-log/2026-09-16_2026-10-06.md`, 출력 없음.
-- L2 — `ls docs/eval-log | grep -vxE '2026-09-16_2026-10-06\.md|[0-9]{4}-[0-9]{2}\.md'`, 0 줄. 규칙이 든 자리 —
+- L2 — `ls -A docs/eval-log | grep -vxE '2026-09-16_2026-10-06\.md|[0-9]{4}-[0-9]{2}\.md'`, 0 줄. 규칙이 든 자리 —
   `grep -F '<YYYY-MM>.md' docs/procedure.md vibe-audit/evals/README.md` 가 두 파일 다에서 걸린다.
 - E1 — 케이스 폴더 이름 목록과 표 첫 칸의 목록을 `sort | diff`, 출력 없음.
 - E2 — `grep -nE '^#+ .*20[0-9]{2}-[0-9]{2}-[0-9]{2}' vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 53 줄
   (`## 5.5 전수 기준 (2026-10-05, 로컬)` 포함, 2026-10-06).
 - E3 — 옮기기 전 세 절의 알려진 한계 항목을 「고정한 것」과 하나씩 대어 본 표(PR 본문). 메워진 공백이 남지 않았는지 —
   `grep -n 'route 케이스가 없는' AGENTS.md vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 `AGENTS.md` 16 줄.
+  처음 고정한 날짜가 기록 파일의 절을 가리키는지 — 셋 각각 한 줄에 경로와 절 이름이 같이 있다:
+  `grep -cE 'docs/eval-log/2026-09-16_2026-10-06\.md.*「<절>' vibe-audit/evals/README.md` 가 `<절>` =
+  `브리핑 검사기를 떼고, 러너를 고정했다` · `브리핑 검사기를 git 과 대조하는 방식으로 다시 세웠다` · `정규식 그레이더를 고정했다`
+  마다 1 이상. 어긋내 보기: 기준 커밋에서 셋 다 0.
 - E4 — `head -n 15 vibe-audit/evals/README.md | grep -cF 'docs/eval-log/2026-09-16_2026-10-06.md'`, 1 이상. 어긋내 보기: 기준
   커밋에서 0.
-- P1 — 살아 있는 문서에서 `evals/README.md` 「…」 를 뽑아 살아 있는 README 의 제목과 대조, 빠진 것 0.
+- P1 — 살아 있는 문서에서 `evals/README.md` 「…」 를 뽑아 살아 있는 README 의 제목과 대조, 빠진 것 0. 가리킴이 지워져
+  대조할 것이 줄어든 채로 통과하지 않게 — `AGENTS.md` 의 고정한 셋(러너 · 브리핑 검사기 · 정규식 그레이더)은 각 줄이
+  경로와 절을 한 줄에 든다: `grep -cE 'vibe-audit/evals/README\.md.*「고정한 것」' AGENTS.md` 가 3. 어긋내 보기: 기준
+  커밋에서 0(지금은 옛 절 이름을 가리킨다).
 - X1 — `git diff --no-renames --name-only <기준>..HEAD`(지우거나 옮긴 옛 경로도 나온다)와, 기준 커밋과 HEAD 의
   `eval-key.py route --list` · `full --list` 의 **합집합**의 교집합 0. HEAD 의 목록만 보면 지문 안 파일을 지우거나 옮긴
   것이 빠진다. `claude` 가 있는 곳에서는 기준 커밋의 worktree 와 HEAD 에서 `eval-key.py route` · `full` 의 지문이 같은지도
@@ -162,7 +169,10 @@
 
 - R1 — `grep -c '^## ' README.md` 넷 이하. 그리고 걷을 내용이 없는지 —
   `grep -nE '^#+ (사본은 갈려도|되먹인 자리마다|사본이 원본의 공통 절|견줄 상대는 대장|갈린 자리를 뽑아|감사 계획과 부적합)|첫 되먹임에서|둘째 되먹임|셋째는 관문|verify-copy|compare-copies|run-evals' README.md`,
-  0 줄. 어긋내 보기: 기준 커밋에서 13 줄(2026-10-06).
+  0 줄. 어긋내 보기: 기준 커밋에서 13 줄(2026-10-06). 남아야 할 것이 남았는지 —
+  `grep -cE '^## (들어 있는 것|새 프로젝트를 열 때)$' README.md` 가 2, `claude plugin install vibe-audit@pdw96-kit` ·
+  `./scripts/sync-agents.sh` 가 `grep -cF` 로 각각 1 이상(설치 두 경로). 기준 커밋에서도 2 · 1 · 1 이다 — 지우는 쪽으로
+  잘못 가는 것을 막는 단언이라 어긋내 보기는 그 줄을 지운 사본에서 0 이 나오는 것으로 대신한다.
 - R2 — 지운 문단 → 주인 대응표(PR 본문). 주인마다 PR C 의 머리에서 그 절을 연다.
 - R3 — `grep -nE '[0-9]+\.[0-9]+\.[0-9]+|claude-(sonnet|opus|haiku)|\b(sonnet|opus|haiku)\b|\bgate\b|\bverdict\b|\beval\(' CLAUDE.md`,
   0 줄. 잡 이름은 지금 CLAUDE.md 가 쓰는 꼴(`gate(…)` · `eval(…)` · `verdict(…)`)로 건다 — `eval` 만으로 걸면 `eval.yml` ·
