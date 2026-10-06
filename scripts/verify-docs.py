@@ -275,16 +275,19 @@ def check_slices(r, root, schema, mp, rows):
         if not color.get(n):
             visit(n, [n])
 
-    claimed = {}
+    claimed, owner = set(), {}
     for _, name, _, _, state, cell in good:
         m = FOLDER.match(cell)
         if not m and not cell.startswith("—"):
             r.fail(mp, "S7", f"「{name}」의 폴더 칸 `{cell}` 가 `docs/slices/<숫자>-<이름>/` 하나도 `—` 도 아니다")
         folder = m.group(1) if m else None
         if folder:
-            if folder in claimed:
-                r.fail(mp, "S9", f"「{claimed[folder]}」와 「{name}」이 같은 폴더 `{folder}` 를 가리킨다")
-            claimed.setdefault(folder, name)
+            claimed.add(folder)
+            # 링크로 다른 이름을 붙여도 같은 폴더다 — 따라간 실제 위치로 견준다.
+            key = (root / folder).resolve()
+            if key in owner:
+                r.fail(mp, "S9", f"「{owner[key]}」와 「{name}」이 같은 폴더를 가리킨다 — `{folder}`")
+            owner.setdefault(key, name)
         if state == "예정":
             if not cell.startswith("—"):
                 r.fail(mp, "S8", f"예정 조각 「{name}」에 폴더가 있다 — `—` 여야 한다")
@@ -307,7 +310,7 @@ def check_slices(r, root, schema, mp, rows):
                 hs = headings(lines(f))
                 if kind in schema and (why := in_order(hs, schema[kind])):
                     r.fail(f, "F3", why)
-                if f is req and any(h.startswith("닫으며") for h in hs):
+                if f is req and any(h.startswith("닫으며 (") for h in hs):
                     r.fail(f, "F4", f"진행 조각 「{name}」에 「닫으며」가 있다 — 닫았다면 상태를 `닫힘` 으로")
         else:
             if not req.is_file():

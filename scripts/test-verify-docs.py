@@ -178,6 +178,9 @@ CASES = [
     ("S8 진행 조각의 폴더가 없다", "S8", MP, lambda t: shutil.rmtree(t / TEST)),
     ("S9 두 줄이 한 폴더", "S9", MP, lambda t: add_rows(
         t, "| — | 겹친 조각 | x | — | 닫힘 | `docs/slices/1-copy-comparison/` |")),
+    ("S9 링크로 같은 폴더", "S9", MP, lambda t: (
+        os.symlink("1-copy-comparison", t / "docs/slices/98-alias"),
+        add_rows(t, "| — | 별칭 조각 | x | — | 닫힘 | `docs/slices/98-alias/` |"))),
     ("S10 닫힌 두 조각의 고리", "S10", MP, lambda t: (
         set_cell(t, SLICE2, 3, "사본 비교 · 되먹임"), set_cell(t, SLICE1, 3, "절차 지도"))),
     ("S10 예정 두 조각의 고리", "S10", MP, lambda t: (
@@ -210,6 +213,8 @@ CONTROLS = [
         t, MP, "| 데이터 모델 | `docs/schema.md`", "| 데이터 모델 | `없음 — 구조는 `README.md` 가 대신 든다`")),
     ("감싸지 않은 `없음 — <이유>`", lambda t: sub(
         t, MP, "| 데이터 모델 | `docs/schema.md`", "| 데이터 모델 | 없음 — 대장 둘은 `NOPE.md` 가 든다")),
+    ("진행 조각에 「닫으며」로 시작하는 다른 절", lambda t: append(
+        t, f"{TEST}/requirements.md", "\n## 닫으며 생각할 것\n")),
     ("닫힌 조각의 지난 모양", lambda t: (
         sub(t, "docs/slices/2-procedure-map/design.md", "\n## ③ 받는 입력\n", "\n"),
         sub(t, "docs/slices/2-procedure-map/requirements.md", "\n## 제약\n", "\n"))),
