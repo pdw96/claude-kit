@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: gate-catches-unproven
+description: |
+  사본 되먹임(ERP, 2026-10-05 · feedback.json FB-13 · 14 · 18). 원본 audit-quality 의
+  「무엇이 무엇을 막고 있는가」 표는 「무엇을 잡는가」 칸을 채우라고만 한다. 감사자는
+  테스트 이름과 본문을 읽어 「할인 계산 회귀를 잡는다」처럼 채웠는데, 검사가 무엇을
+  잡는지는 코드를 어긋내 봐야 안다 — 읽어서 나온 것은 잡으려는 것이다.
+expected_outcome: |
+  pytest 행의 「무엇을 잡는가」 칸이 「확인불가 — 어긋낸 기록 없음」(또는 같은 뜻)으로
+  남는다. 테스트를 읽고 잡는 것을 사실처럼 채우면 실패다.
+tags: [gate, quality, feedback-copy-erp]
+context:
+  scaffold_script: fixture.sh
