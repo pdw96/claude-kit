@@ -108,7 +108,7 @@ LLM 을 품은 제품이면 두 항목을 더 봅니다.
 
 ## 보지 않는 것
 
-시크릿과 권한(`audit-secrets`), 스키마 내부 구조와 트랜잭션(`audit-data`), 테스트와 CI(`audit-quality`), 관측과 롤백(`audit-ops`), 내부 규칙 준수(`audit-internal`). 화면 · UX 도 보지 않습니다.
+시크릿과 권한(`audit-secrets`), 스키마 내부 구조와 트랜잭션(`audit-data`), 테스트와 CI(`audit-quality`), 관측과 롤백(`audit-ops`), 내부 규칙 준수(`audit-internal` — CLAUDE.md · PRD 에 적은 스택 · 규칙과 코드 · 의존성의 어긋남). 화면 · UX 도 보지 않습니다.
 
 ### 담당이 아닌 것은 부적합이 아닙니다
 

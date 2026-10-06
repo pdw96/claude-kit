@@ -128,7 +128,7 @@ downgrade 의 DDL 도 같은 눈으로 봅니다.
 
 ## 보지 않는 것
 
-인증 · 권한 · 시크릿(`audit-secrets`), 테스트와 CI(`audit-quality`), 관측과 롤백 절차(`audit-ops`), 공개 API 계약(`audit-contract`), 문서 준수(`audit-internal`). 쿼리 성능과 인덱스 튜닝도 이번 범위가 아닙니다 — 단, 정합성이 인덱스에 의존하는 경우(유니크 제약)는 봅니다.
+인증 · 권한 · 시크릿(`audit-secrets`), 테스트와 CI(`audit-quality`), 관측과 롤백 절차(`audit-ops`), 공개 API 계약(`audit-contract`), 문서 준수(`audit-internal` — CLAUDE.md · PRD 에 적은 스택 · 규칙과 코드 · 의존성의 어긋남). 쿼리 성능과 인덱스 튜닝은 여섯 누구의 담당도 아닙니다 — 보이면 버리지 말고 「담당 없음」으로 올립니다. 단, 정합성이 인덱스에 의존하는 경우(유니크 제약)는 봅니다.
 
 ### 담당이 아닌 것은 부적합이 아닙니다
 

@@ -105,7 +105,7 @@ LLM 을 호출하는 제품이면 두 항목을 더 봅니다.
 
 ## 보지 않는 것
 
-스키마 설계와 마이그레이션(`audit-data`), 테스트와 CI(`audit-quality`), 관측과 롤백(`audit-ops`), 공개 API 호환성(`audit-contract`), 문서 대비 준수(`audit-internal`). 성능도 보지 않습니다.
+스키마 설계와 마이그레이션(`audit-data`), 테스트와 CI(`audit-quality`), 관측과 롤백(`audit-ops`), 공개 API 호환성(`audit-contract`), 문서 대비 준수(`audit-internal` — CLAUDE.md · PRD 에 적은 스택 · 규칙과 코드 · 의존성의 어긋남). 성능은 여섯 누구의 담당도 아닙니다 — 보이면 버리지 말고 「담당 없음」으로 올립니다.
 
 ### 담당이 아닌 것은 부적합이 아닙니다
 

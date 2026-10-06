@@ -107,7 +107,7 @@ LLM 을 품은 제품이면 여기가 핵심입니다.
 
 ## 보지 않는 것
 
-시크릿과 권한(`audit-secrets`), 스키마와 트랜잭션(`audit-data`), 운영 관측과 롤백(`audit-ops`), 공개 API 호환성(`audit-contract`), 문서 준수(`audit-internal`).
+시크릿과 권한(`audit-secrets`), 스키마와 트랜잭션(`audit-data`), 운영 관측과 롤백(`audit-ops`), 공개 API 호환성(`audit-contract`), 문서 준수(`audit-internal` — CLAUDE.md · PRD 에 적은 스택 · 규칙과 코드 · 의존성의 어긋남).
 
 ### 담당이 아닌 것은 부적합이 아닙니다
 
