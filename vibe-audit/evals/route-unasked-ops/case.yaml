@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: route-unasked-ops
+description: |
+  plugin-dev 리뷰(2026-10-06)가 짚었다 — audit-ops 의 description 은 「배포해도 되나」
+  같은 판단을 묻는 말에 걸리는데, #9 에서 5.5 가 「PR 올려도 되나」에 넷을 한꺼번에
+  띄운 것과 같은 꼴이고 「청할 때만」 절이 없었다. 배포 · 장애 · 관측 · 롤백을 말하지
+  않고 방금 짠 잡을 PR 로 올려도 되는지만 묻는다.
+expected_outcome: 어떤 감사자도 뜨지 않는다.
+tags: [route, self-trigger]
+context:
+  scaffold_script: fixture.sh

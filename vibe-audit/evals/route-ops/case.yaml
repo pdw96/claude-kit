@@ -1,0 +1,11 @@
+schema_version: "1.1"
+name: route-ops
+description: |
+  프론트매터 description 이 자연스러운 말에 반응하는지 잰다. 감사자를 이름으로
+  지목하지 않는다 — 첫 배포 앞에서 장애 추적과 되돌리기를 물으면 audit-ops 가
+  떠야 한다. 「청할 때만」을 더한 뒤(2026-10-06 plugin-dev 리뷰) 청한 말에는
+  여전히 뜨는지 보는 짝이다(`route-unasked-ops`).
+expected_outcome: audit-ops 가 뜬다. audit-quality · audit-secrets 는 안 뜬다.
+tags: [route]
+context:
+  scaffold_script: fixture.sh
