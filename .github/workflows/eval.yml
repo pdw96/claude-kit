@@ -365,6 +365,42 @@ jobs:
             fi
           done
 
+          # test-verify-docs.py — 문서 대조 검사를 보장 묶음마다 한 군데씩 망가뜨리면 자체 시험이 떨어져야 한다
+          # (조각 3 설계 ⑤ 「시험이 문다」). 원천 · 틀 · 의도 · 마스터플랜 경로 · 상태와 의존 · 폴더 대응 ·
+          # 조각 문서 · 닫는 기록 · 펜스와 주석, 그리고 늘 1 을 내는 검사 — 그때는 대조가 떨어져야 한다.
+          for m in 'if n != 1:|if n == 0:' \
+                   'if not need:|if False:' \
+                   'if name in schema and headings(lines(p)) != schema[name]:|if False:' \
+                   'if len(intents) != 1:|if False:' \
+                   'if why or not p.is_file():|if why:' \
+                   'if not where.is_relative_to(root):|if False:' \
+                   'if state not in STATES:|if False:' \
+                   'elif status.get(d) != "닫힘":|elif False:' \
+                   'elif state.get(d) == 1:|elif False:' \
+                   'if not folder:|if False:' \
+                   'if f"docs/slices/{d.name}/" not in claimed:|if False:' \
+                   'if key in owner:|if False:' \
+                   'if not f.is_file():|if False:' \
+                   'if kind in schema and (why := in_order(hs, schema[kind])):|if False:' \
+                   'if f is req and any(h.startswith("닫으며 (") for h in hs):|if False:' \
+                   'elif not any(CLOSING.match(h) for h in headings(lines(req))):|elif False:' \
+                   'if ln.startswith("```"):|if False:' \
+                   'if ln.startswith("<!--"):|if False:' \
+                   'except (OSError, UnicodeDecodeError) as e:|except ZeroDivisionError as e:' \
+                   'if r.bad:|if True:'; do
+            python3 - "${m%%|*}" "${m##*|}" "$cc/d.py" <<'PY'
+          import pathlib, sys
+          s = pathlib.Path("scripts/verify-docs.py").read_text(encoding="utf-8")
+          a, b, out = sys.argv[1:]
+          if s.count(a) != 1:
+              sys.exit(f"변조할 자리 {a!r} 가 문서 대조 검사에 {s.count(a)} 번 있다 — 이 단계를 검사에 맞춰 고쳐라")
+          pathlib.Path(out).write_text(s.replace(a, b), encoding="utf-8")
+          PY
+            if python3 scripts/test-verify-docs.py "$cc/d.py" >/dev/null 2>&1; then
+              echo "::error::test-verify-docs.py 가 '${m%%|*}' 를 망가뜨린 문서 대조 검사를 통과시켰다"; exit 1
+            fi
+          done
+
           # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
           # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
           # 매번 떨어진 쪽은 회차가 점수로는 통과여도 트레이스 셋이 남아야 한다 — 실패
@@ -708,7 +744,7 @@ jobs:
             echo "::error::verify-manifest.py 가 견줄 수 없는 라이선스 선언을 통과시켰다"; exit 1
           fi
 
-          echo "게이트 일곱 중 변조본으로 확인한 일곱: manifest · copies · copy · evals · graders · budget · brief(스스로 변조본을 돌린다)"
+          echo "게이트 여덟 중 변조본으로 확인한 여덟: manifest · copies · copy · evals · graders · budget · brief · docs(둘은 스스로 변조본을 돌린다)"
 
           # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
           # 앞쪽이 깨지면 낭비로 끝나지만 뒤쪽이 깨지면 **문구를 고친 PR 이 수트 없이
