@@ -6,11 +6,11 @@
 # 호출시 파일 전체. 그 감사자가 뜰 때마다 내고, 감사 대상 코드와 같은 창을 쓴다
 
 [vibe-audit]
-agent  audit-contract      891   10115
-agent  audit-data          816   10838
-agent  audit-internal      804   10937
-agent  audit-ops           686   10255
-agent  audit-quality       777   10828
-agent  audit-secrets       885   10256
-skill  audit-brief         283    4456
-       — 상시 합계            5142
+agent  audit-contract      891   10186
+agent  audit-data          816   10951
+agent  audit-internal      804   10962
+agent  audit-ops           765   10405
+agent  audit-quality       777   10899
+agent  audit-secrets       885   10409
+skill  audit-brief         285    4458
+       — 상시 합계            5223

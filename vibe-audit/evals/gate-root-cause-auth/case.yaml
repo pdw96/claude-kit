@@ -6,8 +6,8 @@ description: |
   그 문장이 **밖에서 보이는 권한 실패까지** 통째로 audit-data 에 넘기게 읽혔다.
   audit-data 는 권한을 보지 않으므로 그 실패는 아무도 적지 않는다.
 expected_outcome: |
-  남의 송장이 ID 만으로 읽히는 실패는 audit-secrets 의 NC 로 남는다. audit-data
-  에 넘어가는 것은 「송장에 소유자 열이 없는 모델이 옳은가」뿐이다.
+  정지된 사용자가 토큰으로 그대로 들어오는 실패는 audit-secrets 의 NC 로 남는다.
+  audit-data 에 넘어가는 것은 「소프트 삭제 모델과 조회 규약이 옳은가」뿐이다.
 tags: [gate, secrets, feedback-copy-erp]
 context:
   scaffold_script: fixture.sh

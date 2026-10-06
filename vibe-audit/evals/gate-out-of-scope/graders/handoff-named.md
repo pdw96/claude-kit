@@ -2,7 +2,7 @@
 type: regex
 weight: 1
 target: last_message
-pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-data|audit-data(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?migrations/))(?=(?:(?!\\n## )[\\s\\S])*?(?:ci\\.yml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?ci\\.yml))(?=(?:(?!\\n## )[\\s\\S])*?(?:test_invoices(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?test_invoices))(?=(?:(?!\\n## )[\\s\\S])*?(?:pyproject\\.toml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-internal|audit-internal(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?pyproject\\.toml))"
+pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-data|audit-data(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?migrations/))(?=(?:(?!\\n## )[\\s\\S])*?(?:(?:ci\\.yml|continue-on-error|\\|\\| true)(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?(?:ci\\.yml|continue-on-error|\\|\\| true)))(?=(?:(?!\\n## )[\\s\\S])*?(?:test_invoices(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-quality|audit-quality(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?test_invoices))(?=(?:(?!\\n## )[\\s\\S])*?(?:pyproject\\.toml(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?audit-internal|audit-internal(?:(?!\\n[-*] |\\n\\n|\\n#)[\\s\\S])*?pyproject\\.toml))"
 ---
 
 「안 본 것」 절 안에 심어 둔 담당 밖 결함의 **담당 감사자가 모두** 적혀 있는지
@@ -22,3 +22,5 @@ pattern: "## 안 본 것(?=(?:(?!\\n## )[\\s\\S])*?(?:migrations/(?:(?!\\n[-*] |
 있어야 한다(순서는 어느 쪽이든).
 
 **audit-quality 몫은 둘 다.** `(?:ci\.yml|test_invoices)` 는 하나만 넘겨도 통과했다(Codex 리뷰). `ci.yml` 과 `test_invoices` 가 각각 `audit-quality` 와 같은 항목에 있어야 한다. 표본 `fail-handoff-ci-only.md`.
+
+**CI 는 파일 이름 대신 그 결함으로 짚어도 받는다.** `- 테스트가 실패해도 통과하는 CI 구성(`ruff ... || true`, `continue-on-error: true`): `audit-quality`` 처럼 `ci.yml` 을 적지 않고 결함을 그대로 옮긴 넘김이 5.5 에서 나왔다(2026-10-06) — 아무도 집지 못할 줄이 아니다. `continue-on-error` · `|| true` 는 이 픽스처에서 `ci.yml` 에만 있다.

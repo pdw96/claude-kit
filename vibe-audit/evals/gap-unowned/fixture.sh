@@ -4,6 +4,9 @@
 # (b) 여섯 어디에도 언급조차 없는 것 — 의존성 공급망
 # (a) 「보지 않는 것」에 적혀 있으나 담당이 없는 것 — 성능
 # 대조군 — audit-secrets 담당인 무인증 라우트
+#
+# CLAUDE.md 의 스택에 버전을 적지 않는다. 적으면 `python:latest` · `sqlalchemy>=1.4` 가
+# 문서와 어긋나 `audit-internal` 의 것이 된다 — 공급망이 주인 없는 자리가 아니게 된다.
 set -euo pipefail
 mkdir -p app
 
@@ -81,6 +84,6 @@ EOF
 cat > CLAUDE.md <<'EOF'
 # 규칙
 
-- 스택: Python 3.12 · FastAPI · SQLAlchemy 2.x · PostgreSQL
+- 스택: Python · FastAPI · SQLAlchemy · PostgreSQL
 - **금지**: 마이그레이션 없는 스키마 변경, 코드에 박힌 시크릿, 권한 우회 임시 코드
 EOF
