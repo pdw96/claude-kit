@@ -43,7 +43,8 @@
     않는다 — `route-ops` 공백(2026-09-25)은 케이스 `route-ops` 가 생겨 메워졌다(같은 파일 「새 route 케이스 둘」).
   - E4 머리의 한 줄이 첫 기록 파일을 가리킨다 — 옛 참조 `evals/README.md 「…」` 는 그 파일에서 찾는다.
 - **입구와 규칙**
-  - R1 README 의 `##` 절은 넷 이하이고, 되먹임 이야기와 검사 넷의 설명이 없다.
+  - R1 README 의 `##` 절은 넷 이하이고, 되먹임 이야기와 검사 넷의 설명이 없다. 가리키는 곳이 걷은 값의 주인으로
+    잇는다 — `INTENT.md` · `docs/master-plan.md` · `docs/architecture.md` · `vibe-audit/evals/README.md`.
   - R2 README 에서 지운 문단마다 그 값의 주인이 PR C 의 머리에 있다 — PR C 본문의 대응표(문단 → 주인 파일 · 절).
   - R3 CLAUDE.md 에 CLI 버전 숫자 · 모델 id · CI 잡 이름이 없고, 그 자리의 줄이 주인 파일을 가리킨다.
   - R4 목표 · 범위(Why · What · Not)를 `INTENT.md` 만 든다 — README 는 한 줄 소개와 링크뿐이다.
@@ -51,6 +52,9 @@
   - P1 살아 있는 문서(`AGENTS.md` · `CLAUDE.md` · `CHECKLIST.md` · `docs/procedure.md` · 마스터플랜 · `README.md` ·
     `vibe-audit/README.md` · `docs/architecture.md`)가 「…」로 가리키는 수트 문서의 절이 다 있는 절이다.
   - P2 마스터플랜 「가리키는 문서」의 경로가 다 있다 — `verify-docs.py` M2 가 문다.
+  - P3 작업 기록을 말하는 자리가 `docs/eval-log/` 를 가리킨다 — `CLAUDE.md` 「가변」 · `CHECKLIST.md` 「항상」 ·
+    `docs/procedure.md` 「살아 있는 문서와 기록」의 기록 줄 · 마스터플랜 「감사자가 왜 지금 모양인가」 줄. 그 표의 살아 있는
+    문서 줄에 수트 README(PR B)와 `docs/architecture.md`(PR C)가 든다.
 - **실행**
   - X1 구현 PR 이 바꾼 파일 가운데 수트 지문에 드는 것이 0 개다.
   - X2 `./scripts/gates.sh` 열둘이 PR 마다 통과한다.
@@ -143,7 +147,8 @@
 
 - L1 — `git show <기준>:vibe-audit/evals/README.md | cmp - docs/eval-log/2026-09-16_2026-10-06.md`, 출력 없음.
 - L2 — `ls -A docs/eval-log | grep -vxE '2026-09-16_2026-10-06\.md|[0-9]{4}-[0-9]{2}\.md'`, 0 줄. 규칙이 든 자리 —
-  `grep -F '<YYYY-MM>.md' docs/procedure.md vibe-audit/evals/README.md` 가 두 파일 다에서 걸린다.
+  `grep -cF '<YYYY-MM>.md'` 를 `docs/procedure.md` 와 `vibe-audit/evals/README.md` 에 **따로** 대어 각각 1 이상 — 한 번에
+  두 파일을 주면 한쪽만 있어도 통과한다.
 - E1 — 케이스 폴더 이름 목록과 표 첫 칸의 목록을 `sort | diff`, 출력 없음.
 - E2 — `grep -nE '^#+ .*20[0-9]{2}-[0-9]{2}-[0-9]{2}' vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 53 줄
   (`## 5.5 전수 기준 (2026-10-05, 로컬)` 포함, 2026-10-06).
@@ -159,6 +164,12 @@
   대조할 것이 줄어든 채로 통과하지 않게 — `AGENTS.md` 의 고정한 셋(러너 · 브리핑 검사기 · 정규식 그레이더)은 각 줄이
   경로와 절을 한 줄에 든다: `grep -cE 'vibe-audit/evals/README\.md.*「고정한 것」' AGENTS.md` 가 3. 어긋내 보기: 기준
   커밋에서 0(지금은 옛 절 이름을 가리킨다).
+- P3 (B 몫) — 파일마다 따로: `grep -cF 'docs/eval-log/'` 가 `CLAUDE.md` · `CHECKLIST.md` 에서 각각 1 이상 ·
+  `grep -cE '^\| 감사자가 왜 지금 모양인가 \|.*docs/eval-log/' docs/master-plan.md` 1 · `docs/procedure.md` 에서
+  `grep -cE '^\| \*\*기록\*\*.*docs/eval-log/'` 1 과 `grep -cE '^\| \*\*살아 있는 문서\*\*.*vibe-audit/evals/README\.md'` 1.
+  옛 자리가 남지 않았는지 — `grep -nE '`vibe-audit/evals/README\.md` 의 작업 기록' CLAUDE.md` ·
+  `grep -n '머지된 기록.*evals/README' CHECKLIST.md` · `grep -nE '^\| \*\*기록\*\*.*vibe-audit/evals/README' docs/procedure.md` 0 줄.
+  어긋내 보기: 기준 커밋에서 앞의 다섯은 다 0, 뒤의 셋은 각각 한 줄(CLAUDE.md 28 · CHECKLIST.md 10 · procedure.md 108).
 - X1 — `git diff --no-renames --name-only <기준>..HEAD`(지우거나 옮긴 옛 경로도 나온다)와, 기준 커밋과 HEAD 의
   `eval-key.py route --list` · `full --list` 의 **합집합**의 교집합 0. HEAD 의 목록만 보면 지문 안 파일을 지우거나 옮긴
   것이 빠진다. `claude` 가 있는 곳에서는 기준 커밋의 worktree 와 HEAD 에서 `eval-key.py route` · `full` 의 지문이 같은지도
@@ -186,6 +197,9 @@
   `grep -nE '되먹이지 않는다|다른 레포에서도 같은 말' README.md` 0 줄 · `grep -cF '다른 레포에서도 같은 말' INTENT.md` 1 이상.
   어긋내 보기: 기준 커밋에서 첫 것은 0 줄(지금은 `docs/adr/` · `README.md`), 둘째는 2 줄, 셋째는 0.
 - P2 — `python3 scripts/verify-docs.py`. M2 는 적힌 경로가 있는지만 보므로 R4 의 첫 명령이 새 경로를 따로 본다.
+- R1 (가리키는 곳) — `INTENT.md` · `docs/master-plan.md` · `docs/architecture.md` · `vibe-audit/evals/README.md` 를
+  `grep -cF` 로 `README.md` 에 따로 대어 각각 1 이상. 어긋내 보기: 기준 커밋에서 `docs/master-plan.md` 말고 셋이 0.
+- P3 (C 몫) — `grep -cE '^\| \*\*살아 있는 문서\*\*.*docs/architecture\.md' docs/procedure.md` 1. 어긋내 보기: 기준 커밋에서 0.
 - P1 · X1 · X2 — PR B 와 같다.
 
 ## ⑥ PR 나눔
