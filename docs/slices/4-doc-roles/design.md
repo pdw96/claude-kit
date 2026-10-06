@@ -7,11 +7,11 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/slices/4-doc-roles/requirements.md` · `design.md` | A | 이 조각의 요구사항 · 설계 |
-| `docs/adr/0011-entry-docs-and-eval-log.md` | A | 기록의 자리 · 나누는 법 · 시스템 구조 · `AGENTS.md` 의 가리킴 · 옛 참조 · 검사 |
+| `docs/adr/0011-entry-docs-and-eval-log.md` | A | 기록의 자리 · 나누는 법 · 시스템 구조 · `AGENTS.md` 의 가리킴과 `route-ops` 줄 · 옛 참조 · 검사 |
 | `docs/master-plan.md` | A | 조각 나눔 「README · CLAUDE.md 를 제 역할로 줄이기」 — 상태 `진행` · 조각 폴더 |
 | `docs/eval-log/2026-09-16_2026-10-06.md` | B | 지금의 `vibe-audit/evals/README.md` 를 글자 그대로 옮긴 첫 기록 파일(`git mv`) |
 | `vibe-audit/evals/README.md` | B | 새로 쓴다 — 살아 있는 문서. 절: 재는 것(오검율 · 트리거) · 케이스 표 · 재는 법(그레이더 · 대조군 · 심판 · 키 없는 게이트 · 러너) · 고정한 것 · 기록. 머리에 「2026-10-06 까지의 절은 `docs/eval-log/2026-09-16_2026-10-06.md` 에 글자 그대로 있다」 한 줄 |
-| `AGENTS.md` | B | 「Review guidelines」의 세 가리킴을 살아 있는 README 「고정한 것」으로(ADR 0011 의 4). 고정한 대상 · 날짜 · 알려진 한계의 말은 그대로 |
+| `AGENTS.md` | B | 「Review guidelines」의 세 가리킴을 살아 있는 README 「고정한 것」으로(ADR 0011 의 4). `route-ops` 공백 줄을 지운다(ADR 0011 의 7). 고정한 대상 · 날짜 · 알려진 한계의 말은 그대로 |
 | `docs/procedure.md` | B · C | 「살아 있는 문서와 기록」 — B: `vibe-audit/evals/README.md` 를 살아 있는 문서로, 기록 칸에 `docs/eval-log/` 와 그 이름 규칙(L2), 규칙 「수를 늘리지 않는다」를 「늘리려면 ADR 로 정한다」로(ADR 0011). C: 살아 있는 문서에 `docs/architecture.md` |
 | `CHECKLIST.md` | B | 「항상」의 기록 목록에서 `vibe-audit/evals/README.md` → `docs/eval-log/`, 새 기록 파일의 이름이 L2 에 맞는지 사람이 보는 칸 |
 | `vibe-audit/README.md` | B | 수트를 가리키는 두 줄(114 · 119)만 — 없는 절 「자기 트리거」를 살아 있는 README 의 있는 절로 |
@@ -21,8 +21,9 @@
 | `INTENT.md` | C | 되먹임 원칙의 가르는 질문(「다른 레포에서도 같은 말인가」)을 Why 에 — README 에서 옮긴다. What · Not 은 그대로라 「범위 변경」이 아니다 |
 | `docs/master-plan.md` | B · C | 「가리키는 문서」 — B: 「감사자가 왜 지금 모양인가」 줄에 `docs/eval-log/`. C: 「시스템 구조」 줄을 `docs/architecture.md` 로 |
 
-**앵커볼트를 건드린다** — `AGENTS.md` 「Review guidelines」(고정 영역)의 문구다. 가리키는 자리만 바뀌고 고정한 대상
-(러너 · 정규식 그레이더 · 브리핑 검사기)과 알려진 한계는 바뀌지 않는다. 저자가 정했다(ADR 0011 의 4). 감사자 · 대장 ·
+**앵커볼트를 건드린다** — `AGENTS.md` 「Review guidelines」(고정 영역)의 문구다. 가리키는 자리가 바뀌고 사실이 아닌 `route-ops`
+공백 줄이 빠진다. 고정한 대상(러너 · 정규식 그레이더 · 브리핑 검사기)과 알려진 한계는 바뀌지 않는다. 저자가 정했다(ADR
+0011 의 4 · 7). 감사자 · 대장 ·
 러너 · 스크립트는 건드리지 않는다. 부품이 늘지 않지만 시스템 구조 문서가 생긴다 — 그 문서를 세우는 것이 PR C 다.
 
 ## ② 보장하는 것 / 보장하지 않는 것
@@ -107,7 +108,7 @@
   방식으로 다시 세웠다 (2026-09-28)」 · 「정규식 그레이더를 고정했다 · route-ops 는 공백으로 둔다 (2026-09-25)」. 뒤의
   기록이 앞의 것을 바꾼 자리는 뒤의 것을 따른다 — 「plugin-dev 리뷰 (2026-10-06)」의 「새 route 케이스 둘」이
   `route-ops` 공백을 메웠다. 그래서 `AGENTS.md` 의 「`audit-ops` 에 route 케이스가 없는 것은 알려진 공백이다」 줄은 지금도
-  사실이 아니다 — ④ 열어 둔 것.
+  사실이 아니다 — PR B 에서 지운다(ADR 0011 의 7).
 
 **가리킴** — `evals/README` 를 이름으로 부르는 자리(`grep -rn "evals/README"`, 2026-10-06).
 
@@ -125,15 +126,13 @@
 
 - 작업 기록은 `docs/eval-log/` 에 · 지금 파일을 글자 그대로 첫 기록 파일로 옮기고 그 뒤는 달마다(1 · 2) — 저자.
 - 시스템 구조는 `docs/architecture.md` 를 새로 둔다(3) — 저자.
-- `AGENTS.md` 는 살아 있는 README 「고정한 것」을 가리킨다(4) — 저자.
+- `AGENTS.md` 는 살아 있는 README 「고정한 것」을 가리킨다(4) · 사실이 아닌 `route-ops` 공백 줄을 지운다(7) — 저자.
 - 수트 지문 안 파일의 옛 참조는 고치지 않고 E4 한 줄로 잇는다 · 새 검사를 세우지 않는다(5 · 6) — 세션이 제안, 이 PR 의
   머지가 저자의 결정.
 
 **열어 둔 것**
 
-- `AGENTS.md` 의 `route-ops` 공백 줄 — 지금도 사실이 아니다(③). 고정 영역의 문구라 가리킴을 바꾸는 것(ADR 0011 의 4)
-  밖이다. 지울지 · 「메워졌다」로 고칠지 · 그대로 둘지를 저자가 PR B 를 열기 전에 정한다. 정한 것은 설계 끝의 날짜를 박은
-  항목에 남긴다.
+없음 — 갈림길 일곱은 ADR 0011 이 정했고, 나머지는 ③ 의 실제 파일에서 따라 나온다.
 
 ## ⑤ 검증 계획
 
@@ -148,7 +147,8 @@
 - E1 — 케이스 폴더 이름 목록과 표 첫 칸의 목록을 `sort | diff`, 출력 없음.
 - E2 — `grep -nE '^#+ .*20[0-9]{2}-[0-9]{2}-[0-9]{2}' vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 53 줄
   (`## 5.5 전수 기준 (2026-10-05, 로컬)` 포함, 2026-10-06).
-- E3 — 옮기기 전 세 절의 알려진 한계 항목을 「고정한 것」과 하나씩 대어 본 표(PR 본문).
+- E3 — 옮기기 전 세 절의 알려진 한계 항목을 「고정한 것」과 하나씩 대어 본 표(PR 본문). 메워진 공백이 남지 않았는지 —
+  `grep -n 'route 케이스가 없는' AGENTS.md vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 `AGENTS.md` 16 줄.
 - E4 — `head -n 15 vibe-audit/evals/README.md | grep -cF 'docs/eval-log/2026-09-16_2026-10-06.md'`, 1 이상. 어긋내 보기: 기준
   커밋에서 0.
 - P1 — 살아 있는 문서에서 `evals/README.md` 「…」 를 뽑아 살아 있는 README 의 제목과 대조, 빠진 것 0.
@@ -182,7 +182,7 @@
 
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
-| **A — 착공(요구사항 + 설계)** | 이 폴더 · ADR 0011 · 마스터플랜의 상태와 조각 폴더 | 갈림길 여섯과 옮길 대상의 목록 — 구현보다 먼저 선다 |
+| **A — 착공(요구사항 + 설계)** | 이 폴더 · ADR 0011 · 마스터플랜의 상태와 조각 폴더 | 갈림길 일곱과 옮길 대상의 목록 — 구현보다 먼저 선다 |
 | **B — 수트 문서 나누기** | `docs/eval-log/` · 살아 있는 `vibe-audit/evals/README.md` · `AGENTS.md` · `docs/procedure.md` · `CHECKLIST.md` · `vibe-audit/README.md` · 마스터플랜 「가리키는 문서」 | 성공 기준 4 · 5 와 6 · 7 의 B 몫 |
 | **C — 입구와 규칙** | `docs/architecture.md` · `README.md` · `CLAUDE.md` · `INTENT.md` · `docs/procedure.md` 살아 있는 문서 목록 · 마스터플랜 「가리키는 문서」 | 성공 기준 1 · 2 · 3 과 6 · 7 의 C 몫 |
 
