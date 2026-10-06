@@ -12,8 +12,8 @@
 | `docs/eval-log/2026-09-16_2026-10-06.md` | B | 지금의 `vibe-audit/evals/README.md` 를 글자 그대로 옮긴 첫 기록 파일(`git mv`) |
 | `vibe-audit/evals/README.md` | B | 새로 쓴다 — 살아 있는 문서. 절: 재는 것(오검율 · 트리거) · 케이스 표 · 재는 법(그레이더 · 대조군 · 심판 · 키 없는 게이트 · 러너) · 고정한 것 · 기록. 머리에 「2026-10-06 까지의 절은 `docs/eval-log/2026-09-16_2026-10-06.md` 에 글자 그대로 있다」 한 줄 |
 | `AGENTS.md` | B | 「Review guidelines」의 세 가리킴을 살아 있는 README 「고정한 것」으로(ADR 0011 의 4). 고정한 대상 · 날짜 · 알려진 한계의 말은 그대로 |
-| `docs/procedure.md` | B · C | 「살아 있는 문서와 기록」 — B: `vibe-audit/evals/README.md` 를 살아 있는 문서로, 기록 칸에 `docs/eval-log/`, 규칙 「수를 늘리지 않는다」를 「늘리려면 ADR 로 정한다」로(ADR 0011). C: 살아 있는 문서에 `docs/architecture.md` |
-| `CHECKLIST.md` | B | 「항상」의 기록 목록에서 `vibe-audit/evals/README.md` → `docs/eval-log/` |
+| `docs/procedure.md` | B · C | 「살아 있는 문서와 기록」 — B: `vibe-audit/evals/README.md` 를 살아 있는 문서로, 기록 칸에 `docs/eval-log/` 와 그 이름 규칙(L2), 규칙 「수를 늘리지 않는다」를 「늘리려면 ADR 로 정한다」로(ADR 0011). C: 살아 있는 문서에 `docs/architecture.md` |
+| `CHECKLIST.md` | B | 「항상」의 기록 목록에서 `vibe-audit/evals/README.md` → `docs/eval-log/`, 새 기록 파일의 이름이 L2 에 맞는지 사람이 보는 칸 |
 | `vibe-audit/README.md` | B | 수트를 가리키는 두 줄(114 · 119)만 — 없는 절 「자기 트리거」를 살아 있는 README 의 있는 절로 |
 | `docs/architecture.md` | C | 새로 쓴다 — 부품(플러그인 · 스크립트 · 대장 둘 · CI 잡)과 흐름(심기 → 견주기 → 판정 → 되먹임 → 케이스 → 수트). README 에서 걷은 검사 넷의 설명이 여기로 온다 |
 | `README.md` | C | 입구로 줄인다 — 들어 있는 것 · 설치(두 경로) · 새 프로젝트를 열 때 · 가리키는 곳 |
@@ -32,9 +32,11 @@
 - **기록**
   - L1 `docs/eval-log/2026-09-16_2026-10-06.md` 가 PR B 의 기준 커밋의 `vibe-audit/evals/README.md` 와 바이트로 같다.
   - L2 `docs/eval-log/` 의 파일 이름은 첫 파일 말고 `<YYYY-MM>.md` 다. 2026-10-07 부터의 기록은 `2026-10.md` 부터 쌓는다.
+    이 규칙은 살아 있는 문서 둘이 든다 — `docs/procedure.md` 「살아 있는 문서와 기록」의 기록 줄과 살아 있는 수트 README
+    「기록」 절. PR B 의 머리에서 그 폴더의 이름이 다 이 규칙에 맞는다.
 - **살아 있는 수트 문서**(`vibe-audit/evals/README.md`)
   - E1 케이스 표가 `vibe-audit/evals/` 의 케이스 폴더마다 꼭 한 줄이고, 표에 없는 폴더도 폴더 없는 줄도 없다.
-  - E2 제목이나 본문에 날짜를 박은 작업 기록 절이 없다 — `## … (YYYY-MM-DD)` 꼴의 절이 0 개.
+  - E2 날짜를 박은 작업 기록 절이 없다 — 제목에 `YYYY-MM-DD` 가 든 절이 0 개(괄호 뒤에 말이 붙은 꼴도).
   - E3 「고정한 것」 절이 셋(러너 · 정규식 그레이더 · 브리핑 검사기)과 `route-ops` 공백을 들고, 각각의 알려진 한계를
     옮기기 전과 같은 범위로 든다. 처음 고정한 날짜는 기록 파일의 절을 가리킨다.
   - E4 머리의 한 줄이 첫 기록 파일을 가리킨다 — 옛 참조 `evals/README.md 「…」` 는 그 파일에서 찾는다.
@@ -58,7 +60,8 @@
   찾는다(ADR 0011 의 5). 다음에 그 파일을 고치는 PR 이 따라 고친다.
 - **첫 기록 파일의 내용** — 뒤섞인 순서, 지금은 낡은 숫자 · 시간에 기댄 문장, 「루트 README」처럼 지금은 없는 자리를
   가리키는 말. 글자 그대로 옮긴 기록이다(L1).
-- **README · CLAUDE.md 가 나중에 값을 다시 드는 것** — 검사가 없다. 사람이 본다(ADR 0011 의 6).
+- **README · CLAUDE.md 가 나중에 값을 다시 드는 것 · 나중의 기록 파일 이름** — 검사가 없다. 사람이 본다(ADR 0011 의 6 ·
+  `CHECKLIST.md`). ⑤ 의 명령은 구현 PR 의 머리에서 한 번 대어 보는 것이다.
 - **`docs/architecture.md` 가 완전한가** — PR C 의 날의 부품과 흐름을 든다. 그 뒤는 절차 3 단계의 나가는 조건이 사람에게
   맡긴다. 그 문서의 모양(필수 절)은 정하지 않는다.
 - **문장의 질** — 살아 있는 README · architecture 의 서술이 잘 읽히는가. 리뷰가 이 밖을 짚으면 범위 밖이다.
@@ -128,15 +131,20 @@
 
 ## ⑤ 검증 계획
 
-모델을 부르지 않는다. 검사를 세우지 않으므로 「어긋내 봐서 떨어지는 것」은 없다 — 대신 각 보장을 한 번 도는 명령으로
-대어 보고 결과를 PR 본문에 붙인다.
+모델을 부르지 않는다. 검사를 세우지 않는다 — 각 보장을 한 번 도는 명령으로 대어 보고 결과를 PR 본문에 붙인다. 명령이
+무는지는 그 PR 의 기준 커밋에 같은 명령을 대어 본다(「어긋내 보기」) — 기준 커밋은 고치기 전의 모양이라 걸려야 한다.
 
 **PR B**
 
 - L1 — `git show <기준>:vibe-audit/evals/README.md | cmp - docs/eval-log/2026-09-16_2026-10-06.md`, 출력 없음.
+- L2 — `ls docs/eval-log | grep -vxE '2026-09-16_2026-10-06\.md|[0-9]{4}-[0-9]{2}\.md'`, 0 줄. 규칙이 든 자리 —
+  `grep -F '<YYYY-MM>.md' docs/procedure.md vibe-audit/evals/README.md` 가 두 파일 다에서 걸린다.
 - E1 — 케이스 폴더 이름 목록과 표 첫 칸의 목록을 `sort | diff`, 출력 없음.
-- E2 — `grep -nE '^#+ .*\(20[0-9]{2}-[0-9]{2}-[0-9]{2}\)' vibe-audit/evals/README.md`, 0 줄.
+- E2 — `grep -nE '^#+ .*20[0-9]{2}-[0-9]{2}-[0-9]{2}' vibe-audit/evals/README.md`, 0 줄. 어긋내 보기: 기준 커밋에서 53 줄
+  (`## 5.5 전수 기준 (2026-10-05, 로컬)` 포함, 2026-10-06).
 - E3 — 옮기기 전 세 절의 알려진 한계 항목을 「고정한 것」과 하나씩 대어 본 표(PR 본문).
+- E4 — `head -n 15 vibe-audit/evals/README.md | grep -cF 'docs/eval-log/2026-09-16_2026-10-06.md'`, 1 이상. 어긋내 보기: 기준
+  커밋에서 0.
 - P1 — 살아 있는 문서에서 `evals/README.md` 「…」 를 뽑아 살아 있는 README 의 제목과 대조, 빠진 것 0.
 - X1 — `git diff --name-only <기준>..HEAD` 와 `python3 scripts/eval-key.py route --list` · `full --list` 의 교집합 0
   (`claude` 가 없는 곳에서는 `eval-key.py` 의 `inputs()` 를 직접 불러 같은 목록을 뽑는다). CI eval 잡이 「같은 지문」으로
@@ -145,13 +153,20 @@
 
 **PR C**
 
-- R1 — `grep -c '^## ' README.md` 넷 이하.
+- R1 — `grep -c '^## ' README.md` 넷 이하. 그리고 걷을 내용이 없는지 —
+  `grep -nE '^#+ (사본은 갈려도|되먹인 자리마다|사본이 원본의 공통 절|견줄 상대는 대장|갈린 자리를 뽑아|감사 계획과 부적합)|첫 되먹임에서|둘째 되먹임|셋째는 관문|verify-copy|compare-copies|run-evals' README.md`,
+  0 줄. 어긋내 보기: 기준 커밋에서 13 줄(2026-10-06).
 - R2 — 지운 문단 → 주인 대응표(PR 본문). 주인마다 PR C 의 머리에서 그 절을 연다.
 - R3 — `grep -nE '[0-9]+\.[0-9]+\.[0-9]+|claude-(sonnet|opus|haiku)|\b(sonnet|opus|haiku)\b|\bgate\b|\bverdict\b|\beval\(' CLAUDE.md`,
   0 줄. 잡 이름은 지금 CLAUDE.md 가 쓰는 꼴(`gate(…)` · `eval(…)` · `verdict(…)`)로 건다 — `eval` 만으로 걸면 `eval.yml` ·
   `run-evals.sh` 를 가리키는 줄이 걸린다. 어긋내 보기: PR C 의 기준 커밋 CLAUDE.md 에 같은 명령을 대면 값 넷(CLI 버전 ·
-  잡 이름 · 수트 모델 · 심판 모델)이 든 세 줄이 다 걸린다(2026-10-06 에 10 · 12 · 13 줄).
-- R4 · P2 — 마스터플랜 「가리키는 문서」를 대어 본다 · `python3 scripts/verify-docs.py`.
+  잡 이름 · 수트 모델 · 심판 모델)이 든 세 줄이 다 걸린다(2026-10-06 에 10 · 12 · 13 줄). 그 줄이 주인을 가리키는지 —
+  `grep -cF` 로 `eval-key.py` · `eval.yml` · `run-evals.sh` 가 각각 1 이상, `grep -cE '되먹임.*INTENT\.md' CLAUDE.md` 1 이상.
+  어긋내 보기: 기준 커밋에서 마지막 것이 0(지금은 `(README)`).
+- R4 — `grep -nE '^\| 시스템 구조 \| `docs/architecture\.md`' docs/master-plan.md` 1 줄이고 그 줄에 `README.md` 가 없다 ·
+  `grep -nE '되먹이지 않는다|다른 레포에서도 같은 말' README.md` 0 줄 · `grep -cF '다른 레포에서도 같은 말' INTENT.md` 1 이상.
+  어긋내 보기: 기준 커밋에서 첫 것은 0 줄(지금은 `docs/adr/` · `README.md`), 둘째는 2 줄, 셋째는 0.
+- P2 — `python3 scripts/verify-docs.py`. M2 는 적힌 경로가 있는지만 보므로 R4 의 첫 명령이 새 경로를 따로 본다.
 - P1 · X1 · X2 — PR B 와 같다.
 
 ## ⑥ PR 나눔
