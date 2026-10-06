@@ -12,7 +12,7 @@
 | `docs/eval-log/2026-09-16_2026-10-06.md` | B | 지금의 `vibe-audit/evals/README.md` 를 글자 그대로 옮긴 첫 기록 파일(`git mv`) |
 | `vibe-audit/evals/README.md` | B | 새로 쓴다 — 살아 있는 문서. 절: 재는 것(오검율 · 트리거) · 케이스 표 · 재는 법(그레이더 · 대조군 · 심판 · 키 없는 게이트 · 러너) · 고정한 것 · 기록. 머리에 「2026-10-06 까지의 절은 `docs/eval-log/2026-09-16_2026-10-06.md` 에 글자 그대로 있다」 한 줄 |
 | `AGENTS.md` | B | 「Review guidelines」의 세 가리킴을 살아 있는 README 「고정한 것」으로(ADR 0011 의 4). 고정한 대상 · 날짜 · 알려진 한계의 말은 그대로 |
-| `docs/procedure.md` | B | 「살아 있는 문서와 기록」 — `vibe-audit/evals/README.md` 를 살아 있는 문서로, 기록 칸에 `docs/eval-log/` |
+| `docs/procedure.md` | B · C | 「살아 있는 문서와 기록」 — B: `vibe-audit/evals/README.md` 를 살아 있는 문서로, 기록 칸에 `docs/eval-log/`, 규칙 「수를 늘리지 않는다」를 「늘리려면 ADR 로 정한다」로(ADR 0011). C: 살아 있는 문서에 `docs/architecture.md` |
 | `CHECKLIST.md` | B | 「항상」의 기록 목록에서 `vibe-audit/evals/README.md` → `docs/eval-log/` |
 | `vibe-audit/README.md` | B | 수트를 가리키는 두 줄(114 · 119)만 — 없는 절 「자기 트리거」를 살아 있는 README 의 있는 절로 |
 | `docs/architecture.md` | C | 새로 쓴다 — 부품(플러그인 · 스크립트 · 대장 둘 · CI 잡)과 흐름(심기 → 견주기 → 판정 → 되먹임 → 케이스 → 수트). README 에서 걷은 검사 넷의 설명이 여기로 온다 |
@@ -147,7 +147,10 @@
 
 - R1 — `grep -c '^## ' README.md` 넷 이하.
 - R2 — 지운 문단 → 주인 대응표(PR 본문). 주인마다 PR C 의 머리에서 그 절을 연다.
-- R3 — `grep -nE '[0-9]+\.[0-9]+\.[0-9]+|claude-(sonnet|opus|haiku)|\b(gate|eval|verdict)\b 잡' CLAUDE.md`, 0 줄.
+- R3 — `grep -nE '[0-9]+\.[0-9]+\.[0-9]+|claude-(sonnet|opus|haiku)|\b(sonnet|opus|haiku)\b|\bgate\b|\bverdict\b|\beval\(' CLAUDE.md`,
+  0 줄. 잡 이름은 지금 CLAUDE.md 가 쓰는 꼴(`gate(…)` · `eval(…)` · `verdict(…)`)로 건다 — `eval` 만으로 걸면 `eval.yml` ·
+  `run-evals.sh` 를 가리키는 줄이 걸린다. 어긋내 보기: PR C 의 기준 커밋 CLAUDE.md 에 같은 명령을 대면 값 넷(CLI 버전 ·
+  잡 이름 · 수트 모델 · 심판 모델)이 든 세 줄이 다 걸린다(2026-10-06 에 10 · 12 · 13 줄).
 - R4 · P2 — 마스터플랜 「가리키는 문서」를 대어 본다 · `python3 scripts/verify-docs.py`.
 - P1 · X1 · X2 — PR B 와 같다.
 
@@ -157,7 +160,7 @@
 |---|---|---|
 | **A — 착공(요구사항 + 설계)** | 이 폴더 · ADR 0011 · 마스터플랜의 상태와 조각 폴더 | 갈림길 여섯과 옮길 대상의 목록 — 구현보다 먼저 선다 |
 | **B — 수트 문서 나누기** | `docs/eval-log/` · 살아 있는 `vibe-audit/evals/README.md` · `AGENTS.md` · `docs/procedure.md` · `CHECKLIST.md` · `vibe-audit/README.md` · 마스터플랜 「가리키는 문서」 | 성공 기준 4 · 5 와 6 · 7 의 B 몫 |
-| **C — 입구와 규칙** | `docs/architecture.md` · `README.md` · `CLAUDE.md` · `INTENT.md` · 마스터플랜 「가리키는 문서」 | 성공 기준 1 · 2 · 3 과 6 · 7 의 C 몫 |
+| **C — 입구와 규칙** | `docs/architecture.md` · `README.md` · `CLAUDE.md` · `INTENT.md` · `docs/procedure.md` 살아 있는 문서 목록 · 마스터플랜 「가리키는 문서」 | 성공 기준 1 · 2 · 3 과 6 · 7 의 C 몫 |
 
 B 는 A 가 머지된 뒤에, C 는 B 가 머지된 뒤에 연다 — README 의 되먹임 이야기를 걷기 전에 그 주인(살아 있는 수트
 README 의 케이스 표)이 먼저 서야 한다.
