@@ -373,10 +373,10 @@ jobs:
                    'if name in schema and headings(lines(p)) != schema[name]:|if False:' \
                    'if len(intents) != 1:|if False:' \
                    'if why or not p.is_file():|if why:' \
-                   'if not p.resolve().is_relative_to(root.resolve()):|if False:' \
+                   'if not where.is_relative_to(root):|if False:' \
                    'if state not in STATES:|if False:' \
                    'elif status.get(d) != "닫힘":|elif False:' \
-                   'if color.get(d) == 1:|if False:' \
+                   'elif state.get(d) == 1:|elif False:' \
                    'if not folder:|if False:' \
                    'if f"docs/slices/{d.name}/" not in claimed:|if False:' \
                    'if key in owner:|if False:' \

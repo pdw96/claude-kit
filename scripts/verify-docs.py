@@ -111,14 +111,25 @@ def in_order(have, need):
     return None
 
 
+def real(p):
+    """링크를 따라간 실제 위치. 링크가 고리면 None — 판에 따라 예외가 나므로 여기서 받는다."""
+    try:
+        return p.resolve()
+    except (OSError, RuntimeError):
+        return None
+
+
 def inside(root, tok):
     """경로 토막이 루트 안의 있는 자리인가. 아니면 까닭을 돌려준다."""
     if tok.startswith("/") or ".." in pathlib.PurePosixPath(tok).parts:
         return None, "저장소 밖을 가리킨다"
     p = root / tok
+    where = real(p)
+    if where is None:
+        return None, "링크가 고리다"
     if not p.exists():
         return None, "없다"
-    if not p.resolve().is_relative_to(root.resolve()):
+    if not where.is_relative_to(root):
         return None, "링크가 저장소 밖을 가리킨다"
     if tok.endswith("/") and not p.is_dir():
         return None, "폴더가 아니다"
@@ -259,21 +270,26 @@ def check_slices(r, root, schema, mp, rows):
                 elif status.get(d) != "닫힘":
                     r.fail(mp, "S6", f"{state} 조각 「{name}」의 의존 「{d}」가 `닫힘` 이 아니다")
 
-    color = {}
-
-    def visit(n, path):
-        color[n] = 1
-        for d in deps.get(n, []):
-            if color.get(d) == 1:
-                cyc = path[path.index(d):] + [d] if d in path else [n, d]
+    # 고리 찾기 — 되부름 없이 쌓개로 걷는다. 의존 사슬이 길어도 깊이 한도에 걸리지 않는다(R1).
+    state = {}
+    for start in deps:
+        if state.get(start):
+            continue
+        state[start] = 1
+        stack = [(start, iter(deps[start]))]
+        while stack:
+            n, todo = stack[-1]
+            d = next(todo, None)
+            if d is None:
+                state[n] = 2
+                stack.pop()
+            elif state.get(d) == 1:
+                path = [x for x, _ in stack]
+                cyc = path[path.index(d):] + [d]
                 r.fail(mp, "S10", f"의존에 고리가 있다 — {' → '.join(cyc)}")
-            elif d in deps and not color.get(d):
-                visit(d, path + [d])
-        color[n] = 2
-
-    for n in deps:
-        if not color.get(n):
-            visit(n, [n])
+            elif d in deps and not state.get(d):
+                state[d] = 1
+                stack.append((d, iter(deps[d])))
 
     claimed, owner = set(), {}
     for _, name, _, _, state, cell in good:
@@ -284,7 +300,7 @@ def check_slices(r, root, schema, mp, rows):
         if folder:
             claimed.add(folder)
             # 링크로 다른 이름을 붙여도 같은 폴더다 — 따라간 실제 위치로 견준다.
-            key = (root / folder).resolve()
+            key = real(root / folder) or folder
             if key in owner:
                 r.fail(mp, "S9", f"「{owner[key]}」와 「{name}」이 같은 폴더를 가리킨다 — `{folder}`")
             owner.setdefault(key, name)

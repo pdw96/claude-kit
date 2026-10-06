@@ -176,6 +176,9 @@ CASES = [
     ("S8 예정 조각에 폴더", "S8", MP, lambda t: set_cell(t, PLAN, 5, "`docs/slices/98-plan/`")),
     ("S8 진행 조각의 폴더 칸이 —", "S8", MP, lambda t: set_cell(t, GO, 5, "—")),
     ("S8 진행 조각의 폴더가 없다", "S8", MP, lambda t: shutil.rmtree(t / TEST)),
+    ("S8 폴더가 고리 링크", "S8", MP, lambda t: (
+        os.symlink("98-loop", t / "docs/slices/98-loop"),
+        add_rows(t, "| — | 고리 링크 | x | — | 닫힘 | `docs/slices/98-loop/` |"))),
     ("S9 두 줄이 한 폴더", "S9", MP, lambda t: add_rows(
         t, "| — | 겹친 조각 | x | — | 닫힘 | `docs/slices/1-copy-comparison/` |")),
     ("S9 링크로 같은 폴더", "S9", MP, lambda t: (
@@ -215,6 +218,8 @@ CONTROLS = [
         t, MP, "| 데이터 모델 | `docs/schema.md`", "| 데이터 모델 | 없음 — 대장 둘은 `NOPE.md` 가 든다")),
     ("진행 조각에 「닫으며」로 시작하는 다른 절", lambda t: append(
         t, f"{TEST}/requirements.md", "\n## 닫으며 생각할 것\n")),
+    ("긴 의존 사슬(1,100 줄) — 깊이 한도에 걸리지 않는다", lambda t: add_rows(
+        t, *(f"| — | 사슬 {k} | x | {f'사슬 {k + 1}' if k < 1099 else '—'} | 예정 | — |" for k in range(1100)))),
     ("닫힌 조각의 지난 모양", lambda t: (
         sub(t, "docs/slices/2-procedure-map/design.md", "\n## ③ 받는 입력\n", "\n"),
         sub(t, "docs/slices/2-procedure-map/requirements.md", "\n## 제약\n", "\n"))),
