@@ -150,7 +150,8 @@
   `docs/procedure.md` 에 붙이면 둘이 나온다.
 - D2 — `docs/procedure.md` 의 단계 4 줄에 `slice-review` 가 있다(grep).
 - X1 — `git diff --name-only main...HEAD` 와 기준 · 머리 각각의 `eval-key.py route --list` · `full --list` 의 교집합이 0.
-  머리에서 CI eval 잡이 「같은 지문」으로 건너뛴다.
+  머리에서 CI eval 잡이 「같은 지문」으로 건너뛴다 — CI 의 CLI 판이 그 사이 올랐으면 판마다 한 번 돌 수 있고, 그때는 잡 로그의
+  지문 키에서 CLI 판만 바뀌고 수트 입력의 해시는 같은지를 PR 본문에 적는다.
 - **갈래 재연(성공 기준 3)** — 세션이 PR B 의 `SKILL.md` 를 읽고 claude-kit #17 · #24(착공)와 #18(구현)의 Codex 지적 30 건을
   그 PR 머지 직전의 기준 문서에 대어 가른다. 표의 칸은 PR · 지적 · 갈래 · 근거 줄 · 묶인 갈래. 말하지 않음은 같은 갈래끼리
   묶어 갈래 수를 적는다. PR B 본문에 싣는다.
