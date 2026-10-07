@@ -15,7 +15,7 @@ Not)는 `INTENT.md` 가 든다. 여기가 직접 드는 것은 조각 나눔과 
 | 작업 규칙과 앵커볼트 | `CLAUDE.md` · `AGENTS.md` 「Review guidelines」 |
 | 절차와 문서의 모양 | `docs/procedure.md` |
 | 조각의 요구사항 · 설계 | `docs/slices/` |
-| 감사자가 왜 지금 모양인가 | `vibe-audit/evals/README.md` — 되먹임 회차와 케이스, 측정 |
+| 감사자가 왜 지금 모양인가 | `vibe-audit/evals/README.md` — 지금 상태(케이스 표 · 재는 법 · 고정한 것) · `docs/eval-log/` — 되먹임 회차와 측정의 기록 |
 
 ## 조각 나눔
 
