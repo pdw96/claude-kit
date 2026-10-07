@@ -25,7 +25,7 @@
 
 ## 가변 — 자유롭게 바꿔도 되는 것
 
-- README 서술, `vibe-audit/evals/README.md` 의 작업 기록
+- README 서술, 감사자 작업 기록(`docs/eval-log/` — 덧붙이기만 한다)
 - 감사자 체크 항목의 문구 — 예산과 수트 안에서
 - 스크립트의 내부 구조
 

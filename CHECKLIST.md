@@ -7,8 +7,10 @@
 - [ ] `./scripts/gates.sh` 통과 — CI gate 잡과 같다
 - [ ] 새 검사를 세웠다면 CI 「게이트가 무는가」에 그것이 떨어지는 변조본이 있다
 - [ ] CI verdict 가 초록이다 — Skipped 가 아니라 통과
-- [ ] 살아 있는 문서에 시간에 기댄 문장이 없고, 머지된 기록(조각 폴더 · ADR · `vibe-audit/evals/README.md`)의
+- [ ] 살아 있는 문서에 시간에 기댄 문장이 없고, 머지된 기록(조각 폴더 · ADR · `docs/eval-log/`)의
       지난 항목을 고치지 않았다 — 기록에 더한 것은 날짜를 박은 새 항목(요구사항 끝의 `## 닫으며 (<YYYY-MM-DD>)` 포함)뿐이다
+- [ ] 감사자 작업 기록을 더했다면 `docs/eval-log/<YYYY-MM>.md` 에 덧붙였다 — 이름이 그 꼴이고(`docs/procedure.md`
+      「살아 있는 문서와 기록」), `vibe-audit/evals/README.md` 에는 날짜를 박은 절을 쌓지 않았다
 
 ## 감사자 문구를 고쳤다면
 
