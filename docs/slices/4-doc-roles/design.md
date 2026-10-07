@@ -164,6 +164,9 @@
   대조할 것이 줄어든 채로 통과하지 않게 — `AGENTS.md` 의 고정한 셋(러너 · 브리핑 검사기 · 정규식 그레이더)은 각 줄이
   경로와 절을 한 줄에 든다: `grep -cE 'vibe-audit/evals/README\.md.*「고정한 것」' AGENTS.md` 가 3. 어긋내 보기: 기준
   커밋에서 0(지금은 옛 절 이름을 가리킨다).
+  플러그인 입구도 같다 — `vibe-audit/README.md` 의 두 줄(114 · 119)은 각 줄이 `evals/README.md` 와 살아 있는 README 의
+  절을 한 줄에 든다: `grep -cE 'evals/README\.md` 「' vibe-audit/README.md` 가 2 이상이고, 그 절은 위 대조로 다 있는 절이다.
+  어긋내 보기: 기준 커밋에서 1(114 줄은 절 없이 파일만, 119 줄의 「자기 트리거」는 없는 절).
 - P3 (B 몫) — 파일마다 따로: `grep -cF 'docs/eval-log/'` 가 `CLAUDE.md` · `CHECKLIST.md` 에서 각각 1 이상 ·
   `grep -cE '^\| 감사자가 왜 지금 모양인가 \|.*docs/eval-log/' docs/master-plan.md` 1 · `docs/procedure.md` 에서
   `grep -cE '^\| \*\*기록\*\*.*docs/eval-log/'` 1 과 `grep -cE '^\| \*\*살아 있는 문서\*\*.*vibe-audit/evals/README\.md'` 1.
