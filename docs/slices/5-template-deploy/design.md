@@ -16,7 +16,8 @@
 | `scripts/test-sync-slice.py` | B | 위 스크립트의 자체 시험 — 임시 원본 · 대상 |
 | `scripts/verify-docs.py` · `scripts/test-verify-docs.py` | B | 틀을 읽는 자리를 새 폴더로 |
 | `scripts/verify-budget.py` · `vibe-audit/evals/budget.txt` | B | 마켓플레이스의 플러그인마다, `skills/*/SKILL.md` 도 잰다. 스냅숏에 `[vibe-slice]` 절 |
-| `scripts/gates.sh` | B | `claude plugin validate ./vibe-slice` · `test-sync-slice.py` — 열둘이 열넷 |
+| `scripts/gates.sh` | B | `claude plugin validate ./vibe-slice` · `test-sync-slice.py` — 세는 줄(`validate` 는 세지 않는다)이 열둘에서 열셋 |
+| `CHECKLIST.md` | B | 「틀을 고쳤다면」 — `vibe-slice` 의 판을 올렸다 |
 | `docs/procedure.md` | B | 틀의 자리 세 군데(일곱 단계 1 · 2 의 맡는 도구 · 「대상과 관계」 · 「살아 있는 문서와 기록」), 「계정 스킬의 일」, 「이 모양을 무는 것」의 다른 레포 줄 |
 | `docs/architecture.md` | B | 부품에 `vibe-slice` 와 사본 길 |
 | `README.md` | B | 「들어 있는 것」 표 · 두 경로의 설치 · 「새 프로젝트를 열 때」 |
@@ -45,7 +46,8 @@
     바이트로 같다.
   - T2 문서 대조 검사의 T1 · T2(조각 3 설계 ②)가 새 자리를 문다.
 - **스킬**
-  - K1 `SKILL.md` 가 틀 넷을 스킬 폴더 기준 경로(`templates/<이름>.md`)로, 베낄 자리를 문서 종류마다 든다 — 의도는
+  - K1 `SKILL.md` 가 틀 넷을 `${CLAUDE_SKILL_DIR}/templates/<이름>.md` 로 든다 — 부르는 레포의 작업 디렉터리가 아니라
+    스킬 폴더에서 읽으므로 플러그인 캐시와 사본(`.claude/skills/`)에서 같은 줄이 풀린다. 베낄 자리를 문서 종류마다 든다 — 의도는
     `INTENT.md`, 마스터플랜은 `docs/master-plan.md`, 요구사항 · 설계는 `docs/slices/<순서>-<이름>/`.
   - K2 단계의 조건은 claude-kit `docs/procedure.md` 를 URL(`https://github.com/pdw96/claude-kit/blob/main/docs/procedure.md`)로
     가리킨다 — 지도의 표를 옮겨 적지 않는다.
@@ -56,18 +58,22 @@
     같은 상대 경로에 선다. `SKILL.md` 는 프론트매터 뒤에 출처 줄(`<!-- pdw96/claude-kit@<sha> 에서 옴 … -->`)이 들고,
     나머지는 바이트 그대로다.
   - C2 원본 스킬 폴더에 커밋 안 된 변경이나 HEAD 에 없는 파일이 있으면 아무것도 쓰지 않고 멈춘다.
-  - C3 대상에 `.claude/skills/slice-docs` 가 이미 있으면(파일 · 끊긴 링크도) `--force` 없이는 아무것도 쓰지 않고 멈춘다.
-    `--force` 면 그 폴더를 비우고 다시 심는다 — 사본의 특화는 사라진다.
+  - C3 대상에 `.claude/skills/slice-docs` 가 **폴더로** 이미 있으면 `--force` 없이는 아무것도 쓰지 않고 멈춘다. `--force`
+    면 그 폴더를 비우고 다시 심는다 — 사본의 특화는 사라진다. 그 자리가 파일이나 링크(끊긴 링크도)면 C4 대로 `--force`
+    여도 멈춘다.
   - C4 심을 자리(`.claude` · `.claude/skills` · `.claude/skills/slice-docs`) 가운데 링크이거나 폴더가 아닌 것이 있으면
     아무것도 쓰지 않고 멈춘다 — 대상 레포 밖에 쓰지 않는다.
   - C5 `copies.json` 과 대상 레포의 다른 파일을 건드리지 않고, 대상 레포에 커밋하지 않는다.
 - **감사자** (`audit-internal`)
   - A1 뼈대 1 이 기준 문서로 의도 문서(`INTENT.md`, 또는 마스터플랜 「가리키는 문서」의 의도 줄이 가리키는 문서) ·
     `docs/master-plan.md` · 조각 폴더(`docs/slices/*/`)를 이름으로 든다. `PRD.md` 도 남는다.
-  - A2 뼈대 6 · 7 이 「하지 않을 일」 · 성공 기준의 자리로 `PRD.md` 와 함께 의도 문서의 Not · 조각 요구사항을 든다.
+  - A2 뼈대 6 · 7 이 「하지 않을 일」 · 성공 기준의 자리를 둘로 가른다 — 프로젝트 전체의 것은 `PRD.md` 나 의도 문서의
+    Not, 조각의 것은 **감사 대상 변경이 속한 조각**의 요구사항뿐이다. 다른 조각의 「하지 않을 일」은 그 조각의 구현
+    범위에만 걸려, 뒤의 조각이 그것을 한 것은 부적합이 아니다. 어느 조각인지 못 가르면 확인불가로 적는다.
   - A3 프론트매터와 공통 절이 바이트로 그대로다.
   - A4 호출 시 문자 ≤ 11,000 이고, 스냅숏이 같은 PR 에 있다.
-  - A5 새 판정 케이스가 수트에서 통과한다.
+  - A5 새 판정 케이스가 수트에서 통과한다 — 진행 조각의 「하지 않을 일」을 어긴 코드를 부적합으로 내고(진짜 부적합),
+    닫힌 조각이 하지 않기로 한 것을 뒤 조각이 한 코드는 부적합으로 내지 않는다(덫).
 - **비용**
   - X1 PR B 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
 
@@ -77,7 +83,11 @@
   「다른 레포의 문서 대조 검사」.
 - **절차 지도의 URL 이 닿는지** — 네트워크가 막힌 세션은 지도를 읽지 못한다. 스킬은 URL 만 든다.
 - **절차 지도의 판** — `main` 을 가리킨다. 지도가 바뀌면 이미 쓴 문서는 그날의 모양이다(기록은 고치지 않는다).
-- **플러그인 갱신이 세션에 닿는 때** — 마켓플레이스 갱신 · 리로드는 Claude Code 가 한다. 강호쟁패의 첫 install 은 저자가 한다.
+- **새 틀이 설치된 플러그인에 닿는 것** — 서드파티 마켓플레이스는 자동 갱신이 기본으로 꺼져 있고, 리로드는 새 판을
+  받지 않는다. `claude plugin update vibe-slice@pdw96-kit`(또는 `pdw96-kit` 의 자동 갱신을 켜 둠)이 받는다. 그리고
+  `plugin.json` 의 판이 그대로면 갱신도 새 틀을 받지 않는다 — 판을 올렸는지는 검사가 물지 않고 `CHECKLIST.md` 에서
+  사람이 본다. 강호쟁패의 첫 install 과 갱신은 저자가 한다.
+- **`audit-internal` 이 감사 대상의 조각을 늘 맞게 고르는지** — 브리핑 · 부른 말 · 마스터플랜의 `진행` 줄에서 읽는다.
 - **ERP 사본이 원본보다 뒤인지** — 대장이 없어 아무도 찍지 않는다. 따라잡으려면 `--force` 로 다시 심는다.
 - **스킬이 스스로 뜨는 정확도** — 트리거 수트를 세우지 않는다. 단계 5 에서 저자가 부를 수 있는지만 본다.
 - **같은 이름의 스킬이 레포나 계정에 따로 있을 때** — Claude Code 가 가른다.
@@ -102,12 +112,18 @@
 **`verify-budget.py`** — `marketplace.json` 의 `plugins` 줄마다 `source` 폴더에서 `agents/audit-*.md` · `commands/*.md` ·
 `skills/*/SKILL.md`. 틀 파일은 재지 않는다 — 스킬이 부를 때만 읽는다.
 
-**`slice-docs` 스킬** — 부르는 세션의 요청과 그 레포의 마스터플랜. 받는 문서 종류는 넷(의도 · 마스터플랜 · 요구사항 ·
-설계)뿐이고, 그 밖(ADR · `CLAUDE.md` · README)은 이 스킬의 일이 아니라고 적는다.
+**`slice-docs` 스킬** — 부르는 세션의 요청. 받는 문서 종류는 넷(의도 · 마스터플랜 · 요구사항 · 설계)뿐이고, 그 밖(ADR ·
+`CLAUDE.md` · README)은 이 스킬의 일이 아니라고 적는다.
+
+- 마스터플랜(`docs/master-plan.md`)은 있으면 읽는다(조각의 순서 · 이름). **없으면 처음 쓰는 호출이다** — 의도와
+  마스터플랜을 틀에서 시작한다. 의도를 이미 든 문서(`PRD.md` 등)가 있으면 `INTENT.md` 를 새로 쓰지 않고 마스터플랜
+  「가리키는 문서」의 의도 줄이 그 문서를 가리킨다(절차 「의도 문서의 칸」).
+- 요구사항 · 설계는 마스터플랜에 그 조각의 줄이 있어야 쓴다. 없으면 줄을 먼저 더하라고 한다.
 
 **`audit-internal`** — 기준 문서의 이름: `CLAUDE.md` · 의도 문서(`INTENT.md` 또는 「가리키는 문서」의 의도 줄) · `PRD.md` ·
 `docs/master-plan.md` · `docs/slices/*/requirements.md` · `docs/slices/*/design.md` · `docs/adr/` · 스키마 문서. 그 밖의 문서는
-저장소가 스스로 적은 목록이 있을 때만 읽는다.
+저장소가 스스로 적은 목록이 있을 때만 읽는다. 감사 대상의 조각은 브리핑(`.claude/audit-brief.md`) · 부른 말 · 마스터플랜의
+`진행` 줄에서 읽는다.
 
 ## ④ 결정
 
@@ -136,27 +152,34 @@
 
 - P1 — `python3 scripts/verify-manifest.py` 통과. 어긋내 보기: `vibe-slice/.claude-plugin/plugin.json` 의 설명 한 글자를
   바꾸면 「설명이 갈렸다」로 떨어진다.
-- P2 · T2 · K3 · C1 ~ C5 — `./scripts/gates.sh` 열넷 통과. `test-verify-docs.py` 의 T1 · T2 변조본이 새 자리의 틀을
+- P2 · T2 · K3 · C1 ~ C5 — `./scripts/gates.sh` 열셋 통과. `test-verify-docs.py` 의 T1 · T2 변조본이 새 자리의 틀을
   지우고 · 고친다. `test-sync-slice.py` 가 C1 ~ C5 를 임시 원본 · 대상으로 하나씩 문다 — 다시 심기 거절, `--force`,
-  더러운 원본, 추적 안 된 파일, 링크 · 파일로 선 자리, 끊긴 링크, `copies.json` 바이트 그대로.
+  더러운 원본, 추적 안 된 파일, **무시된 파일**(`.git/info/exclude` 에 넣고 만든 것 — `status --porcelain` 이 못 본다),
+  링크 · 파일로 선 자리(`--force` 로도), 끊긴 링크, `copies.json` 바이트 그대로.
 - C2 · C3 · C4 어긋내 보기 — `sync-slice.sh` 의 그 검사 줄을 하나씩 지운 작업트리에서 `test-sync-slice.py` 가 떨어진다.
 - K3 어긋내 보기 — `SKILL.md` 끝에 4,500 자를 붙이면 `verify-budget.py` 가 떨어진다.
 - P3 — `git ls-files vibe-slice` 가 여섯 줄.
 - T1 — `git diff -M --summary main...HEAD` 에 `docs/templates/` 넷의 `rename … (100%)` 가 있고, `test ! -e docs/templates`.
-- K1 · K2 — `SKILL.md` 에 `templates/` 네 이름과 절차 지도 URL 이 있다(grep). 어긋내 보기: 기준 커밋에는 `SKILL.md` 가 없다.
+- K1 — `SKILL.md` 의 틀 경로가 다 `${CLAUDE_SKILL_DIR}/templates/` 로 시작하고, 그 꼴의 네 경로를 스킬 폴더로 풀면
+  다 있는 파일이다(파이썬 몇 줄). 어긋내 보기: 경로 하나를 `templates/…` 나 `docs/templates/…` 로 바꾸면 그 대조가
+  떨어진다. 부를 때 실제로 그 바이트를 읽는지는 단계 5 에서 본다.
+- K2 — `SKILL.md` 에 절차 지도 URL 이 있다(grep). 어긋내 보기: 기준 커밋에는 `SKILL.md` 가 없다.
 - X1 — `git diff --name-only main...HEAD` 와 기준 · 머리 각각의 `eval-key.py route --list` · `full --list` 의 교집합이 0.
   머리에서 CI eval 잡이 「같은 지문」으로 건너뛴다.
 
 **PR C**
 
-- A1 · A2 — 뼈대 1 · 6 · 7 의 줄에 `INTENT.md` · `docs/master-plan.md` · `docs/slices/` 가 있다(grep). 어긋내 보기: 기준
+- A1 · A2 — 뼈대 1 · 6 · 7 의 줄에 `INTENT.md` · `docs/master-plan.md` · `docs/slices/` 가 있고, 6 · 7 이 「감사 대상
+  변경이 속한 조각」으로 범위를 좁힌다(grep). 어긋내 보기: 기준
   커밋의 같은 줄에는 없다.
 - A3 — `python3 scripts/verify-copy.py vibe-audit/agents` 통과, 그리고 기준과 머리의 `audit-internal.md` 프론트매터(첫
   `---` 부터 둘째 `---` 까지)가 바이트로 같다.
 - A4 — `python3 scripts/verify-budget.py` 통과, 스냅숏의 `audit-internal` 호출 시 ≤ 11,000.
-- A5 — 머리에서 CI route 잡 통과, 그리고 전수(`workflow_dispatch`)에서 새 케이스 통과.
+- A5 — 머리에서 CI route 잡 통과, 그리고 전수(`workflow_dispatch`)에서 새 케이스 통과. 그레이더는 진짜 부적합과 덫을
+  따로 문다 — 덫을 부적합으로 낸 표본(`samples/fail*.md`)을 그레이더가 떨어뜨린다(`verify-graders.py`).
 
-**단계 5(배포)** — 저자가 강호쟁패에서 `claude plugin install vibe-slice@pdw96-kit` 뒤 `/vibe-slice:slice-docs` 가 뜨는지,
+**단계 5(배포)** — 저자가 강호쟁패에서 `claude plugin install vibe-slice@pdw96-kit` 뒤 `/vibe-slice:slice-docs` 가 뜨고
+부르면 틀의 내용(예: 설계 틀의 여섯 `##` 제목)을 그대로 읽는지,
 ERP 에 `./scripts/sync-slice.sh <ERP>` 를 돌려 커밋한 뒤 클라우드 세션에서 `/slice-docs` 가 뜨는지 본다.
 
 ## ⑥ PR 나눔
