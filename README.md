@@ -49,6 +49,9 @@ claude plugin install vibe-audit@pdw96-kit
 
 계정에 붙어 있는 스킬 넷(`project-kickoff` · `build-gate` · `separate-audit` · `ai-native-build`)은 설치가 필요 없다.
 
+무엇을 언제 감사할지와 부적합을 닫힐 때까지 따라가는 일은 계정 스킬 `separate-audit` 이 맡는다 — 이 플러그인의 감사자
+여섯은 그 계획이 넘겨주는 개별 감사만 한다.
+
 ## 가리키는 곳
 
 | 무엇 | 어디 |
