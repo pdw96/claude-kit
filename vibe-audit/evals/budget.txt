@@ -8,7 +8,7 @@
 [vibe-audit]
 agent  audit-contract      891   10186
 agent  audit-data          816   10951
-agent  audit-internal      804   10977
+agent  audit-internal      804   10991
 agent  audit-ops           765   10405
 agent  audit-quality       777   10899
 agent  audit-secrets       885   10409
