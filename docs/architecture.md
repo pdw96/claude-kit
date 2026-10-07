@@ -12,10 +12,10 @@
 | 매니페스트 둘 | `.claude-plugin/marketplace.json` · `vibe-audit/.claude-plugin/plugin.json` | 마켓플레이스와 플러그인. 두 군데 적힌 이름 · 설명은 `verify-manifest.py` 가 견준다 |
 | 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` | 클라우드 레인에서 뜨는 쪽. 그 레포에 맞게 갈린다 |
 | 사본 대장 | `copies.json` | 사본마다 레포 · 경로 · 심을 때의 커밋 · 날짜 |
-| 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함), 결함이면 되먹임 커밋과 케이스 |
+| 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |
 | 키 없는 게이트 | `scripts/gates.sh` 가 부르는 것 | 모델 없이 도는 검사 전부. 목록은 그 파일 한 군데에만 있다 |
-| CI | `.github/workflows/eval.yml` | 키 없는 게이트와 그 변조본(「게이트가 무는가」), 수트, 그리고 필수 체크가 되는 판정. 잡의 이름과 설정은 그 파일이 든다 |
+| CI | `.github/workflows/eval.yml` | 키 없는 게이트와 그 변조본(「게이트가 무는가」), 수트, 그리고 판정. 잡의 이름과 설정은 그 파일이 들고, 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이 든다 |
 
 대장 둘의 모양은 앵커볼트다(`CLAUDE.md`). 스크립트는 다 파일 머리에 쓰는 법과 까닭을 적는다.
 
@@ -30,7 +30,8 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 ```
 
 **심기.** `scripts/sync-agents.sh <레포>` 가 감사자 여섯 · 브리핑 커맨드 · 검사기를 그 레포의 `.claude/` 에 심고,
-파일 머리에 출처 커밋을 박고, `copies.json` 에 한 줄을 적는다. 커밋 안 된 원본은 심지 않는다. 사본이 이미 있으면
+감사자 · 커맨드 파일 머리에 출처 커밋을 박고, `copies.json` 에 한 줄을 적는다. 검사기(`.py`)는 바이트 그대로 옮기고
+그 출처는 대장만 든다. 커밋 안 된 원본은 심지 않는다. 사본이 이미 있으면
 덮어쓰지 않는다 — 사본의 특화가 사라진다.
 
 **견주기.** 셋이 층을 나눈다.
@@ -54,8 +55,9 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 **케이스.** 되먹임 한 건에 케이스 하나 — 진짜 부적합 하나(대조군)와 그 되먹임이 막는 거짓 판정. 정규식 그레이더가
 있으면 `samples/pass.md` · `samples/fail*.md` 로 그레이더가 가르는지도 본다(`verify-graders.py`).
 
-**수트.** `scripts/run-evals.sh` 가 깃발을 박아 `claude plugin eval` 을 돌린다. CI 는 같은 러너를 부르고, 수트 입력의
-지문(`scripts/eval-key.py`)이 이미 통과했으면 다시 돌지 않는다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`.
+**수트.** `scripts/run-evals.sh` 가 깃발을 박아 `claude plugin eval` 을 돌린다. CI 는 같은 러너를 부른다. PR · `main` push 는
+`route-*` 만 돌리고, 그 수트 입력의 지문(`scripts/eval-key.py`)이 이미 통과했으면 다시 돌지 않는다. 사람이 부르는 전수
+(`workflow_dispatch`)는 지문을 찾아보지 않고 늘 돈다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`.
 
 ## 게이트가 무는가
 

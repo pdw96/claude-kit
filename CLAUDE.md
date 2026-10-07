@@ -8,7 +8,7 @@
 - bash · python3 **표준 라이브러리만**. 외부 패키지를 들이지 않는다.
 - git — **역사 전체**가 있어야 한다. 얕은 클론에서는 `verify-copies.py` 가 대장의 커밋을 못 찾는다.
 - Claude Code CLI — `claude plugin validate` · `claude plugin eval`. 판은 고정하지 않는다 — CLI 판은 수트 지문(`eval-key.py`)이 든다.
-- CI: GitHub Actions — 잡과 그 역할 · 필수 체크는 `.github/workflows/eval.yml` 이 든다.
+- CI: GitHub Actions — 잡과 그 역할은 `.github/workflows/eval.yml` 이 든다. 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이다.
 - 수트 모델 · 심판 모델 — `run-evals.sh` 가 박는다. 값은 그 파일에만 있다.
 
 ## 앵커볼트 — 바꾸려면 먼저 물어볼 것
