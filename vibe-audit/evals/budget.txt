@@ -14,3 +14,7 @@ agent  audit-quality       777   10899
 agent  audit-secrets       885   10409
 skill  audit-brief         285    4458
        — 상시 합계            5223
+
+[vibe-slice]
+skill  slice-docs          178    1402
+       — 상시 합계             178

@@ -9,6 +9,11 @@
       "name": "vibe-audit",
       "source": "./vibe-audit",
       "description": "목적별로 범위를 좁힌 읽기전용 감사자 6종. 고칠 도구를 갖고 있지 않아 발견과 수정이 구조적으로 분리됩니다."
+    },
+    {
+      "name": "vibe-slice",
+      "source": "./vibe-slice",
+      "description": "프로젝트를 조각으로 나눠 진행할 때 쓰는 문서 틀 넷 — 의도 · 마스터플랜 · 조각 요구사항 · 설계. 절차는 claude-kit 의 절차 지도를 가리킵니다."
     }
   ]
 }

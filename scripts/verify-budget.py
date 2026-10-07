@@ -54,7 +54,7 @@ AGENT_ON_INVOKE_MAX = 11_000     # 지금 최대 9,459 — 감사 대상 코드�
 SKILL_ON_INVOKE_MAX = 4_500      # 지금 audit-brief 3,890 (ERP#13 의 결함 여덟을 받고 올렸다)
 
 SNAPSHOT = pathlib.Path("vibe-audit/evals/budget.txt")
-SOURCES = (("agent", "agents/audit-*.md"), ("skill", "commands/*.md"))
+SOURCES = (("agent", "agents/audit-*.md"), ("skill", "commands/*.md"), ("skill", "skills/*/SKILL.md"))
 HEAD = """# 주의 예산 스냅숏 — 단위는 **문자**. 어디서 재도 같은 값이다.
 # `python3 scripts/verify-budget.py --write` 로 갱신한다.
 # 이 파일이 바뀌는 커밋은 「이번에 주의 예산을 얼마나 더 썼는가」를 밝히는 커밋이다.
@@ -78,16 +78,22 @@ def measure(plugin):
     for kind, pat in SOURCES:
         for p in sorted(plugin.glob(pat)):
             t = p.read_text(encoding="utf-8")
-            out.append((kind, p.stem, frontmatter_len(t), len(t)))
+            # 스킬은 파일 이름이 다 `SKILL.md` 라 폴더 이름이 그 스킬의 이름이다
+            name = p.parent.name if p.name == "SKILL.md" else p.stem
+            out.append((kind, name, frontmatter_len(t), len(t)))
     return out
 
 
-def render(plugin_name, rows):
-    lines = [HEAD, f"[{plugin_name}]"]
-    for kind, name, head, whole in rows:
-        lines.append(f"{kind:<6} {name:<16} {head:>6} {whole:>7}")
-    lines.append(f"{'':6} {'— 상시 합계':<16} {sum(r[2] for r in rows):>6}")
-    return "\n".join(lines) + "\n"
+def render(plugins):
+    """플러그인마다 한 절. 절 사이는 빈 줄 하나 — 플러그인이 하나일 때와 같은 모양이다."""
+    sections = []
+    for plugin_name, rows in plugins:
+        lines = [f"[{plugin_name}]"]
+        for kind, name, head, whole in rows:
+            lines.append(f"{kind:<6} {name:<16} {head:>6} {whole:>7}")
+        lines.append(f"{'':6} {'— 상시 합계':<16} {sum(r[2] for r in rows):>6}")
+        sections.append("\n".join(lines))
+    return HEAD + "\n" + "\n\n".join(sections) + "\n"
 
 
 def ceilings(rows):
@@ -119,21 +125,26 @@ def main(argv):
 
     import json
     market = json.loads((root / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
-    name = market["plugins"][0]["name"]
-    plugin = root / name
-    rows = measure(plugin)
-    if not rows:
-        print(f"FAIL {plugin} 에서 잴 것을 못 찾았다 — 세지 않는 예산은 예산이 아니다")
-        return 1
+    # **장터의 플러그인마다 같은 천장으로 잰다**(ADR 0013 의 8). 둘을 합해 한 천장에 대면 틀 스킬이
+    # 감사자 되먹임의 여유를 먹는다. 대가 — 둘 다 깐 세션의 상시 합은 재지 않는다.
+    plugins, bad = [], []
+    for entry in market["plugins"]:
+        name = entry["name"]
+        plugin = (root / entry.get("source", name)).resolve()
+        rows = measure(plugin)
+        if not rows:
+            bad.append(f"{name}: {plugin} 에서 잴 것을 못 찾았다 — 세지 않는 예산은 예산이 아니다")
+            continue
+        plugins.append((name, rows))
+        bad += [f"{name}: {line}" for line in ceilings(rows)]
 
-    now = render(name, rows)
+    now = render(plugins)
     if write:
         SNAPSHOT.write_text(now, encoding="utf-8")
         print(f"스냅숏을 다시 썼다: {SNAPSHOT}\n")
         print(now)
         return 0
 
-    bad = ceilings(rows)
     if not SNAPSHOT.exists():
         bad.append(f"스냅숏이 없다: {SNAPSHOT} — `--write` 로 만들고 커밋한다")
     elif SNAPSHOT.read_text(encoding="utf-8") != now:
@@ -149,12 +160,13 @@ def main(argv):
         print(f"\n{len(bad)}건.")
         return 1
 
-    total = sum(r[2] for r in rows if r[0] == "agent")
-    biggest = max(r[3] for r in rows if r[0] == "agent")
-    print(f"PASS {name} — 상시 합계 {sum(r[2] for r in rows)} 문자 "
-          f"(천장 {ALWAYS_ON_TOTAL_MAX}, 여유 {ALWAYS_ON_TOTAL_MAX - sum(r[2] for r in rows)}), "
-          f"감사자 호출 시 최대 {biggest} (천장 {AGENT_ON_INVOKE_MAX}, "
-          f"여유 {AGENT_ON_INVOKE_MAX - biggest})")
+    for name, rows in plugins:
+        total = sum(r[2] for r in rows)
+        biggest = max(rows, key=lambda r: r[3])
+        cap = SKILL_ON_INVOKE_MAX if biggest[0] == "skill" else AGENT_ON_INVOKE_MAX
+        print(f"PASS {name} — 상시 합계 {total} 문자 "
+              f"(천장 {ALWAYS_ON_TOTAL_MAX}, 여유 {ALWAYS_ON_TOTAL_MAX - total}), "
+              f"호출 시 최대 {biggest[1]} {biggest[3]} (천장 {cap}, 여유 {cap - biggest[3]})")
     print(f"     스냅숏 {SNAPSHOT}")
     return 0
 
