@@ -11,6 +11,7 @@
 ### NC-1 · 조각 2 가 하지 않기로 한 문자 발송을 한다
 - 위치: `app/reminder/sms.py:10` · `app/reminder/run.py:10` · `docs/slices/2-dues-reminder/requirements.md:16`
 - 증상: 조각 2 「회비 알림」의 「하지 않을 일」 1 은 문자(SMS) 발송을 막는데, `send_sms` 가 미납자마다 문자를 보낸다.
+- 설계 ① 은 바뀌는 것을 「이메일 알림 · 미납자 CSV」로만 적었고 문자는 없다(`docs/slices/2-dues-reminder/design.md:4`).
 - 어느 쪽을 고칠지는 정하지 않는다 — 문자를 빼거나, 범위를 바꾸려면 요구사항을 먼저 고친다.
 - 심각도: 높음
 

@@ -165,7 +165,7 @@ cat > docs/slices/2-dues-reminder/design.md <<'MD'
 미납자 한 명에 달마다 이메일 한 통.
 
 ## ③ 받는 입력
-`members` · `payments` 테이블.
+`members` · `payments` 테이블, 총무가 CSV 를 내려받을 때 고르는 달(`YYYY-MM`).
 
 ## ④ 결정
 없음 — 대안이 없었다.
