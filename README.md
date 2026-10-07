@@ -7,7 +7,7 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 | 플러그인 | 무엇 |
 |---|---|
 | `vibe-audit` | 목적별로 범위를 좁힌 읽기전용 감사자 6종 — 시크릿 · 데이터 · 검사장치 · 운영 · 계약 · 내부규칙 |
-| `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 넷 — 의도 · 마스터플랜 · 조각 요구사항 · 설계(스킬 `slice-docs`) |
+| `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 넷 — 의도 · 마스터플랜 · 조각 요구사항 · 설계(스킬 `slice-docs`), 리뷰 지적을 그 조각의 설계에 비춰 가르는 법(스킬 `slice-review`) |
 
 ## 설치 — 경로가 둘인 이유
 
@@ -44,7 +44,7 @@ claude plugin install vibe-slice@pdw96-kit
 
 ```bash
 ./scripts/sync-agents.sh ~/src/ERP    # 감사자 · 브리핑 커맨드 · 검사기 → .claude/agents · commands · scripts
-./scripts/sync-slice.sh ~/src/ERP     # 조각 문서 스킬 → .claude/skills/slice-docs
+./scripts/sync-slice.sh ~/src/ERP     # vibe-slice 의 스킬 → .claude/skills/slice-docs · slice-review
 ```
 
 호출 이름은 스코프 없이 `@audit-secrets`. 사본은 그 레포에 맞게 갈려도 된다 — 어느 쪽으로 무엇을 되돌리는지는 [의도](INTENT.md).

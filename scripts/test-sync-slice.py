@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""`sync-slice.sh` 가 조각 5 설계 ② C1 ~ C5 를 지키는지 본다. 모델도 네트워크도 안 쓴다.
+"""`sync-slice.sh` 가 조각 5 설계 ② C1 ~ C5 — 조각 6 설계 ② 가 `vibe-slice/skills/` 의 스킬 전부로
+넓힌 것 — 를 지키는지 본다. 모델도 네트워크도 안 쓴다.
 
   python3 scripts/test-sync-slice.py
 
 임시 원본(이 저장소의 스크립트와 스킬 폴더만 담은 git 저장소)과 임시 대상을 만들어 돌린다.
 
-  C1 심으면 SKILL.md 와 틀 넷이 서고, SKILL.md 는 프론트매터 뒤에 출처 줄, 나머지는 바이트 그대로
+  C1 스킬마다 폴더가 서고, 스킬마다 SKILL.md 는 프론트매터 뒤에 출처 줄, 나머지는 바이트 그대로
   C2 원본이 더럽거나 · 추적 안 된 파일이나 · 무시된 파일이 있으면 아무것도 쓰지 않는다
-  C3 사본이 폴더로 있으면 --force 없이는 멈추고, --force 면 폴더째 덮는다
-  C4 심을 자리가 파일 · 링크 · 끊긴 링크면 --force 여도 멈춘다
+  C3 심을 스킬 하나라도 폴더로 있으면 --force 없이는 멈추고, --force 면 스킬 폴더를 다 덮되 대상의
+     다른 스킬 폴더는 건드리지 않는다
+  C4 심을 자리(스킬 폴더마다)가 파일 · 링크 · 끊긴 링크면 --force 여도 멈춘다
   C5 원본의 copies.json 과 대상의 다른 파일을 건드리지 않고, 대상에 커밋하지 않는다
 
 표준 라이브러리만 쓴다.
@@ -21,7 +23,7 @@ import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-REL = "vibe-slice/skills/slice-docs"
+REL = "vibe-slice/skills"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
 
@@ -92,40 +94,54 @@ def main():
         sha = sh(src, "git", "rev-parse", "--short", "HEAD")
         ledger = (src / "copies.json").read_bytes()
 
+        skills = sorted(d.name for d in (src / REL).iterdir() if d.is_dir())
+        expect(f"시험 준비 — 스킬이 둘 이상이어야 C3 · C4 의 「하나라도」를 잰다: {skills}", len(skills) >= 2)
+        last = skills[-1]
+
         # C1 · C5 — 빈 대상에 심는다
         t = target(tmp / "t1")
         head_before = sh(t, "git", "rev-parse", "HEAD")
         rc, out = run(src, t)
-        dest = t / ".claude/skills/slice-docs"
+        base = t / ".claude/skills"
         expect("빈 대상에 심지 못했다", rc == 0, out)
-        names = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
+        names = sorted(p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file())
         want = sorted(p.relative_to(src / REL).as_posix() for p in (src / REL).rglob("*") if p.is_file())
         expect(f"심은 파일이 원본과 다르다: {names} ≠ {want}", names == want)
-        for n in want:
-            if n == "SKILL.md":
-                continue
-            expect(f"{n} 이 바이트 그대로가 아니다", (dest / n).read_bytes() == (src / REL / n).read_bytes())
-        skill = (dest / "SKILL.md").read_text(encoding="utf-8").splitlines()
-        ends = [i for i, ln in enumerate(skill) if ln == "---"][:2]
         hdr = f"<!-- pdw96/claude-kit@{sha} 에서 옴."
-        expect("SKILL.md 가 프론트매터로 시작하지 않는다", ends[:1] == [0], "\n".join(skill[:3]))
-        expect("출처 줄이 프론트매터 바로 뒤에 없다",
-               len(ends) == 2 and skill[ends[1] + 2].startswith(hdr), "\n".join(skill[:12]))
-        orig = (src / REL / "SKILL.md").read_text(encoding="utf-8").splitlines()
-        expect("SKILL.md 가 출처 두 줄 말고도 달라졌다", skill[:ends[1] + 1] + skill[ends[1] + 3:] == orig)
+        for n in want:
+            if n.endswith("/SKILL.md") and n.count("/") == 1:
+                skill = (base / n).read_text(encoding="utf-8").splitlines()
+                ends = [i for i, ln in enumerate(skill) if ln == "---"][:2]
+                expect(f"{n} 이 프론트매터로 시작하지 않는다", ends[:1] == [0], "\n".join(skill[:3]))
+                expect(f"{n} 의 출처 줄이 프론트매터 바로 뒤에 없다",
+                       len(ends) == 2 and skill[ends[1] + 2].startswith(hdr), "\n".join(skill[:12]))
+                orig = (src / REL / n).read_text(encoding="utf-8").splitlines()
+                expect(f"{n} 이 출처 두 줄 말고도 달라졌다", skill[:ends[1] + 1] + skill[ends[1] + 3:] == orig)
+            else:
+                expect(f"{n} 이 바이트 그대로가 아니다", (base / n).read_bytes() == (src / REL / n).read_bytes())
         expect("원본의 copies.json 이 바뀌었다", (src / "copies.json").read_bytes() == ledger)
         expect("대상의 다른 파일이 바뀌었다", (t / "README.md").read_text(encoding="utf-8") == "대상\n")
         expect("대상에 커밋했다", sh(t, "git", "rev-parse", "HEAD") == head_before)
 
-        # C3 — 다시 심기는 멈추고, --force 는 폴더째 덮는다
-        (dest / "SKILL.md").write_text("특화\n", encoding="utf-8")
-        (dest / "레포고유.md").write_text("x\n", encoding="utf-8")
-        before = snapshot(t)
-        rc, out = run(src, t)
-        expect("있는 사본을 --force 없이 덮었다", rc != 0 and snapshot(t) == before, out)
-        rc, out = run(src, t, "--force")
-        expect("--force 가 덮지 못했다", rc == 0 and (dest / "SKILL.md").read_text(encoding="utf-8") != "특화\n", out)
-        expect("--force 가 폴더째 덮지 않았다 — 사본에만 있던 파일이 남았다", not (dest / "레포고유.md").exists())
+        # C3 — 스킬 하나만 있어도 다시 심기는 멈추고, --force 는 스킬 폴더를 다 덮되 다른 스킬은 둔다
+        t3 = target(tmp / "t3")
+        (t3 / ".claude/skills" / last).mkdir(parents=True)
+        (t3 / ".claude/skills" / last / "SKILL.md").write_text("특화\n", encoding="utf-8")
+        (t3 / ".claude/skills" / last / "레포고유.md").write_text("x\n", encoding="utf-8")
+        mine = t3 / ".claude/skills/레포-스킬"
+        mine.mkdir()
+        (mine / "SKILL.md").write_text("그 레포의 스킬\n", encoding="utf-8")
+        before = snapshot(t3)
+        rc, out = run(src, t3)
+        expect(f"스킬 하나({last})만 있는 사본을 --force 없이 덮었다", rc != 0 and snapshot(t3) == before, out)
+        rc, out = run(src, t3, "--force")
+        expect("--force 가 덮지 못했다", rc == 0 and all((t3 / ".claude/skills" / k / "SKILL.md").is_file()
+                                                         for k in skills)
+               and (t3 / ".claude/skills" / last / "SKILL.md").read_text(encoding="utf-8") != "특화\n", out)
+        expect("--force 가 폴더째 덮지 않았다 — 사본에만 있던 파일이 남았다",
+               not (t3 / ".claude/skills" / last / "레포고유.md").exists())
+        expect("--force 가 대상의 다른 스킬 폴더를 건드렸다",
+               (mine / "SKILL.md").read_text(encoding="utf-8") == "그 레포의 스킬\n")
 
         # C4 — 심을 자리가 파일 · 링크 · 끊긴 링크면 --force 여도 멈춘다
         outside = tmp / "outside"
@@ -139,6 +155,12 @@ def main():
             ("slice-docs 자리가 끊긴 링크", lambda t: (t / ".claude/skills").mkdir(parents=True)
              or os.symlink(tmp / "없음", t / ".claude/skills/slice-docs")),
             (".claude 가 밖을 가리키는 링크", lambda t: os.symlink(outside, t / ".claude")),
+            (f"{last} 자리가 밖을 가리키는 링크", lambda t: (t / ".claude/skills").mkdir(parents=True)
+             or os.symlink(outside, t / ".claude/skills" / last)),
+            (f"{last} 자리가 파일", lambda t: (t / ".claude/skills").mkdir(parents=True)
+             or (t / ".claude/skills" / last).write_text("파일\n", encoding="utf-8")),
+            (f"{last} 자리가 끊긴 링크", lambda t: (t / ".claude/skills").mkdir(parents=True)
+             or os.symlink(tmp / "없음", t / ".claude/skills" / last)),
             ("skills 자리가 파일", lambda t: (t / ".claude").mkdir()
              or (t / ".claude/skills").write_text("파일\n", encoding="utf-8")),
         ]
@@ -151,10 +173,10 @@ def main():
                    and snapshot(outside) == outside_before, out)
 
         # C2 — 더러운 원본 · 추적 안 된 파일 · 무시된 파일
-        tpl = src / REL / "templates" / "design.md"
+        tpl = src / REL / "slice-docs" / "templates" / "design.md"
         keep = tpl.read_bytes()
-        stray = src / REL / "templates" / "덤.md"
-        ignored = src / REL / "templates" / "무시.md"
+        stray = src / REL / "slice-docs" / "templates" / "덤.md"
+        ignored = src / REL / "slice-docs" / "templates" / "무시.md"
         cases = [
             ("원본에 커밋 안 된 변경", lambda: tpl.write_bytes(keep + b"\n"), lambda: tpl.write_bytes(keep)),
             ("원본에 추적 안 된 파일", lambda: stray.write_text("x\n", encoding="utf-8"), stray.unlink),
@@ -186,7 +208,7 @@ def main():
         for f in fails:
             print(f"FAIL {f}")
         return 1
-    print(f"PASS sync-slice.sh 가 C1 ~ C5 를 지킨다 — 기대 {passes} 개 모두 맞다")
+    print(f"PASS sync-slice.sh 가 C1 ~ C5 를 스킬마다 지킨다 — 기대 {passes} 개 모두 맞다")
     return 0
 
 
