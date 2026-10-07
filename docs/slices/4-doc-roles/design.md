@@ -19,7 +19,7 @@
 | `README.md` | C | 입구로 줄인다 — 들어 있는 것 · 설치(두 경로) · 새 프로젝트를 열 때 · 가리키는 곳 |
 | `CLAUDE.md` | C | 「스택」의 값 셋을 주인 가리킴으로 · 「작업 방식」의 되먹임 출처 `(README)` → `INTENT.md` · 「가변」의 작업 기록 → `docs/eval-log/`. 앵커볼트 · 금지 절의 줄은 그대로 |
 | `INTENT.md` | C | 되먹임 원칙의 가르는 질문(「다른 레포에서도 같은 말인가」)을 Why 에 — README 에서 옮긴다. What · Not 은 그대로라 「범위 변경」이 아니다 |
-| `docs/master-plan.md` | B · C | 「가리키는 문서」 — B: 「감사자가 왜 지금 모양인가」 줄에 `docs/eval-log/`. C: 「시스템 구조」 줄을 `docs/architecture.md` 로 |
+| `docs/master-plan.md` | B · C | 「가리키는 문서」 — B: 「감사자가 왜 지금 모양인가」 줄을 둘로 가른다 — `vibe-audit/evals/README.md` 는 지금 상태(케이스 표 · 재는 법 · 고정한 것), `docs/eval-log/` 는 되먹임 회차와 측정의 기록. C: 「시스템 구조」 줄을 `docs/architecture.md` 로 |
 
 **앵커볼트를 건드린다** — `AGENTS.md` 「Review guidelines」(고정 영역)의 문구다. 가리키는 자리가 바뀌고 사실이 아닌 `route-ops`
 공백 줄이 빠진다. 고정한 대상(러너 · 정규식 그레이더 · 브리핑 검사기)과 알려진 한계는 바뀌지 않는다. 저자가 정했다(ADR
@@ -168,11 +168,12 @@
   절을 한 줄에 든다: `grep -cE 'evals/README\.md` 「' vibe-audit/README.md` 가 2 이상이고, 그 절은 위 대조로 다 있는 절이다.
   어긋내 보기: 기준 커밋에서 1(114 줄은 절 없이 파일만, 119 줄의 「자기 트리거」는 없는 절).
 - P3 (B 몫) — 파일마다 따로: `grep -cF 'docs/eval-log/'` 가 `CLAUDE.md` · `CHECKLIST.md` 에서 각각 1 이상 ·
-  `grep -cE '^\| 감사자가 왜 지금 모양인가 \|.*docs/eval-log/' docs/master-plan.md` 1 · `docs/procedure.md` 에서
+  `grep -cE '^\| 감사자가 왜 지금 모양인가 \|.*`docs/eval-log/` — [^|`]*회차' docs/master-plan.md` 1 · `docs/procedure.md` 에서
   `grep -cE '^\| \*\*기록\*\*.*docs/eval-log/'` 1 과 `grep -cE '^\| \*\*살아 있는 문서\*\*.*vibe-audit/evals/README\.md'` 1.
   옛 자리가 남지 않았는지 — `grep -nE '`vibe-audit/evals/README\.md` 의 작업 기록' CLAUDE.md` ·
-  `grep -n '머지된 기록.*evals/README' CHECKLIST.md` · `grep -nE '^\| \*\*기록\*\*.*vibe-audit/evals/README' docs/procedure.md` 0 줄.
-  어긋내 보기: 기준 커밋에서 앞의 다섯은 다 0, 뒤의 셋은 각각 한 줄(CLAUDE.md 28 · CHECKLIST.md 10 · procedure.md 108).
+  `grep -n '머지된 기록.*evals/README' CHECKLIST.md` · `grep -nE '`vibe-audit/evals/README\.md` — [^|`]*회차' docs/master-plan.md` · `grep -nE '^\| \*\*기록\*\*.*vibe-audit/evals/README' docs/procedure.md` 0 줄.
+  어긋내 보기: 기준 커밋에서 앞의 다섯은 다 0, 뒤의 넷은 각각 한 줄(CLAUDE.md 28 · CHECKLIST.md 10 · master-plan.md 18 ·
+  procedure.md 108). 마스터플랜 줄은 수트 README 를 지금 상태의 주인으로 남기고 기록(회차)만 `docs/eval-log/` 로 옮긴다.
 - X1 — `git diff --no-renames --name-only <기준>..HEAD`(지우거나 옮긴 옛 경로도 나온다)와, 기준 커밋과 HEAD 의
   `eval-key.py route --list` · `full --list` 의 **합집합**의 교집합 0. HEAD 의 목록만 보면 지문 안 파일을 지우거나 옮긴
   것이 빠진다. `claude` 가 있는 곳에서는 기준 커밋의 worktree 와 HEAD 에서 `eval-key.py route` · `full` 의 지문이 같은지도
