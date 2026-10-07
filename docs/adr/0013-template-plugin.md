@@ -42,8 +42,10 @@
 
 - 1 · 3: 강호쟁패는 `vibe-slice` 를 한 번 install 한 뒤, 틀을 고친 PR 이 판을 올리면 갱신과 리로드로 새 틀을 받는다.
   리로드만으로는 받지 못한다 — 서드파티 마켓플레이스는 자동 갱신이 기본으로 꺼져 있어
-  `claude plugin update vibe-slice@pdw96-kit` 을 부르거나 `pdw96-kit` 의 자동 갱신을 켜 둬야 하고, `plugin.json` 의 판이
-  그대로면 갱신도 새 틀을 받지 않는다(#24 Codex, Claude Code 문서 「plugins/install」 · 「manifest-reference」).
+  `claude plugin marketplace update pdw96-kit`(마켓플레이스 목록 — 이미 등록한 `pdw96-kit` 에는 이것 없이 `vibe-slice`
+  줄이 없다)과 `claude plugin update vibe-slice@pdw96-kit` 을 부르거나 `pdw96-kit` 의 자동 갱신을 켜 둬야 하고,
+  `plugin.json` 의 판이 그대로면 갱신도 새 틀을 받지 않는다(#24 Codex, Claude Code 문서 「plugins/install」 ·
+  「manifest-reference」 · 「plugin-marketplaces」). 같은 까닭으로 `audit-internal` 을 고치는 PR 은 `vibe-audit` 의 판을 올린다.
   ERP 는 `sync-slice.sh` 로 받은 사본을 쓴다. 플러그인 커맨드 본문은 플러그인 폴더 경로를 풀지 못하므로(`sync-agents.sh` 의 브리핑 검사기 주석) 틀을 든 것은
   커맨드가 아니라 스킬이다 — 스킬은 `${CLAUDE_SKILL_DIR}` 로 자기 폴더의 파일을 읽고, 이 치환은 플러그인 스킬과
   `.claude/skills/` 사본에서 다 풀린다. 대가 — 앵커볼트 이름이 둘 늘고, 마켓플레이스 매니페스트 ·

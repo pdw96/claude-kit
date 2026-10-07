@@ -31,14 +31,16 @@
 ## 성공 기준
 
 1. 마켓플레이스 `pdw96-kit` 에 플러그인이 둘이고, `claude plugin validate ./vibe-slice` 와 `verify-manifest.py` 가
-   `vibe-slice` 를 본다 — 두 매니페스트의 `vibe-slice` 설명을 한쪽만 바꾸면 `verify-manifest.py` 가 떨어진다.
+   `vibe-slice` 를 본다 — 두 매니페스트의 `vibe-slice` 설명을 한쪽만 바꾸거나, 마켓플레이스에서 한 줄을 빼거나 겹치면
+   `verify-manifest.py` 가 떨어진다.
 2. 틀의 원천이 한 군데다 — `docs/templates/` 가 없고, `vibe-slice/skills/slice-docs/templates/` 의 넷을 문서 대조 검사가
    T1 · T2 로 문다(그 자리의 틀 하나를 지우거나 제목 한 글자를 바꾸면 `test-verify-docs.py` 의 변조본이 떨어진다).
 3. `sync-slice.sh` 를 임시 git 레포에 돌리면 `.claude/skills/slice-docs/` 에 `SKILL.md` 와 틀 넷이 서고 `SKILL.md`
    프론트매터 뒤에 출처 커밋이 박힌다. 다시 돌리면 덮지 않고 멈추고, `--force` 면 덮는다. 원본에 커밋 안 된 변경이나
    HEAD 에 없는 파일(무시된 파일도)이 있으면 아무것도 심지 않는다.
 4. 강호쟁패(대화형 · 플러그인)와 ERP(클라우드 · 사본)의 세션에서 `slice-docs` 스킬이 뜨고, 부르면 스킬 폴더의 틀을
-   그대로 읽는다 — 부르는 레포의 작업 디렉터리가 아니라. 저자가 단계 5(배포)에서 본다.
+   그대로 읽는다 — 부르는 레포의 작업 디렉터리가 아니라. 그리고 강호쟁패가 `vibe-audit` 를 갱신하면 새 뼈대의
+   `audit-internal` 을 쓴다(`vibe-audit` 의 판이 오른다). 저자가 단계 5(배포)에서 본다.
 5. `audit-internal` 의 뼈대 1 · 6 · 7 이 의도 문서 · 마스터플랜 · 조각 요구사항을 이름으로 들고, 조각 요구사항의
    「하지 않을 일」은 **감사 대상 변경이 속한 조각**의 것만 기준으로 쓴다. 새 판정 케이스 하나가 수트에서 통과한다 —
    진행 조각의 「하지 않을 일」을 어긴 코드는 부적합으로 내고(진짜 부적합), 닫힌 조각이 하지 않기로 한 것을 뒤 조각이

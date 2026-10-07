@@ -15,15 +15,17 @@
 | `scripts/sync-slice.sh` | B | 클라우드 레인 사본 — 스킬 폴더를 대상 레포 `.claude/skills/slice-docs/` 에 심는다 |
 | `scripts/test-sync-slice.py` | B | 위 스크립트의 자체 시험 — 임시 원본 · 대상 |
 | `scripts/verify-docs.py` · `scripts/test-verify-docs.py` | B | 틀을 읽는 자리를 새 폴더로 |
+| `scripts/verify-manifest.py` · `scripts/test-verify-manifest.py` | B | 마켓플레이스의 플러그인 이름이 겹치지 않고, 저장소 맨 위의 플러그인 폴더(`*/.claude-plugin/plugin.json`)마다 마켓플레이스에 줄이 꼭 하나다 — 그리고 그 자체 시험 |
 | `scripts/verify-budget.py` · `vibe-audit/evals/budget.txt` | B | 마켓플레이스의 플러그인마다, `skills/*/SKILL.md` 도 잰다. 스냅숏에 `[vibe-slice]` 절 |
-| `scripts/gates.sh` | B | `claude plugin validate ./vibe-slice` · `test-sync-slice.py` — 세는 줄(`validate` 는 세지 않는다)이 열둘에서 열셋 |
-| `CHECKLIST.md` | B | 「틀을 고쳤다면」 — `vibe-slice` 의 판을 올렸다 |
+| `scripts/gates.sh` | B | `claude plugin validate ./vibe-slice` · `test-sync-slice.py` · `test-verify-manifest.py` — 세는 줄(`validate` 는 세지 않는다)이 열둘에서 열넷 |
+| `CHECKLIST.md` | B | 「플러그인의 파일을 고쳤다면」 — 그 플러그인의 판을 올렸다(`vibe-audit` · `vibe-slice`) |
 | `docs/procedure.md` | B | 틀의 자리 세 군데(일곱 단계 1 · 2 의 맡는 도구 · 「대상과 관계」 · 「살아 있는 문서와 기록」), 「계정 스킬의 일」, 「이 모양을 무는 것」의 다른 레포 줄 |
 | `docs/architecture.md` | B | 부품에 `vibe-slice` 와 사본 길 |
 | `README.md` | B | 「들어 있는 것」 표 · 두 경로의 설치 · 「새 프로젝트를 열 때」 |
 | `INTENT.md` | B | What 의 틀 줄이 `vibe-slice` 로 간다고 — 범위는 그대로 |
 | `CLAUDE.md` | B | 앵커볼트 「이름」에 `vibe-slice` · `slice-docs` |
 | `vibe-audit/agents/audit-internal.md` | C | 체크 항목 뼈대 1 · 6 · 7, 그리고 그만큼의 압축 |
+| `vibe-audit/.claude-plugin/plugin.json` | C | 판을 올린다 — 그대로면 이미 설치한 강호쟁패가 갱신해도 옛 감사자를 쓴다 |
 | `vibe-audit/evals/<새 케이스>/` | C | 판정 케이스 하나 |
 | `vibe-audit/evals/README.md` · `vibe-audit/evals/budget.txt` · `docs/eval-log/2026-10.md` | C | 케이스 표 한 줄 · 스냅숏 · 작업 기록 |
 
@@ -37,8 +39,9 @@
 **보장하는 것** — 번호는 ⑤ 가 같이 쓴다.
 
 - **플러그인**
-  - P1 `marketplace.json` 에 `vibe-audit` · `vibe-slice` 둘이 있고, `vibe-slice` 의 이름 · 설명이 두 매니페스트에서 글자
-    그대로 같다 — `verify-manifest.py` 가 문다(이미 줄마다 돈다).
+  - P1 `marketplace.json` 에 `vibe-audit` · `vibe-slice` 둘이 있고, 이름이 겹치지 않으며, 저장소 맨 위의 플러그인 폴더
+    (`*/.claude-plugin/plugin.json`)마다 줄이 꼭 하나다. 줄마다 이름 · 설명이 두 매니페스트에서 글자 그대로 같다 —
+    `verify-manifest.py` 가 문다. 줄을 빼거나 겹치거나, 폴더는 있는데 줄이 없으면 떨어진다.
   - P2 `claude plugin validate ./vibe-slice` 가 `gates.sh` 에서 통과한다.
   - P3 `vibe-slice` 에 추적된 파일은 `plugin.json` · `SKILL.md` · 틀 넷, 여섯뿐이다 — 에이전트 · 커맨드 · 훅 · MCP 가 없다.
 - **틀**
@@ -74,6 +77,7 @@
   - A4 호출 시 문자 ≤ 11,000 이고, 스냅숏이 같은 PR 에 있다.
   - A5 새 판정 케이스가 수트에서 통과한다 — 진행 조각의 「하지 않을 일」을 어긴 코드를 부적합으로 내고(진짜 부적합),
     닫힌 조각이 하지 않기로 한 것을 뒤 조각이 한 코드는 부적합으로 내지 않는다(덫).
+  - A6 `vibe-audit/.claude-plugin/plugin.json` 의 판이 기준 커밋보다 높다.
 - **비용**
   - X1 PR B 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
 
@@ -84,11 +88,15 @@
 - **절차 지도의 URL 이 닿는지** — 네트워크가 막힌 세션은 지도를 읽지 못한다. 스킬은 URL 만 든다.
 - **절차 지도의 판** — `main` 을 가리킨다. 지도가 바뀌면 이미 쓴 문서는 그날의 모양이다(기록은 고치지 않는다).
 - **새 틀이 설치된 플러그인에 닿는 것** — 서드파티 마켓플레이스는 자동 갱신이 기본으로 꺼져 있고, 리로드는 새 판을
-  받지 않는다. `claude plugin update vibe-slice@pdw96-kit`(또는 `pdw96-kit` 의 자동 갱신을 켜 둠)이 받는다. 그리고
-  `plugin.json` 의 판이 그대로면 갱신도 새 틀을 받지 않는다 — 판을 올렸는지는 검사가 물지 않고 `CHECKLIST.md` 에서
-  사람이 본다. 강호쟁패의 첫 install 과 갱신은 저자가 한다.
+  받지 않는다. 마켓플레이스 목록은 `claude plugin marketplace update pdw96-kit` 이 새로 받고(그 전에는 이미 등록한
+  `pdw96-kit` 에 `vibe-slice` 줄이 없어 install 이 실패한다), 설치한 플러그인은 `claude plugin update <플러그인>@pdw96-kit`
+  이 받는다 — 또는 `pdw96-kit` 의 자동 갱신을 켜 둔다. 그리고 `plugin.json` 의 판이 그대로면 갱신도 새 파일을 받지
+  않는다 — `vibe-slice` 의 판 올림은 검사가 물지 않고 `CHECKLIST.md` 에서 사람이 본다. 강호쟁패의 첫 install 과 갱신은
+  저자가 한다.
 - **`audit-internal` 이 감사 대상의 조각을 늘 맞게 고르는지** — 브리핑 · 부른 말 · 마스터플랜의 `진행` 줄에서 읽는다.
 - **ERP 사본이 원본보다 뒤인지** — 대장이 없어 아무도 찍지 않는다. 따라잡으려면 `--force` 로 다시 심는다.
+- **ERP 의 `audit-internal` 사본** — PR C 의 뼈대는 원본에만 간다. 사본은 그 레포의 것이고(`INTENT.md` Not 4),
+  따라잡는 것은 `sync-agents.sh` 와 대장의 일이다.
 - **스킬이 스스로 뜨는 정확도** — 트리거 수트를 세우지 않는다. 단계 5 에서 저자가 부를 수 있는지만 본다.
 - **같은 이름의 스킬이 레포나 계정에 따로 있을 때** — Claude Code 가 가른다.
 - **두 플러그인을 다 깐 세션의 상시 합** — 예산은 플러그인마다 잰다(ADR 0013 의 8).
@@ -150,9 +158,10 @@
 
 **PR B**
 
-- P1 — `python3 scripts/verify-manifest.py` 통과. 어긋내 보기: `vibe-slice/.claude-plugin/plugin.json` 의 설명 한 글자를
-  바꾸면 「설명이 갈렸다」로 떨어진다.
-- P2 · T2 · K3 · C1 ~ C5 — `./scripts/gates.sh` 열셋 통과. `test-verify-docs.py` 의 T1 · T2 변조본이 새 자리의 틀을
+- P1 — `python3 scripts/verify-manifest.py` 통과, 그리고 `test-verify-manifest.py` 가 베낀 트리에서 변조본을 하나씩 문다 —
+  `vibe-audit` 줄을 뺀다 · `vibe-slice` 줄을 겹친다 · 줄 없는 플러그인 폴더를 둔다 · `vibe-slice` 설명 한 글자를 바꾼다.
+  넷 다 떨어지고 정상 트리는 통과한다.
+- P2 · T2 · K3 · C1 ~ C5 — `./scripts/gates.sh` 열넷 통과. `test-verify-docs.py` 의 T1 · T2 변조본이 새 자리의 틀을
   지우고 · 고친다. `test-sync-slice.py` 가 C1 ~ C5 를 임시 원본 · 대상으로 하나씩 문다 — 다시 심기 거절, `--force`,
   더러운 원본, 추적 안 된 파일, **무시된 파일**(`.git/info/exclude` 에 넣고 만든 것 — `status --porcelain` 이 못 본다),
   링크 · 파일로 선 자리(`--force` 로도), 끊긴 링크, `copies.json` 바이트 그대로.
@@ -178,16 +187,21 @@
 - A5 — 머리에서 CI route 잡 통과, 그리고 전수(`workflow_dispatch`)에서 새 케이스 통과. 그레이더는 진짜 부적합과 덫을
   따로 문다 — 덫을 부적합으로 낸 표본(`samples/fail*.md`)을 그레이더가 떨어뜨린다(`verify-graders.py`).
 
-**단계 5(배포)** — 저자가 강호쟁패에서 `claude plugin install vibe-slice@pdw96-kit` 뒤 `/vibe-slice:slice-docs` 가 뜨고
+- A6 — `git show main:vibe-audit/.claude-plugin/plugin.json` 과 머리의 `version` 을 견줘 머리가 높다.
+
+**단계 5(배포)** — PR B 뒤: 저자가 강호쟁패에서 `claude plugin marketplace update pdw96-kit` →
+`claude plugin install vibe-slice@pdw96-kit` 뒤 `/vibe-slice:slice-docs` 가 뜨고
 부르면 틀의 내용(예: 설계 틀의 여섯 `##` 제목)을 그대로 읽는지,
-ERP 에 `./scripts/sync-slice.sh <ERP>` 를 돌려 커밋한 뒤 클라우드 세션에서 `/slice-docs` 가 뜨는지 본다.
+ERP 에 `./scripts/sync-slice.sh <ERP>` 를 돌려 커밋한 뒤 클라우드 세션에서 `/slice-docs` 가 뜨는지 본다. PR C 뒤:
+강호쟁패에서 `claude plugin marketplace update pdw96-kit` → `claude plugin update vibe-audit@pdw96-kit` → 리로드 뒤,
+`audit-internal` 의 뼈대 6 이 「감사 대상 변경이 속한 조각」을 드는지(예: 감사자에게 뼈대 6 을 그대로 옮겨 보라고 한다) 본다.
 
 ## ⑥ PR 나눔
 
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A 착공 | 요구사항 · 설계 · ADR 0013 · 마스터플랜 | 단계 0 · 1 · 2 |
-| B 플러그인과 사본 길 | `vibe-slice` · 틀 옮기기 · `sync-slice.sh` 와 시험 · 검사 셋의 자리 · 살아 있는 문서 | 성공 기준 1 · 2 · 3 · 7 · 8 |
-| C 감사자 | `audit-internal` 뼈대 · 압축 · 판정 케이스 · 수트 README · 기록 | 성공 기준 5 · 6 · 8 |
+| B 플러그인과 사본 길 | `vibe-slice` · 틀 옮기기 · `sync-slice.sh` 와 시험 · 검사 넷의 자리 · 살아 있는 문서 | 성공 기준 1 · 2 · 3 · 7 · 8 |
+| C 감사자 | `audit-internal` 뼈대 · 압축 · `vibe-audit` 판 · 판정 케이스 · 수트 README · 기록 | 성공 기준 5 · 6 · 8 |
 
-성공 기준 4 는 PR B 가 머지된 뒤 단계 5 에서 저자가 닫는다.
+성공 기준 4 는 PR B · C 가 머지된 뒤 단계 5 에서 저자가 닫는다.
