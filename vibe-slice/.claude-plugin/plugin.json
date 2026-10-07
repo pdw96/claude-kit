@@ -1,0 +1,15 @@
+{
+  "name": "vibe-slice",
+  "version": "0.1.0",
+  "description": "프로젝트를 조각으로 나눠 진행할 때 쓰는 문서 틀 넷 — 의도 · 마스터플랜 · 조각 요구사항 · 설계. 절차는 claude-kit 의 절차 지도를 가리킵니다.",
+  "author": {
+    "name": "도원"
+  },
+  "keywords": [
+    "planning",
+    "requirements",
+    "design-doc",
+    "templates"
+  ],
+  "license": "MIT"
+}

@@ -12,6 +12,11 @@
 - [ ] 감사자 작업 기록을 더했다면 `docs/eval-log/<YYYY-MM>.md` 에 덧붙였다 — 이름이 그 꼴이고(`docs/procedure.md`
       「살아 있는 문서와 기록」), `vibe-audit/evals/README.md` 에는 날짜를 박은 절을 쌓지 않았다
 
+## 플러그인의 파일을 고쳤다면
+
+- [ ] 그 플러그인의 `plugin.json` 판을 올렸다(`vibe-audit` · `vibe-slice`) — 판이 그대로면 이미 설치한 레포가
+      `claude plugin update` 를 해도 새 파일을 받지 않는다(ADR 0013). 틀 넷도 `vibe-slice` 의 파일이다
+
 ## 감사자 문구를 고쳤다면
 
 - [ ] 판정 케이스에 닿는 변경이면 전수(workflow_dispatch)를 돌렸다 — 월 한도 $20 안에서

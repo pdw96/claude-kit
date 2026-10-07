@@ -120,11 +120,24 @@ def main():
         if owner and author and owner != author:
             bad.append(f"{name}: 장터 주인({owner!r})과 플러그인 저자({author!r})가 다르다")
 
+    # **장터의 줄과 플러그인 폴더가 하나씩 맞선다.** 줄마다 이름 · 설명만 보면 한 줄을 빼거나 겹쳐도
+    # 남은 줄이 맞으니 통과한다 — 빠진 플러그인은 장터에 안 뜨고, 겹친 이름은 어느 쪽이 설치될지
+    # 모른다(#24 Codex). 이름을 여기 박지 않고 저장소 맨 위의 `*/.claude-plugin/plugin.json` 에서 끌어온다.
+    names = [e.get("name") for e in entries]
+    for n in sorted({n for n in names if names.count(n) > 1}, key=str):
+        bad.append(f"{n}: marketplace.json 에 이름이 {names.count(n)} 번 있다 — 어느 줄이 설치될지 모른다")
+    sources = [(ROOT / e["source"]).resolve() for e in entries if e.get("source")]
+    for s in sorted({s for s in sources if sources.count(s) > 1}):
+        bad.append(f"{s.relative_to(ROOT)}: marketplace.json 의 두 줄이 같은 폴더를 가리킨다")
+    for pj in sorted(ROOT.glob("*/.claude-plugin/plugin.json")):
+        if pj.parent.parent.resolve() not in sources:
+            bad.append(f"{pj.relative_to(ROOT)}: 플러그인 폴더인데 marketplace.json 에 줄이 없다 — 장터에 안 뜬다")
+
     if bad:
         print("FAIL\n  - " + "\n  - ".join(bad))
         return 1
     print(f"PASS 플러그인 {checked}개 — 선언한 라이선스가 파일로 서 있고, "
-          f"두 군데 적힌 이름·설명이 같다")
+          f"두 군데 적힌 이름·설명이 같고, 플러그인 폴더마다 장터에 줄이 하나다")
     print(f"     매니페스트 {MARKET.relative_to(ROOT)}")
     return 0
 

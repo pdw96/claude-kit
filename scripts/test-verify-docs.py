@@ -29,6 +29,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MP = "docs/master-plan.md"
 PROC = "docs/procedure.md"
+TPL = "vibe-slice/skills/slice-docs/templates"
 GO = "| — | 시험 진행 조각 | 시험 | — | 진행 | `docs/slices/99-test/` |"
 PLAN = "| — | 시험 예정 조각 | 시험 | — | 예정 | — |"
 TEST = "docs/slices/99-test"
@@ -98,7 +99,7 @@ def base(dst):
     write(p, "\n".join(ls) + "\n")
     (dst / TEST).mkdir()
     for f in ("requirements.md", "design.md"):
-        shutil.copy(dst / "docs/templates" / f, dst / TEST / f)
+        shutil.copy(dst / TPL / f, dst / TEST / f)
 
 
 def outside_link(t, rel):
@@ -113,7 +114,7 @@ def outside_link(t, rel):
 CASES = [
     ("O1 절 이름이 바뀌고 그 틀도 없다", "O1", PROC, lambda t: (
         sub(t, PROC, "### 요구사항 문서의 칸\n", "### 요구사항 문서의 칸들\n"),
-        (t / "docs/templates/requirements.md").unlink())),
+        (t / TPL / "requirements.md").unlink())),
     ("O1 절이 두 번", "O1", PROC, lambda t: append(
         t, PROC, "\n### 요구사항 문서의 칸\n\n| 제목 | 담는 것 |\n|---|---|\n| `## 다른` | x |\n")),
     ("O2 표가 빈다", "O2", PROC, lambda t: [
@@ -124,16 +125,16 @@ CASES = [
     ("O3 마스터플랜이 없다", "O3", MP, lambda t: (t / MP).unlink()),
     ("O3 빈 루트", "O3", PROC, lambda t: [
         shutil.rmtree(x) if x.is_dir() and not x.is_symlink() else x.unlink() for x in list(t.iterdir())]),
-    *[(f"T1 틀 {f} 이 없다", "T1", f"docs/templates/{f}",
-       (lambda f: lambda t: (t / "docs/templates" / f).unlink())(f))
+    *[(f"T1 틀 {f} 이 없다", "T1", f"{TPL}/{f}",
+       (lambda f: lambda t: (t / TPL / f).unlink())(f))
       for f in ("intent.md", "master-plan.md", "requirements.md", "design.md")],
-    ("T2 틀 제목 한 글자", "T2", "docs/templates/intent.md",
-     lambda t: sub(t, "docs/templates/intent.md", "\n## Why\n", "\n## Whi\n")),
-    ("T2 틀에 제목 더함", "T2", "docs/templates/design.md",
-     lambda t: append(t, "docs/templates/design.md", "\n## 덤\n")),
-    ("T2 틀의 제목 순서", "T2", "docs/templates/master-plan.md",
-     lambda t: swap(t, "docs/templates/master-plan.md", "\n## 조각 나눔\n", "\n## 범위 변경\n")),
-    ("T2 원천 표에 제목 더함", "T2", "docs/templates/design.md", lambda t: sub(
+    ("T2 틀 제목 한 글자", "T2", TPL + "/intent.md",
+     lambda t: sub(t, TPL + "/intent.md", "\n## Why\n", "\n## Whi\n")),
+    ("T2 틀에 제목 더함", "T2", TPL + "/design.md",
+     lambda t: append(t, TPL + "/design.md", "\n## 덤\n")),
+    ("T2 틀의 제목 순서", "T2", TPL + "/master-plan.md",
+     lambda t: swap(t, TPL + "/master-plan.md", "\n## 조각 나눔\n", "\n## 범위 변경\n")),
+    ("T2 원천 표에 제목 더함", "T2", TPL + "/design.md", lambda t: sub(
         t, PROC, "| `## ⑥ PR 나눔` |", "| `## ⑦ 덤` | x |\n| `## ⑥ PR 나눔` |")),
     ("I1 의도 줄이 없다", "I1", MP,
      lambda t: sub(t, MP, "| 의도 — 목표 · 범위 · 하지 않을 일 | `INTENT.md` |\n", "")),

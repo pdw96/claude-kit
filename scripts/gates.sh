@@ -20,8 +20,13 @@ main() {
   cd "$R"
 
   claude plugin validate ./vibe-audit
+  claude plugin validate ./vibe-slice
 
   python3 scripts/verify-manifest.py
+
+  # 장터의 줄과 플러그인 폴더를 맞대는지 — 베낀 트리에 줄 빼기 · 겹치기 · 줄 없는 폴더 · 설명 한 글자.
+  python3 scripts/test-verify-manifest.py
+
   python3 scripts/verify-copies.py
   python3 scripts/verify-feedback.py
   python3 scripts/verify-evals.py
@@ -46,8 +51,11 @@ main() {
   # 문서 대조 검사가 무는지 — 베낀 트리에 변조본을 하나씩 만들어 돌린다.
   python3 scripts/test-verify-docs.py
 
+  # 조각 문서 스킬의 사본 길 — 임시 원본 · 대상으로 조각 5 설계 ② C1 ~ C5.
+  python3 scripts/test-sync-slice.py
+
   echo
-  echo "열둘 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "열넷 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 

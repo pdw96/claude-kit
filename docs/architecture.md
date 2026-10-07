@@ -9,8 +9,9 @@
 |---|---|---|
 | 원본 감사자 여섯 | `vibe-audit/agents/` | 목적별로 좁힌 읽기 전용 감사자. 공통 절은 여섯이 글자 그대로 같다 |
 | 브리핑 커맨드 · 검사기 | `vibe-audit/commands/audit-brief.md` · `vibe-audit/scripts/verify-brief.py` | 부르는 세션이 diff 를 브리핑으로 싣고, 검사기가 그것을 git 과 대조한 뒤 감사자를 부른다 |
-| 매니페스트 둘 | `.claude-plugin/marketplace.json` · `vibe-audit/.claude-plugin/plugin.json` | 마켓플레이스와 플러그인. 두 군데 적힌 이름 · 설명은 `verify-manifest.py` 가 견준다 |
-| 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` | 클라우드 레인에서 뜨는 쪽. 그 레포에 맞게 갈린다 |
+| 조각 문서 스킬 | `vibe-slice/skills/slice-docs/` | 의도 · 마스터플랜 · 요구사항 · 설계 틀 넷(`templates/`)과 쓰는 법. 절차는 `docs/procedure.md` 를 가리키기만 한다 |
+| 매니페스트 셋 | `.claude-plugin/marketplace.json` · `vibe-audit/.claude-plugin/plugin.json` · `vibe-slice/.claude-plugin/plugin.json` | 마켓플레이스와 플러그인 둘. 두 군데 적힌 이름 · 설명과, 플러그인 폴더마다 장터에 줄이 하나인지를 `verify-manifest.py` 가 본다 |
+| 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` · `.claude/skills/slice-docs/` | 클라우드 레인에서 뜨는 쪽. 그 레포에 맞게 갈린다 |
 | 사본 대장 | `copies.json` | 사본마다 레포 · 경로 · 심을 때의 커밋 · 날짜 |
 | 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |
@@ -33,6 +34,10 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 감사자 · 커맨드 파일 머리에 출처 커밋을 박고, `copies.json` 에 한 줄을 적는다. 검사기(`.py`)는 바이트 그대로 옮기고
 그 출처는 대장만 든다. 커밋 안 된 원본은 심지 않는다. 사본이 이미 있으면
 덮어쓰지 않는다 — 사본의 특화가 사라진다.
+
+**스킬 심기.** `scripts/sync-slice.sh <레포>` 가 조각 문서 스킬 폴더를 그 레포의 `.claude/skills/slice-docs/` 에
+심고 `SKILL.md` 머리에 출처 커밋을 박는다. 감사자 사본과 달리 대장에 적지 않고 견주지도 않는다 — 있으면 `--force` 로만
+폴더째 덮는다(ADR 0013). 대화형 세션은 `vibe-slice` 플러그인으로 받는다.
 
 **견주기.** 셋이 층을 나눈다.
 
@@ -69,6 +74,6 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 
 ## 문서
 
-의도(`INTENT.md`) · 마스터플랜(`docs/master-plan.md`) · 절차와 문서의 모양(`docs/procedure.md`) · 조각
-(`docs/slices/`) · 결정(`docs/adr/`). 문서의 모양은 `scripts/verify-docs.py` 가 본다. 살아 있는 문서와 기록의 구분은
-`docs/procedure.md` 「살아 있는 문서와 기록」.
+의도(`INTENT.md`) · 마스터플랜(`docs/master-plan.md`) · 절차와 문서의 모양(`docs/procedure.md`) · 틀
+(`vibe-slice/skills/slice-docs/templates/`) · 조각(`docs/slices/`) · 결정(`docs/adr/`). 문서의 모양은
+`scripts/verify-docs.py` 가 본다. 살아 있는 문서와 기록의 구분은 `docs/procedure.md` 「살아 있는 문서와 기록」.

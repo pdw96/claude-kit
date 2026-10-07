@@ -27,6 +27,8 @@ KINDS = [
     ("요구사항 문서의 칸", "requirements.md"),
     ("설계 문서의 칸", "design.md"),
 ]
+# 틀이 사는 곳 — `vibe-slice` 플러그인의 스킬 폴더(ADR 0013 의 6). 다른 레포는 그 스킬로 틀을 받는다.
+TEMPLATES = "vibe-slice/skills/slice-docs/templates"
 STATES = ("예정", "진행", "닫힘")
 CLOSING = re.compile(r"^닫으며 \(\d{4}-\d{2}-\d{2}\)$")
 FOLDER = re.compile(r"^`(docs/slices/\d+-[^/`\s]+/)`$")
@@ -198,9 +200,9 @@ def check_schema(r, root):
 
 def check_templates(r, root, schema):
     for name, fname in KINDS:
-        p = root / "docs" / "templates" / fname
+        p = root / TEMPLATES / fname
         if not p.is_file():
-            r.fail(f"docs/templates/{fname}", "T1", "틀이 없다")
+            r.fail(f"{TEMPLATES}/{fname}", "T1", "틀이 없다")
             continue
         if name in schema and headings(lines(p)) != schema[name]:
             r.fail(p, "T2", f"`##` 제목이 「{name}」 표와 다르다 — {' → '.join(schema[name])}")

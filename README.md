@@ -7,6 +7,7 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 | 플러그인 | 무엇 |
 |---|---|
 | `vibe-audit` | 목적별로 범위를 좁힌 읽기전용 감사자 6종 — 시크릿 · 데이터 · 검사장치 · 운영 · 계약 · 내부규칙 |
+| `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 넷 — 의도 · 마스터플랜 · 조각 요구사항 · 설계(스킬 `slice-docs`) |
 
 ## 설치 — 경로가 둘인 이유
 
@@ -27,25 +28,33 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 ```bash
 claude plugin marketplace add pdw96/claude-kit
 claude plugin install vibe-audit@pdw96-kit
+claude plugin install vibe-slice@pdw96-kit
 ```
 
-호출 이름이 `@vibe-audit:audit-secrets` 로 **스코프가 붙는다.**
+호출 이름이 `@vibe-audit:audit-secrets` · `/vibe-slice:slice-docs` 로 **스코프가 붙는다.**
+
+**새 판은 리로드만으로 오지 않는다** — 이 마켓플레이스는 자동 갱신이 기본으로 꺼져 있다. 받으려면
+`claude plugin marketplace update pdw96-kit` 뒤 `claude plugin update <플러그인>@pdw96-kit` 을 돌리고 리로드한다
+(`/plugin` 에서 `pdw96-kit` 의 자동 갱신을 켜 둬도 된다). 이미 `pdw96-kit` 을 붙인 계정이 `vibe-slice` 를 처음 깔 때도
+`marketplace update` 가 먼저다.
 
 ### ② 클라우드 레인 — 레포 사본
 
 `claude/...` 가지에서 도는 세션은 위 경로를 받지 못한다. 그 레포의 `.claude/agents/` 에 파일이 있어야 뜬다.
 
 ```bash
-./scripts/sync-agents.sh ~/src/ERP
+./scripts/sync-agents.sh ~/src/ERP    # 감사자 · 브리핑 커맨드 · 검사기 → .claude/agents · commands · scripts
+./scripts/sync-slice.sh ~/src/ERP     # 조각 문서 스킬 → .claude/skills/slice-docs
 ```
 
 호출 이름은 스코프 없이 `@audit-secrets`. 사본은 그 레포에 맞게 갈려도 된다 — 어느 쪽으로 무엇을 되돌리는지는 [의도](INTENT.md).
 
 ## 새 프로젝트를 열 때
 
-1. `scripts/sync-agents.sh <새 레포>` — 감사자 여섯을 심는다
+1. `scripts/sync-agents.sh <새 레포>` — 감사자 여섯을 심는다(클라우드 레인이면 `scripts/sync-slice.sh` 도)
 2. 계정 스킬 `project-kickoff` 으로 착공
-3. 첫 조각이 끝나면 `@audit-data` 부터
+3. 스킬 `slice-docs` 로 마스터플랜을 세워 조각을 나눈다 — 의도는 착공의 `PRD.md` 를 가리킨다
+4. 첫 조각이 끝나면 `@audit-data` 부터
 
 계정에 붙어 있는 스킬 넷(`project-kickoff` · `build-gate` · `separate-audit` · `ai-native-build`)은 설치가 필요 없다.
 
