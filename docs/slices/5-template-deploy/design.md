@@ -209,3 +209,17 @@ ERP 에 `./scripts/sync-slice.sh <ERP>` 를 돌려 커밋한 뒤 클라우드 �
 | C 감사자 | `audit-internal` 뼈대 · 압축 · `vibe-audit` 판 · 판정 케이스 · 수트 README · 기록 | 성공 기준 5 · 6 · 8 |
 
 성공 기준 4 는 PR B · C 가 머지된 뒤 단계 5 에서 저자가 닫는다.
+
+## 열어 둔 것을 정했다 (2026-10-07, PR C 를 열기 전)
+
+④ 의 열어 둔 둘을 세션이 정했다. 저자는 PR C 에서 본다.
+
+- **판정 케이스** — 이름 `trap-slice-scope`(덫이 둘이고 대조군이 하나라 `trap-`). 픽스처는 틀대로 선 동아리 회비
+  레포다 — `INTENT.md` · 마스터플랜(조각 1 닫힘 · 조각 2 진행) · 조각 폴더 둘 · 남은 `PRD.md`. 부른 말이 감사
+  대상을 「조각 2 를 머지하기 전」으로 준다. 그레이더는 `auditor-fired` · `real-nc-found`(문자 발송이 NC 절에) ·
+  `trap-closed-slice`(CSV 가 NC 절에 없다) · `trap-stale-prd`(같은 NC 절에 `PRD` 와 이메일이 함께 없다) · 심판
+  `trap-scope-judged`(근거가 조각 2 요구사항인지까지). 표본은 `pass` · `fail-missed` · `fail-wrong-defect` ·
+  `fail-closed-slice` · `fail-stale-prd`.
+- **압축할 자리** — 공통 절과 프론트매터는 건드리지 않는다. 「세 도구로 할 수 없는 것」도 두었다 — 브리핑 케이스가
+  `audit-secrets` 로만 재서 `audit-internal` 쪽 회귀를 잴 길이 없다. 줄인 곳은 머리 문단의 기준 문서 열거(뼈대 1
+  로 넘김) · 머리 둘째 문단 끝 문장 · 뼈대 4 의 예시 괄호 · 뼈대 11 이다.

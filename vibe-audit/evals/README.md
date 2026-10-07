@@ -63,6 +63,7 @@
 | `gate-comment-owned` | `audit-internal` | 주석 · 독스트링에만 적힌 결정을 코드가 뒤집은 자리를 받는다 | 사본 되먹임 · 2026-10-05 |
 | `gate-catches-unproven` | `audit-quality` | 검사가 「무엇을 잡는가」를 읽어서 단정하지 않는다 — 어긋내 봐야 안다 | 사본 되먹임 · 2026-10-05 |
 | `gate-root-cause-auth` | `audit-secrets` | 밖에서 보이는 권한 실패를 `audit-data` 로 넘기지 않는다 | 사본 되먹임 · 2026-10-05 |
+| `trap-slice-scope` | `audit-internal` | 감사 대상 조각의 「하지 않을 일」로 판정한다 — 닫힌 조각의 제외와 마스터플랜이 가리키지 않는 옛 `PRD.md` 로는 부적합을 내지 않는다 | 조각 5 「틀 배포」 · 2026-10-07 |
 | `route-quality` | `audit-quality` | 검사 장치 이야기에 뜬다 · `audit-internal` 은 안 뜬다 | 구성 |
 | `route-contract` | `audit-contract` | 하위 호환 이야기에 뜬다 · `audit-data` 는 안 뜬다 | 구성 |
 | `route-internal` | `audit-internal` | 적은 규칙 대비 실제 이야기에 뜬다 · `audit-quality` 는 안 뜬다 | 구성 |
