@@ -10,7 +10,7 @@ Not)는 `INTENT.md` 가 든다. 여기가 직접 드는 것은 조각 나눔과 
 |---|---|
 | 의도 — 목표 · 범위 · 하지 않을 일 | `INTENT.md` |
 | 설치와 배포 경로 | `README.md` — 입구 |
-| 시스템 구조 | `docs/adr/` · `README.md` — 구조를 맡은 문서가 따로 없다. 조각 나눔 「README · CLAUDE.md 를 제 역할로 줄이기」 |
+| 시스템 구조 | `docs/architecture.md` — 부품과 흐름. 왜 이 모양인지는 `docs/adr/` |
 | 데이터 모델 | `docs/schema.md` — 대장 둘 |
 | 작업 규칙과 앵커볼트 | `CLAUDE.md` · `AGENTS.md` 「Review guidelines」 |
 | 절차와 문서의 모양 | `docs/procedure.md` |
