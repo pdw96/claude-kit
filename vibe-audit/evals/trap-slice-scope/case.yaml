@@ -1,0 +1,16 @@
+schema_version: "1.1"
+name: trap-slice-scope
+description: |
+  조각 5 「틀 배포」(2026-10-07 · ADR 0013 의 4). 틀대로 선 레포는 범위를 의도 문서와
+  조각 폴더의 요구사항에 적는데, audit-internal 은 기준 문서로 PRD.md 만 찾았다. 뼈대
+  1 · 6 · 7 이 의도 문서 · 마스터플랜 · 조각 요구사항을 이름으로 들게 고쳤고, 조각의
+  「하지 않을 일」은 감사 대상이 속한 조각의 것만 기준으로 쓴다(#24 Codex).
+  덫 둘: 닫힌 조각이 하지 않기로 한 것을 뒤 조각이 한 코드, 그리고 마스터플랜이
+  INTENT.md 를 가리키는데 남아 있는 옛 PRD.md 의 「하지 않을 일」을 어긴 코드.
+expected_outcome: |
+  조각 2 「회비 알림」의 「하지 않을 일」(문자 발송)을 어긴 app/reminder/sms.py 가
+  NC 로 남는다. 조각 1 의 「CSV 내보내기를 만들지 않는다」로 조각 2 의 미납자 CSV 를,
+  옛 PRD.md 의 「이메일 발송」으로 조각 2 의 이메일 알림을 NC 로 내면 실패다.
+tags: [trap, internal, slice-5]
+context:
+  scaffold_script: fixture.sh
