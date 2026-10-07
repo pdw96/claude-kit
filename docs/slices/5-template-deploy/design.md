@@ -77,7 +77,8 @@
   - A3 프론트매터와 공통 절이 바이트로 그대로다.
   - A4 호출 시 문자 ≤ 11,000 이고, 스냅숏이 같은 PR 에 있다.
   - A5 새 판정 케이스가 수트에서 통과한다 — 진행 조각의 「하지 않을 일」을 어긴 코드를 부적합으로 내고(진짜 부적합),
-    닫힌 조각이 하지 않기로 한 것을 뒤 조각이 한 코드는 부적합으로 내지 않는다(덫).
+    닫힌 조각이 하지 않기로 한 것을 뒤 조각이 한 코드는 부적합으로 내지 않는다(덫 1). 마스터플랜의 의도 줄이
+    `INTENT.md` 를 가리키는데 남아 있는 옛 `PRD.md` 의 「하지 않을 일」을 어긴 코드도 부적합으로 내지 않는다(덫 2 — A1).
   - A6 `vibe-audit/.claude-plugin/plugin.json` 의 판이 기준 커밋보다 높다.
 - **비용**
   - X1 PR B 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
@@ -179,14 +180,16 @@
 
 **PR C**
 
-- A1 · A2 — 뼈대 1 · 6 · 7 의 줄에 `INTENT.md` · `docs/master-plan.md` · `docs/slices/` 가 있고, 6 · 7 이 「감사 대상
+- A1 · A2 — 동작은 A5 의 두 덫이 문다. 문구는 뼈대 1 · 6 · 7 의 줄에 `INTENT.md` · `docs/master-plan.md` ·
+  `docs/slices/` 가 있고, 6 · 7 이 「감사 대상
   변경이 속한 조각」으로 범위를 좁힌다(grep). 어긋내 보기: 기준
   커밋의 같은 줄에는 없다.
 - A3 — `python3 scripts/verify-copy.py vibe-audit/agents` 통과, 그리고 기준과 머리의 `audit-internal.md` 프론트매터(첫
   `---` 부터 둘째 `---` 까지)가 바이트로 같다.
 - A4 — `python3 scripts/verify-budget.py` 통과, 스냅숏의 `audit-internal` 호출 시 ≤ 11,000.
-- A5 — 머리에서 CI route 잡 통과, 그리고 전수(`workflow_dispatch`)에서 새 케이스 통과. 그레이더는 진짜 부적합과 덫을
-  따로 문다 — 덫을 부적합으로 낸 표본(`samples/fail*.md`)을 그레이더가 떨어뜨린다(`verify-graders.py`).
+- A5 — 머리에서 CI route 잡 통과, 그리고 전수(`workflow_dispatch`)에서 새 케이스 통과. 그레이더는 진짜 부적합과 두 덫을
+  따로 문다 — 덫 하나라도 부적합으로 낸 표본(`samples/fail*.md`, 덫마다 하나)을 그레이더가 떨어뜨린다
+  (`verify-graders.py`).
 
 - A6 — `git show main:vibe-audit/.claude-plugin/plugin.json` 과 머리의 `version` 을 견줘 머리가 높다.
 
