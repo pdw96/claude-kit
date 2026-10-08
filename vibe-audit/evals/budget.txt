@@ -16,6 +16,6 @@ skill  audit-brief         285    4458
        — 상시 합계            5223
 
 [vibe-slice]
-skill  slice-docs          178    1446
-skill  slice-review        170    3919
+skill  slice-docs          178    1541
+skill  slice-review        170    4139
        — 상시 합계             348
