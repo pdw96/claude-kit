@@ -19,6 +19,9 @@
   L2 그 밖의 claude-kit 링크 꼴(tree · 다른 가지 · 커밋 · raw)이 원본에 있으면 아무것도 쓰지 않는다
   L3 손으로 blob/<옛 커밋>/ 을 박은 사본도 --force 면 새 출처로
   H1 출처 줄의 글자 · H2 sync-agents.sh 의 HDR 과 같은 글자 · H3 sync-agents.sh 의 사본 README 가 같은 방향
+  Y1 심은 slice-docs/scripts/ 의 두 검사가 원본과 바이트 그대로(조각 9 설계 ②)
+  Y2 심은 verify-docs.py --repo 가 틀로 세운 대상에서 통과하고 한 자리를 어긋내면 떨어진다. 심은 verify-slice-gate.py 가
+     착공 + 구현을 한 diff 로 둔 대상(원격 origin · main 을 갖춘)에서 G1 로 떨어진다
 
 표준 라이브러리만 쓴다.
 """
@@ -36,6 +39,7 @@ HDR = ('HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에서만 참인 �
        '다른 레포에서도 같은 말이면 원본으로 넘긴다. -->"')
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
+CHECKS = ("verify-docs.py", "verify-slice-gate.py")
 
 
 def sh(cwd, *args):
@@ -86,6 +90,30 @@ def target(at):
     sh(at, "git", "add", "-A")
     sh(at, "git", "commit", "-q", "-m", "대상")
     return at
+
+
+def docs_tree(t, tpl):
+    """심은 틀로 세운 문서 — 의도 줄 `PRD.md`, `진행` 조각 하나와 그 폴더(조각 9 설계 ② Y2)."""
+    (t / "docs/slices/1-first").mkdir(parents=True)
+    (t / "PRD.md").write_text("# PRD\n\n## 문제\n", encoding="utf-8")
+    mp = (tpl / "master-plan.md").read_text(encoding="utf-8")
+    intent = [ln for ln in mp.splitlines() if ln.startswith("| 의도")]
+    row = "| 1 | <이름> | <목표 한 줄> | — | 예정 | — |"
+    if len(intent) != 1 or row not in mp or "<경로, 또는 `없음 — <이유>`>" not in mp:
+        sys.exit("준비 실패: 심은 틀 master-plan.md 의 자리표시자가 바뀌었다 — 이 시험을 맞춰 고쳐라")
+    mp = (mp.replace(intent[0], "| 의도 — Why · What · Not | `PRD.md` |")
+            .replace("<경로, 또는 `없음 — <이유>`>", "없음 — 시험 대상")
+            .replace(row, "| 1 | 첫 조각 | 시험 | — | 진행 | `docs/slices/1-first/` |"))
+    (t / "docs/master-plan.md").write_text(mp, encoding="utf-8")
+    for f in ("requirements.md", "design.md"):
+        shutil.copy(tpl / f, t / "docs/slices/1-first" / f)
+
+
+def check(script, cwd, *args):
+    """심은 검사를 대상에서 부른다. CI 의 GITHUB_EVENT_PATH 는 claude-kit 의 PR 이라 뺀다."""
+    env = {k: v for k, v in ENV.items() if k != "GITHUB_EVENT_PATH"}
+    p = subprocess.run([sys.executable, str(script), *map(str, args)], cwd=cwd, capture_output=True, text=True, env=env)
+    return p.returncode, p.stdout + p.stderr
 
 
 def run(src, *args):
@@ -144,6 +172,8 @@ def main():
         links = 0
         for n in want:
             links += (src / REL / n).read_bytes().count(LINK.encode())
+            if not (base / n).is_file():
+                continue  # 위의 「심은 파일이 원본과 다르다」가 이미 찍었다 — 예외로 끝내지 않는다
             expect(f"[L1] {n} 에 blob/main/ 링크가 남았다", LINK.encode() not in (base / n).read_bytes())
             if n.endswith("/SKILL.md") and n.count("/") == 1:
                 skill = (base / n).read_text(encoding="utf-8").splitlines()
@@ -160,6 +190,44 @@ def main():
         expect("원본의 copies.json 이 바뀌었다", (src / "copies.json").read_bytes() == ledger)
         expect("대상의 다른 파일이 바뀌었다", (t / "README.md").read_text(encoding="utf-8") == "대상\n")
         expect("대상에 커밋했다", sh(t, "git", "rev-parse", "HEAD") == head_before)
+
+        # Y1 · Y2 — 심은 두 검사가 대상 레포에서 돈다
+        planted = base / "slice-docs" / "scripts"
+        for n in CHECKS:
+            expect(f"[Y1] 심은 {n} 이 원본과 바이트 그대로가 아니다",
+                   (planted / n).is_file() and (planted / n).read_bytes() == (src / REL / "slice-docs/scripts" / n).read_bytes())
+        tpl = (base / "slice-docs" / "templates").resolve()
+        docs_tree(t, tpl)
+        rc, out = check(planted / "verify-docs.py", t, "--repo", t)
+        expect("[Y2] 심은 verify-docs.py --repo 가 틀로 세운 대상에서 심은 틀을 원천으로 통과하지 않았다",
+               rc == 0 and f"(다른 레포 — 원천 {tpl.as_posix()})" in out, out)
+        mp = t / "docs/master-plan.md"
+        mp.write_text(mp.read_text(encoding="utf-8").replace("\n## 범위 변경\n", "\n"), encoding="utf-8")
+        rc, out = check(planted / "verify-docs.py", t, "--repo", t)
+        expect("[Y2] 심은 verify-docs.py --repo 가 「범위 변경」을 지운 대상에서 M1 로 떨어지지 않았다",
+               rc == 1 and "docs/master-plan.md: [M1]" in out, out)
+
+        tg = target(tmp / "t-gate")
+        rc, out = run(src, tg)
+        expect("[Y2] 관문을 볼 대상에 심지 못했다", rc == 0, out)
+        docs_tree(tg, (tg / ".claude/skills/slice-docs/templates"))
+        sh(tg, "git", "add", "-A")
+        sh(tg, "git", "commit", "-q", "-m", "착공 머지")
+        sh(tmp, "git", "init", "-q", "--bare", str(tmp / "t-gate.git"))
+        sh(tg, "git", "remote", "add", "origin", str(tmp / "t-gate.git"))
+        sh(tg, "git", "push", "-q", "origin", "HEAD:refs/heads/main")
+        sh(tg, "git", "fetch", "-q", "origin")
+        (tg / "docs/slices/2-next").mkdir()
+        for f in ("requirements.md", "design.md"):
+            shutil.copy(tg / ".claude/skills/slice-docs/templates" / f, tg / "docs/slices/2-next" / f)
+        gate = tg / ".claude/skills/slice-docs/scripts/verify-slice-gate.py"
+        rc, out = check(gate, tg)
+        expect("[Y2] 심은 verify-slice-gate.py 가 착공 문서만 둔 대상에서 통과하지 않았다", rc == 0, out)
+        (tg / "src").mkdir()
+        (tg / "src/impl.py").write_text("x = 1\n", encoding="utf-8")
+        rc, out = check(gate, tg)
+        expect("[Y2] 심은 verify-slice-gate.py 가 착공 + 구현을 한 diff 로 둔 대상에서 G1 로 떨어지지 않았다",
+               rc == 1 and "[G1]" in out and "src/impl.py" in out, out)
 
         # C3 — 스킬 하나만 있어도 다시 심기는 멈추고, --force 는 스킬 폴더를 다 덮되 다른 스킬은 둔다
         t3 = target(tmp / "t3")
@@ -311,7 +379,8 @@ def main():
         for f in fails:
             print(f"FAIL {f}")
         return 1
-    print(f"PASS sync-slice.sh 가 C1 ~ C5 · P1 · L1 ~ L3 · H1 ~ H3 을 스킬마다 지킨다 — 기대 {passes} 개 모두 맞다")
+    print(f"PASS sync-slice.sh 가 C1 ~ C5 · P1 · L1 ~ L3 · H1 ~ H3 을 스킬마다 지키고, 심은 검사가 돈다(Y1 · Y2) — "
+          f"기대 {passes} 개 모두 맞다")
     return 0
 
 

@@ -15,7 +15,8 @@
 ## 플러그인의 파일을 고쳤다면
 
 - [ ] 그 플러그인의 `plugin.json` 판을 올렸다(`vibe-audit` · `vibe-slice`) — 판이 그대로면 이미 설치한 레포가
-      `claude plugin update` 를 해도 새 파일을 받지 않는다(ADR 0013). 틀 넷도 `vibe-slice` 의 파일이다
+      `claude plugin update` 를 해도 새 파일을 받지 않는다(ADR 0013). 틀 넷도, 검사 둘(`scripts/verify-docs.py` ·
+      `scripts/verify-slice-gate.py` — 링크의 실물은 `vibe-slice/skills/slice-docs/scripts/`)도 `vibe-slice` 의 파일이다
 
 ## 감사자 문구를 고쳤다면
 

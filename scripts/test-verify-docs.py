@@ -16,6 +16,13 @@
 - 변조본마다 종료코드 1 · `Traceback` 없음 · 출력에 기대한 파일과 **보장 번호**가 다 있어야 한다. 다른
   규칙이나 예외로 떨어진 것은 통과로 세지 않는다.
 
+**다른 레포 모드의 꼴** (`docs/slices/9-repo-doc-check/design.md` ② A · ⑤)
+
+- 틀 넷으로 세운 임시 레포(지도도 `vibe-slice/` 도 없다)에 `--repo` 로 댄다. 의도 줄은 `PRD.md`, 조각은 닫힌 것 ·
+  진행 · 예정 하나씩이다.
+- 받은 검사(인자로 받은 사본도)를 꼴마다 임시 스킬 폴더 `<임시>/slice-docs/scripts/` 에 베끼고 `templates/` 에 이
+  저장소의 틀 넷을 둔다(V2) — 검사가 제 옆의 틀을 찾으므로, 망가뜨린 사본이 틀을 못 찾아 엉뚱한 까닭으로 떨어지지 않는다.
+
 표준 라이브러리만 쓴다.
 """
 import os
@@ -206,6 +213,156 @@ CASES = [
      lambda t: (t / "docs/slices/1-copy-comparison/requirements.md").unlink()),
 ]
 
+# ── 다른 레포 모드(설계 ② A) ─────────────────────────────────────────
+
+R_DONE = "| 1 | 닫힌 조각 | 시험 | — | 닫힘 | `docs/slices/1-done/` |"
+R_GO = "| 2 | 진행 조각 | 시험 | 닫힌 조각 | 진행 | `docs/slices/2-go/` |"
+R_PLAN = "| — | 예정 조각 | 시험 | — | 예정 | — |"
+R_INTENT = "| 의도 — Why · What · Not | `PRD.md` |"
+GO_DIR = "docs/slices/2-go"
+DONE_DIR = "docs/slices/1-done"
+CLOSE = "\n## 닫으며 (2026-10-08)\n"
+
+
+def fill(text, old, new):
+    """틀의 자리표시자를 채운다 — 없으면 틀이 바뀌었으니 시험을 맞춰 고친다."""
+    if old not in text:
+        raise Setup(f"틀에 채울 자리 {old!r} 가 없다")
+    return text.replace(old, new)
+
+
+def repo_bed(box, checker):
+    """(베낀 검사, 그 옆의 틀 폴더, 틀로 세운 임시 레포). 레포에는 지도도 `vibe-slice/` 도 없다(V2)."""
+    skill = box / "slice-docs"
+    (skill / "scripts").mkdir(parents=True)
+    shutil.copy(checker, skill / "scripts" / "verify-docs.py")
+    shutil.copytree(ROOT / TPL, skill / "templates")
+    t = box / "repo"
+    (t / "docs").mkdir(parents=True)
+    write(t / "PRD.md", "# PRD\n\n## 문제\n\n## 범위\n")
+    mp = (ROOT / TPL / "master-plan.md").read_text(encoding="utf-8")
+    intent = [ln for ln in mp.splitlines() if ln.startswith("| 의도")]
+    if len(intent) != 1:
+        raise Setup(f"틀 master-plan.md 에 의도 줄이 {len(intent)} 개다")
+    mp = fill(mp, intent[0], R_INTENT)
+    mp = fill(mp, "<경로, 또는 `없음 — <이유>`>", "없음 — 시험 레포")
+    mp = fill(mp, "| 1 | <이름> | <목표 한 줄> | — | 예정 | — |", "\n".join((R_DONE, R_GO, R_PLAN)))
+    write(t / MP, mp)
+    for d in (DONE_DIR, GO_DIR):
+        (t / d).mkdir(parents=True)
+        for f in ("requirements.md", "design.md"):
+            shutil.copy(ROOT / TPL / f, t / d / f)
+    append(t, f"{DONE_DIR}/requirements.md", CLOSE)
+    return skill / "scripts" / "verify-docs.py", (skill / "templates").resolve(), t
+
+
+def first_plan(t):
+    """첫 마스터플랜 — 조각 나눔이 다 `예정` 이고 `docs/slices/` 가 아직 없다(A7)."""
+    sub(t, MP, R_DONE + "\n", "")
+    sub(t, MP, R_GO + "\n", "")
+    shutil.rmtree(t / "docs/slices")
+
+
+def no_headings(p):
+    write(p, "".join(ln for ln in p.read_text(encoding="utf-8").splitlines(True) if not ln.startswith("## ")))
+
+
+# (이름, 출력에 다 있어야 할 줄 머리, 변조(레포, 틀 폴더)) — `{tpl}` 은 그 꼴의 틀 폴더다.
+R_CASES = [
+    ("A4 마스터플랜이 없다", ["docs/master-plan.md: [O3]"], lambda t, tpl: (t / MP).unlink()),
+    ("A7 첫 마스터플랜에 진행 줄 하나 — 폴더가 없다", ["docs/master-plan.md: [M2]", "docs/master-plan.md: [S8]"],
+     lambda t, tpl: (first_plan(t), sub(t, MP, R_PLAN, R_PLAN + "\n| 1 | 첫 조각 | 시험 | — | 진행 | `docs/slices/1-x/` |"))),
+    ("A7 첫 마스터플랜이 docs/plans/ 를 가리킨다", ["docs/master-plan.md: [M2]"],
+     lambda t, tpl: (first_plan(t), sub(t, MP, "| `docs/slices/` |", "| `docs/plans/` |"))),
+    ("A4 진행 조각 설계에서 ③ 이 빠진다", [f"{GO_DIR}/design.md: [F3]"],
+     lambda t, tpl: sub(t, f"{GO_DIR}/design.md", "\n## ③ 받는 입력\n", "\n")),
+    ("A4 진행 조각이 예정 조각을 의존", ["docs/master-plan.md: [S6]"],
+     lambda t, tpl: sub(t, MP, R_GO, R_GO.replace("| 닫힌 조각 |", "| 예정 조각 |"))),
+    ("A4 닫힌 조각의 「닫으며」가 없다", [f"{DONE_DIR}/requirements.md: [F5]"],
+     lambda t, tpl: sub(t, f"{DONE_DIR}/requirements.md", CLOSE, "\n")),
+    ("A4 고아 폴더", ["docs/slices/9-x: [F1]"], lambda t, tpl: (t / "docs/slices/9-x").mkdir()),
+    ("A4 INTENT.md 의 Not → Non", ["INTENT.md: [I3]"], lambda t, tpl: (
+        write(t / "INTENT.md", (tpl / "intent.md").read_text(encoding="utf-8")),
+        sub(t, "INTENT.md", "\n## Not\n", "\n## Non\n"),
+        sub(t, MP, R_INTENT, R_INTENT.replace("`PRD.md`", "`INTENT.md`")))),
+    ("A1 검사 옆 틀 design.md 에 제목을 더한다", [f"{GO_DIR}/design.md: [F3]"],
+     lambda t, tpl: append(tpl.parent, "templates/design.md", "\n## ⑦ 덤\n")),
+    ("A2 검사 옆 틀 requirements.md 가 없다", ["[A2] {tpl}/requirements.md:"],
+     lambda t, tpl: (tpl / "requirements.md").unlink()),
+    ("A2 검사 옆 틀 requirements.md 의 ## 제목을 다 지운다", ["[A2] {tpl}/requirements.md:"],
+     lambda t, tpl: no_headings(tpl / "requirements.md")),
+    ("A2 검사 옆 틀 intent.md 가 UTF-8 이 아니다", ["[A2] {tpl}/intent.md:"], lambda t, tpl: (
+        (tpl / "intent.md").unlink(), (tpl / "intent.md").write_bytes(b"\xff\xfe## Why\n"))),
+]
+
+# (이름, 변조(레포, 틀 폴더)) — 통과해야 한다.
+R_CONTROLS = [
+    ("A4 · A6 의도 줄 PRD.md · 닫힌 조각 · 진행 조각", lambda t, tpl: None),
+    ("A3 진행 조각 설계 끝의 날짜 항목 · 루트의 엉뚱한 docs/procedure.md", lambda t, tpl: (
+        append(t, f"{GO_DIR}/design.md", "\n## 2026-10-08 — 열어 둔 것을 정한다\n"),
+        write(t / PROC, "# 절차\n\n### 설계 문서의 칸\n\n| 제목 | 담는 것 |\n|---|---|\n| `## ⑦ 덤` | x |\n"
+                        "\n### 설계 문서의 칸\n\n| 제목 | 담는 것 |\n|---|---|\n| `## ⑧ 덤` | x |\n"))),
+    ("A7 첫 마스터플랜 — 다 예정 · docs/slices/ 없음", lambda t, tpl: first_plan(t)),
+]
+
+# 사용법 — exit 2. `{root}` 는 그 꼴의 임시 레포다.
+R_USAGE = [["--repo"], ["--repo", "{root}", "--force"], ["--repo", "-x"], ["{root}", "--repo"], ["-x"]]
+
+
+def run_repo(checker, *args):
+    p = subprocess.run([sys.executable, str(checker), *map(str, args)], capture_output=True, text=True)
+    return p.returncode, p.stdout + p.stderr
+
+
+def repo_mode(checker, tmp):
+    """다른 레포 모드의 꼴 — (통과 수, 실패 줄)."""
+    fails, passes, n = [], 0, 0
+
+    def bed():
+        nonlocal n
+        n += 1
+        return repo_bed(tmp / f"repo{n}", checker)
+
+    for name, want, mutate in R_CASES:
+        try:
+            c, tpl, t = bed()
+            mutate(t, tpl)
+        except Setup as e:
+            fails.append(f"다른 레포 {name}: 준비 실패 — {e}")
+            continue
+        rc, out = run_repo(c, "--repo", t)
+        need = [w.format(tpl=tpl.as_posix()) for w in want]
+        if rc == 1 and "Traceback" not in out and all(w in out for w in need):
+            passes += 1
+        else:
+            fails.append(f"다른 레포 {name}: {' · '.join(need)} 로 떨어지지 않았다 (종료코드 {rc}) — {out[-300:]}")
+
+    for name, mutate in R_CONTROLS:
+        try:
+            c, tpl, t = bed()
+            mutate(t, tpl)
+        except Setup as e:
+            fails.append(f"다른 레포 대조 {name}: 준비 실패 — {e}")
+            continue
+        rc, out = run_repo(c, "--repo", t)
+        if rc == 0 and f"(다른 레포 — 원천 {tpl.as_posix()})" in out:
+            passes += 1
+        else:
+            fails.append(f"다른 레포 대조 {name}: 원천을 찍고 통과해야 하는데 아니다 (종료코드 {rc}) — {out[-300:]}")
+
+    try:
+        c, tpl, t = bed()
+    except Setup as e:
+        return passes, fails + [f"다른 레포 사용법: 준비 실패 — {e}"]
+    for args in R_USAGE:
+        rc, out = run_repo(c, *(a.format(root=t) for a in args))
+        if rc == 2 and "사용법" in out:
+            passes += 1
+        else:
+            fails.append(f"다른 레포 사용법 {args}: exit 2 여야 한다 (종료코드 {rc}) — {out[-200:]}")
+    return passes, fails
+
+
 # (이름, 변조) — 통과해야 한다. 다 떨어뜨리는 검사도 무는 것처럼 보이므로.
 CONTROLS = [
     ("의도를 다른 문서가 든다(ADR 0010)", lambda t: (
@@ -306,18 +463,37 @@ def main():
             else:
                 fails.append(f"대조 {name}: 통과해야 하는데 떨어졌다 — {out[-300:]}")
 
+        # W3 인자 없이 부르면 부른 경로의 두 단 위가 루트다 — `scripts/` 의 링크는 그 트리, 실물 경로는 O3.
+        t = fresh()
+        write(t / "vibe-slice/skills/slice-docs/scripts/verify-docs.py", checker.read_text(encoding="utf-8"))
+        rc, out = run_repo(t / "scripts" / "verify-docs.py")
+        if rc == 0:
+            passes += 1
+        else:
+            fails.append(f"W3 링크로 인자 없이 부르면 그 트리에서 통과해야 한다 (종료코드 {rc}) — {out[-300:]}")
+        rc, out = run_repo(t / "vibe-slice/skills/slice-docs/scripts/verify-docs.py")
+        if rc == 1 and "docs/procedure.md: [O3]" in out:
+            passes += 1
+        else:
+            fails.append(f"W3 실물 경로로 인자 없이 부르면 O3 이어야 한다 (종료코드 {rc}) — {out[-300:]}")
+
         rc, out = run(checker, bed)
         if rc == 0:
             passes += 1
         else:
             fails.append(f"바탕이 변조본에 물들었다 — 어느 변조가 파일을 제자리에서 고쳤다 — {out[-300:]}")
 
+        got, bad = repo_mode(checker, tmp)
+        passes += got
+        fails += bad
+
     if fails:
         print(f"FAIL — 문서 대조 검사의 자체 시험 {len(fails)} 개가 어긋났다")
         for f in fails:
             print(f"  - {f}")
         return 1
-    print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3, 모두 {passes}")
+    print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
+          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)}, 모두 {passes}")
     return 0
 
 
