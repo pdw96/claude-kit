@@ -26,8 +26,8 @@
    `docs/procedure.md` · `docs/adr/*.md` · `docs/slices/*/requirements.md` · `design.md`** / 조각 폴더와 마스터플랜만 /
    마크다운 전부.
 5. 기준과 머리: **인자(`--base` · `--head`) > CI 의 `pull_request` 이벤트 파일의 기준 · 머리 sha — 기준 가지가 기본 가지가
-   아니면(쌓은 PR) 기본 가지 > `origin/main` 과의 merge-base 에서 작업트리까지** / `GITHUB_BASE_REF` 의 가지 끝 /
-   `eval.yml` 이 sha 를 넘긴다.
+   아니면(쌓은 PR) 기본 가지 > `origin/main` · `main` 가운데 앞선 쪽과의 merge-base 에서 작업트리까지** /
+   `GITHUB_BASE_REF` 의 가지 끝 / `eval.yml` 이 sha 를 넘긴다 / 로컬은 `origin/main` 만.
 6. 검사를 부르는 자리: **`gates.sh` — 검사와 자체 시험(`test-*.py`) 둘** / `eval.yml` 의 새 스텝.
 
 ## 결정
@@ -43,7 +43,8 @@
 - 5 의 `GITHUB_BASE_REF` 는 가지 이름이라, 이벤트 뒤에 기준 가지가 움직이면 merge-base 가 이벤트의 기준과 달라진다.
   `eval.yml` 이 넘기는 길은 수트를 한 번 돌린다. 쌓은 PR 을 기본 가지로 보는 까닭 — 머지되지 않은 착공 가지 위에 구현 PR 을
   쌓으면 그 가지의 마스터플랜에는 `진행` 조각과 설계가 있어 G2 를 지나간다. 기본 가지와 견주면 착공과 구현이 한 diff 가 되어
-  G1 로 떨어진다.
+  G1 로 떨어진다. 로컬에서 `origin/main` 만 보지 않는 까닭 — 이 착공을 쓴 클라우드 세션의 클론은 `origin/main` 이 #14 에
+  멈춰 있고 `main` 만 최신이었다. `origin/main` 만 보면 그 사이 머지된 PR 의 파일이 이 PR 의 변경으로 잡혀 거짓 G1 이 난다.
 - 6 은 조각 5 · 6 의 자체 시험(`test-sync-slice.py`)과 같은 길이다 — `eval.yml` 을 고치지 않는다.
 
 ## 결과
