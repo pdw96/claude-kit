@@ -70,11 +70,13 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 키 없는 게이트는 도는 것과 무는 것을 따로 본다. CI 「게이트가 무는가」 단계가 이 저장소의 검사기마다 변조본(사본 감사자의
 `tools` 변조 · 대장의 없는 커밋 · 성하지 않은 후보 대장 · 파일 없는 라이선스 선언 …)을 만들어 떨어지는지 보고, 검사기 몇은
 자기 시험 스크립트(`scripts/test-*.py`)를 `gates.sh` 에 둔다. `gates.sh` 의 `claude plugin validate` 는 정상 트리에서만
-돈다 — 그것을 떨어뜨리는 변조본은 없다. 새 검사를 세우면 그 변조본을 함께 넣는다(`CLAUDE.md`
-「작업 방식」).
+돈다 — 그것을 떨어뜨리는 변조본은 없다. 설계 → 구현 관문의 변조본(`scripts/bite-slice-gate.py`)만은 「게이트가 무는가」가
+아니라 `gates.sh` 에 있다 — `eval.yml` 은 수트 지문에 들어 고치면 route 수트가 돈다(ADR 0016 의 6). 새 검사를 세우면 그
+변조본을 함께 넣는다(`CLAUDE.md` 「작업 방식」).
 
 ## 문서
 
 의도(`INTENT.md`) · 마스터플랜(`docs/master-plan.md`) · 절차와 문서의 모양(`docs/procedure.md`) · 틀
 (`vibe-slice/skills/slice-docs/templates/`) · 조각(`docs/slices/`) · 결정(`docs/adr/`). 문서의 모양은
-`scripts/verify-docs.py` 가 본다. 살아 있는 문서와 기록의 구분은 `docs/procedure.md` 「살아 있는 문서와 기록」.
+`scripts/verify-docs.py` 가, 착공 PR 에 구현이 없고 구현이 기준 가지에 머지된 설계 위에 서는지는
+`scripts/verify-slice-gate.py` 가 본다(ADR 0016). 살아 있는 문서와 기록의 구분은 `docs/procedure.md` 「살아 있는 문서와 기록」.
