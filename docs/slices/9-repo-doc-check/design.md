@@ -7,7 +7,7 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/master-plan.md` | A | 「다른 레포의 문서 대조 검사」 상태 `진행` · 조각 폴더 · 목표 한 줄에 무는 자리와 원천(ADR 0018 의 1 · 2) |
-| `docs/adr/0018-repo-doc-check.md` | A | 갈림길 여덟 |
+| `docs/adr/0018-repo-doc-check.md` | A | 갈림길 아홉 |
 | `vibe-slice/skills/slice-docs/scripts/verify-docs.py` | B | `scripts/verify-docs.py` 를 `git mv` 로 옮긴다. ② 의 A — 다른 레포 모드(`--repo <루트>`). W3 — 기본 루트를 부른 경로에서 잡는다. 원본 모드의 판정은 그대로 |
 | `vibe-slice/skills/slice-docs/scripts/verify-slice-gate.py` | B | `scripts/verify-slice-gate.py` 를 `git mv` 로 옮긴다. 코드는 그대로 — 머리 주석의 자리 줄만 |
 | `scripts/verify-docs.py` · `scripts/verify-slice-gate.py` | B | 위 둘을 가리키는 상대 심볼릭 링크(`../vibe-slice/skills/slice-docs/scripts/<이름>`) — W2 |
@@ -53,11 +53,15 @@ B · D · G · R 은 그대로다.
   - A2 틀 넷 가운데 하나라도 없거나 · 읽지 못하거나 · `##` 제목이 하나도 없으면 떨어진다 — 원천이 사라져 빈 채로 초록이 되지
     않게(O2 와 같은 까닭). 출력은 `[A2] <틀 경로>: …`.
   - A3 원천(O1 ~ O3 의 `docs/procedure.md` 확인)과 틀(T1 · T2)을 보지 않는다. 루트에 `docs/procedure.md` 가 있어도 읽지 않는다.
-  - A4 그 밖은 원본 모드와 같은 규칙 · 같은 보장 번호 · 같은 출력이다 — I1 ~ I3 · M1 · M2 · S1 ~ S10 · F1 ~ F5 · R1 · R2.
+  - A4 그 밖은 원본 모드와 같은 규칙 · 같은 보장 번호 · 같은 출력이다 — I1 ~ I3 · M1 · M2 · S1 ~ S10 · F1 ~ F5 · R1 · R2. 다른 것은 A7 하나다.
     마스터플랜이 없으면 O3 「없다 — 마스터플랜이 없다」로 떨어진다 — 마스터플랜이 없는 레포(지금의 강호쟁패 · ERP)에서 지나가지 않는다.
   - A5 모드는 인자로만 고른다. `--repo` 가 없으면 원본 모드이고 조각 3 설계 ② 그대로다. 루트의 파일(지도 · `vibe-slice/`)이
     있고 없음으로 고르지 않는다 — 지도를 지운 원본이 O3 대신 다른 레포 모드로 넘어가 지나가지 않게(ADR 0018 의 5).
   - A6 통과 줄이 모드와 원천을 찍는다 — `PASS 문서의 모양(다른 레포 — 원천 <틀 폴더>) — 의도 · 마스터플랜 · 조각 나눔 · 조각 폴더`.
+  - A7 **첫 조각 전의 `docs/slices/`.** 「가리키는 문서」의 경로 토막이 글자 그대로 `docs/slices/` 이고 루트에 그 폴더가 없을 때, 조각
+    나눔에 `진행` · `닫힘` 줄이 하나도 없으면 M2 로 떨어지지 않는다. 그런 줄이 하나라도 있으면 원본 모드와 같다(M2 · S8). 틀의
+    「가리키는 문서」가 `docs/slices/` 를 박아 두는데, 첫 조각을 꺼내기 전에는 그 폴더가 없고 빈 폴더는 git 에 커밋되지 않는다 —
+    마스터플랜만 세우는 첫 PR 이 늘 떨어진다(#39 Codex 1회차, ADR 0018 의 9). 원본 모드에는 없다 — claude-kit 은 조각 폴더가 있다.
 - **순서** (`verify-slice-gate.py`)
   - Q1 코드는 그대로다. 다른 레포의 작업트리에서 인자 없이 부르면 그 레포(작업 디렉터리의 `git rev-parse --show-toplevel`)의
     `origin/main` · `main` 을 기준으로 조각 7 설계 ② 의 B · D · G · R 대로 판정한다. 기준에 마스터플랜이 없으면 「보지 않는다」로
@@ -69,7 +73,7 @@ B · D · G · R 은 그대로다.
     착공 + 구현을 한 diff 로 둔 대상에서 G1 로 떨어진다 — `test-sync-slice.py` 가 본다. 조각 5 · 6 · 8 의 C1 ~ C5 · P1 · L1 ~ L3 ·
     H1 ~ H3 은 그대로다.
 - **변조본**
-  - V1 `bite-verify-docs.py` 는 W1 의 `verify-docs.py` 를 ⑤ 의 다섯 자리마다 한 군데씩 망가뜨린 사본을 임시 폴더에 쓰고, 사본마다
+  - V1 `bite-verify-docs.py` 는 W1 의 `verify-docs.py` 를 ⑤ 의 여섯 자리마다 한 군데씩 망가뜨린 사본을 임시 폴더에 쓰고, 사본마다
     `test-verify-docs.py` 를 돌려 떨어지는지 본다. 하나라도 지나가면 떨어지고, 망가뜨릴 자리가 검사에 꼭 한 번 있지 않으면 떨어진다.
     `gates.sh` 가 부른다 — 수트 지문 밖이다(ADR 0018 의 6).
   - V2 `test-verify-docs.py` 의 다른 레포 모드 꼴은 받은 검사(인자로 받은 사본도)를 임시 스킬 폴더 `<임시>/slice-docs/scripts/` 에
@@ -132,7 +136,7 @@ B · D · G · R 은 그대로다.
 
 | 레포 | 마스터플랜 | 의도 후보 | 「가리키는 문서」에 들 경로 | `docs/slices/` |
 |---|---|---|---|---|
-| 강호쟁패 | 없다 — 단계 5 에서 선다 | `PRD.md`(`##` 일곱 — I3 은 `INTENT.md` 일 때만이라 보지 않는다) | `docs/architecture.md` · `docs/schema.md` · `CLAUDE.md` · `docs/adr/` · `CHECKLIST.md` | 없다 |
+| 강호쟁패 | 없다 — 단계 5 에서 선다. 첫 마스터플랜은 조각 폴더가 없어 A7 로 받는다 | `PRD.md`(`##` 일곱 — I3 은 `INTENT.md` 일 때만이라 보지 않는다) | `docs/architecture.md` · `docs/schema.md` · `CLAUDE.md` · `docs/adr/` · `CHECKLIST.md` | 없다 |
 | ERP | 없다 | `PRD.md` · `docs/PRD-<N>단계.md` | — | 없다 |
 
 **git — `verify-slice-gate.py`** — 조각 7 설계 ③ 그대로. 다른 레포의 가지는 `origin/main` 과 로컬 `main` 이다 — 강호쟁패 · ERP 둘 다
@@ -153,6 +157,7 @@ B · D · G · R 은 그대로다.
 - 6 다른 레포 모드의 변조본은 `gates.sh` 가 부르는 `bite-verify-docs.py`(세션 제안 · 저자)
 - 7 검사 둘은 `slice-docs` 폴더에 — `slice-review` 는 `../slice-docs/scripts/` 로 부른다(세션 제안 · 저자)
 - 8 K2 는 스크립트의 판정에 더해 「그 조각」이 `진행` 이고 설계가 있는지를 본다(저자)
+- 9 첫 조각 전의 `docs/slices/` 는 다른 레포 모드의 검사가 받는다 — A7(세션 제안 · #39 Codex 1회차. 저자 승인을 기다린다)
 
 **열어 둔 것**
 
@@ -178,6 +183,9 @@ B · D · G · R 은 그대로다.
   | 의도 줄 `PRD.md`(세 제목 없음) · 진행 조각 하나 · 닫힌 조각 하나 | 통과(A4 · A6) |
   | 진행 조각 설계 끝에 날짜 항목 · 루트에 엉뚱한 `docs/procedure.md` | 통과(A3) |
   | 마스터플랜이 없다 | O3 |
+  | 첫 마스터플랜 — 조각 나눔이 다 `예정` · `docs/slices/` 없음 | 통과(A7) |
+  | 같은데 `진행` 줄 하나(폴더 칸 `docs/slices/1-x/` · 폴더 없음) | M2 · S8 — A7 은 `진행` · `닫힘` 줄이 있으면 받지 않는다 |
+  | 조각 나눔이 다 `예정` · 「가리키는 문서」가 없는 폴더 `docs/plans/` 를 가리킨다 | M2 — A7 은 `docs/slices/` 글자 하나만 받는다 |
   | 진행 조각 설계에서 `## ③ 받는 입력` 을 지운다 | F3 |
   | 진행 조각의 의존이 `예정` 조각 | S6 |
   | 닫힌 조각의 「닫으며」를 지운다 | F5 |
@@ -187,9 +195,9 @@ B · D · G · R 은 그대로다.
   | 검사 옆 `templates/requirements.md` 를 지운다 · `##` 제목을 다 지운다 | A2 |
   | `--repo` 뒤 루트 없음 · `--repo` 와 다른 옵션 | exit 2 |
 
-- V1 변조본의 다섯 자리 — `bite-verify-docs.py` 가 다 자체 시험에서 떨어지는 것을 본다: `--repo` 를 무시해 원본 모드로 간다, 틀의 원천을
+- V1 변조본의 여섯 자리 — `bite-verify-docs.py` 가 다 자체 시험에서 떨어지는 것을 본다: `--repo` 를 무시해 원본 모드로 간다, 틀의 원천을
   빈 목록으로 읽는다, A2 의 빈 원천 거절을 지운다, 다른 레포 모드에서도 T1 · T2 를 본다, 다른 레포 모드의 원천을 검사 옆이 아니라 루트의
-  `vibe-slice/…/templates/` 에서 찾는다. 어긋내 보기 둘 — 자체 시험의 다른 레포 모드 꼴을 다 지운 작업트리, 검사에서 변조할 자리의
+  `vibe-slice/…/templates/` 에서 찾는다, A7 의 `진행` · `닫힘` 줄 조건을 지운다(늘 받는다). 어긋내 보기 둘 — 자체 시험의 다른 레포 모드 꼴을 다 지운 작업트리, 검사에서 변조할 자리의
   글자를 하나 바꾼 작업트리에서 `bite-verify-docs.py` 가 떨어진다.
 - Y1 · Y2 — `test-sync-slice.py` 가 심은 사본의 `scripts/` 두 파일이 원본과 바이트 그대로인지(C1 의 꼴에 듦), 틀로 세운 대상에서 심은
   `verify-docs.py --repo` 가 통과하고 한 자리를 망가뜨리면 떨어지는지, 착공 + 구현을 한 diff 로 둔 대상(원격 `origin` · `main` 을
