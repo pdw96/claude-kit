@@ -11,6 +11,9 @@
 **무엇을 보장하나.** `docs/slices/7-design-gate/design.md` ② 가 든다. 출력의 `[G1]` 같은 번호가 그
 보장의 번호다 — 여기 따로 옮겨 적지 않는다. 받는 입력의 닫힌 목록은 같은 설계 ③.
 
+**자리.** 실물은 `vibe-slice/skills/slice-docs/scripts/` 에 있고 플러그인 · 사본(`sync-slice.sh`)이 이 파일을 싣는다.
+`scripts/verify-slice-gate.py` 는 그것을 가리키는 링크다(ADR 0018 의 3). 어느 레포에서든 그 작업트리에서 부른다.
+
 이 검사를 망가뜨린 사본이 자체 시험에서 떨어지는지는 `bite-slice-gate.py` 가 본다 — 아래 줄 몇을 글자
 그대로 찾아 바꾸므로, 그 줄을 고치면 변조본도 따라 고친다.
 

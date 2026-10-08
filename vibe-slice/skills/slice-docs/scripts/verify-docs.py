@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """문서의 모양 — 절 제목 · 경로 · 조각 나눔 · 닫는 기록 — 을 대조한다. 모델도 네트워크도 git 도 안 쓴다.
 
-  python3 scripts/verify-docs.py            # 이 저장소
-  python3 scripts/verify-docs.py <루트>      # 다른 폴더 — 자체 시험이 베낀 트리로 쓴다
+  python3 scripts/verify-docs.py               # 이 저장소 — `scripts/` 의 링크로 부른다
+  python3 scripts/verify-docs.py <루트>         # 다른 폴더 — 자체 시험이 베낀 트리로 쓴다
+  python3 <이 파일> --repo <루트>                 # 다른 레포 — 원천은 이 파일 옆의 틀 넷
+
+**자리.** 실물은 `vibe-slice/skills/slice-docs/scripts/` 에 있고 플러그인 · 사본(`sync-slice.sh`)이 이 파일을 싣는다.
+`scripts/verify-docs.py` 는 그것을 가리키는 링크다(ADR 0018 의 3). 인자 없이 부르면 **부른 경로**의 두 단 위가 루트다 —
+링크를 따라가지 않는다.
 
 **왜 있나.** 절차 지도(`docs/procedure.md`)는 문서의 모양을 앵커볼트로 정했는데, 어겨도 떨어지는
 검사가 없었다. 조각 2 착공 PR 안에서 문서 자리가 두 번 옮겨졌고, 가리키는 줄은 사람이 손으로
@@ -13,6 +18,10 @@
 
 **모양의 원천은 `docs/procedure.md` 다.** 필수 제목은 그 파일의 「…의 칸」 표에서 읽는다. 여기에
 있는 것은 그 표를 찾는 네 절 이름뿐이고, 그 자리는 앵커볼트다(`CLAUDE.md`, ADR 0010 의 8).
+
+**다른 레포 모드(`--repo`)의 원천은 이 파일 옆의 틀 넷이다.** 지도는 다른 레포에 가지 않는다(ADR 0013 의 2). 틀의 `##`
+제목은 claude-kit 에서 T2 가 「…의 칸」 표와 글자 그대로 같게 무니 같은 원천이다. 모드는 인자로만 고른다 —
+`docs/slices/9-repo-doc-check/design.md` ② A(ADR 0018 의 2 · 5).
 
 표준 라이브러리만 쓴다.
 """
@@ -33,6 +42,8 @@ TEMPLATES = "vibe-slice/skills/slice-docs/templates"
 STATES = ("예정", "진행", "닫힘")
 CLOSING = re.compile(r"^닫으며 \(\d{4}-\d{2}-\d{2}\)$")
 FOLDER = re.compile(r"^`(docs/slices/\d+-[^/`\s]+/)`$")
+# 틀의 「가리키는 문서」가 박아 둔 조각 폴더의 자리 — 첫 조각 전에는 없다(설계 ② A7).
+SLICES = "docs/slices/"
 NONE_MARK = re.compile(r"^`?없음 — ")
 HEADING = re.compile(r"^(#+) (.*)$")
 
@@ -45,6 +56,10 @@ class Report:
     def fail(self, path, gid, msg):
         rel = path.relative_to(self.root).as_posix() if isinstance(path, pathlib.Path) else path
         self.bad.append(f"{rel}: [{gid}] {msg}")
+
+    def source(self, path, msg):
+        """다른 레포 모드의 원천(틀)이 서지 않는다 — 틀은 루트 밖이라 경로를 그대로 찍는다(설계 ② A2)."""
+        self.bad.append(f"[A2] {path.as_posix()}: {msg}")
 
 
 # 읽지 못한 파일 — `lines()` 가 모으고 `main()` 이 [R1] 로 찍는다. 예외로 끝내지 않으려고 빈 줄로 돌려준다.
@@ -199,6 +214,30 @@ def check_schema(r, root):
     return schema
 
 
+def side_templates():
+    """다른 레포 모드의 원천이 사는 곳 — 이 파일의 실제 자리(링크를 따라간)의 `../templates/`(설계 ② A1)."""
+    return pathlib.Path(__file__).resolve().parent.parent / "templates"
+
+
+def check_sources(r, tpl):
+    """다른 레포 모드 — 필수 제목은 틀마다 그 `##` 제목 전부, 틀의 순서대로(설계 ② A1 · A2)."""
+    schema = {}
+    for name, fname in KINDS:
+        p = tpl / fname
+        if not p.is_file():
+            r.source(p, f"틀이 없다 — 「{name}」의 원천을 읽을 곳이 없다")
+            continue
+        found = headings(lines(p))
+        if p in UNREADABLE:
+            r.source(p, f"읽지 못했다 — UTF-8 틀이어야 한다({UNREADABLE.pop(p)})")
+            continue
+        if not found:
+            r.source(p, f"`##` 제목이 하나도 없다 — 「{name}」의 원천이 비었다")
+            continue
+        schema[name] = found
+    return schema
+
+
 def check_templates(r, root, schema):
     for name, fname in KINDS:
         p = root / TEMPLATES / fname
@@ -209,12 +248,16 @@ def check_templates(r, root, schema):
             r.fail(p, "T2", f"`##` 제목이 「{name}」 표와 다르다 — {' → '.join(schema[name])}")
 
 
-def check_master(r, root, schema):
+def check_master(r, root, schema, repo):
     mp = root / "docs" / "master-plan.md"
     if not mp.is_file():
         r.fail("docs/master-plan.md", "O3", "없다 — 마스터플랜이 없다")
         return None
     ls = lines(mp)
+    body, _ = section(ls, 2, "조각 나눔")
+    rows = table(body or [])
+    # A7 다른 레포 모드에서 `진행` · `닫힘` 줄이 하나도 없으면 아직 없는 `docs/slices/` 를 받는다 — 빈 폴더는 커밋되지 않는다.
+    before_first = repo and not any(len(row) == 6 and row[4] in ("진행", "닫힘") for row in rows)
     need = schema.get("마스터플랜의 칸")
     if need and (why := in_order(headings(ls), need)):
         r.fail(mp, "M1", why)
@@ -238,6 +281,8 @@ def check_master(r, root, schema):
             r.fail(mp, "I2" if is_intent else "M2", f"「{what}」 줄에 경로도 `없음 — <이유>` 도 없다")
             continue
         for tok in toks:
+            if tok == SLICES and before_first and not os.path.lexists(root / tok):
+                continue
             _, why = inside(root, tok)
             if why:
                 r.fail(mp, "M2", f"「{what}」 줄의 `{tok}` 가 {why}")
@@ -250,9 +295,7 @@ def check_master(r, root, schema):
                     r.fail(p, "I3", why)
     if len(intents) != 1:
         r.fail(mp, "I1", f"「가리키는 문서」에 의도 줄이 {len(intents)} 개다 — 꼭 하나여야 한다")
-
-    body, _ = section(ls, 2, "조각 나눔")
-    return mp, table(body or [])
+    return mp, rows
 
 
 def check_slices(r, root, schema, mp, rows):
@@ -368,19 +411,26 @@ def check_slices(r, root, schema, mp, rows):
 
 
 def main(argv):
-    if len(argv) > 1:
-        print("사용법: python3 scripts/verify-docs.py [<루트>]", file=sys.stderr)
+    repo = argv[:1] == ["--repo"]
+    args = argv[1:] if repo else argv
+    if len(args) > 1 or (repo and not args) or any(a.startswith("-") for a in args):
+        print("사용법: python3 verify-docs.py [<루트> | --repo <루트>]", file=sys.stderr)
         return 2
-    # 부른 경로의 두 단 위 — 링크를 따라가지 않는다. `scripts/` 의 링크로 부르면 이 저장소다.
-    root = pathlib.Path(argv[0]) if argv else pathlib.Path(os.path.abspath(__file__)).parent.parent
+    # W3 부른 경로의 두 단 위 — 링크를 따라가지 않는다. `scripts/` 의 링크로 부르면 이 저장소다.
+    root = pathlib.Path(args[0]) if args else pathlib.Path(os.path.abspath(__file__)).parent.parent
     if not root.is_dir():
         print(f"루트 `{root}` 가 폴더가 아니다", file=sys.stderr)
         return 2
     root = root.resolve()
     r = Report(root)
-    schema = check_schema(r, root)
-    check_templates(r, root, schema)
-    got = check_master(r, root, schema)
+    tpl = side_templates() if repo else None
+    if tpl:
+        # A3 다른 레포 모드는 지도와 루트의 틀을 보지 않는다 — 루트에 `docs/procedure.md` 가 있어도.
+        schema = check_sources(r, tpl)
+    else:
+        schema = check_schema(r, root)
+        check_templates(r, root, schema)
+    got = check_master(r, root, schema, repo)
     if got:
         check_slices(r, root, schema, *got)
     for p, why in UNREADABLE.items():
@@ -391,7 +441,10 @@ def main(argv):
         for b in r.bad:
             print(f"  - {b}")
         return 1
-    print("PASS 문서의 모양 — 원천 · 틀 · 의도 · 마스터플랜 · 조각 나눔 · 조각 폴더")
+    if tpl:
+        print(f"PASS 문서의 모양(다른 레포 — 원천 {tpl.as_posix()}) — 의도 · 마스터플랜 · 조각 나눔 · 조각 폴더")
+    else:
+        print("PASS 문서의 모양 — 원천 · 틀 · 의도 · 마스터플랜 · 조각 나눔 · 조각 폴더")
     return 0
 
 
