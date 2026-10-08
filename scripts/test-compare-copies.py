@@ -7,7 +7,7 @@
 임시 원본 저장소 · 맨(bare) 원격 · 그것을 받은 사본 레포를 만들고, PRD 조각 1 의
 성공 기준을 그대로 재현한다.
 
-  1. 출처 주석 줄과 공백만 다른 사본에서는 후보가 안 나온다
+  1. 출처 주석 줄(옛 꼴 · 지금 꼴)과 공백만 다른 사본에서는 후보가 안 나온다
   2. 고친 자리는 후보로 나오고, 감사자 둘에 같은 문구는 후보 하나로 묶인다
   3. 판정한 후보는 위에 문단이 생겨 줄이 옮겨져도 다시 안 나온다
   4. 사본이 원격보다 뒤 · 사본 자리가 더러움 · 추적 안 된 파일 · 없는 커밋 ·
@@ -73,9 +73,15 @@ def main():
         sh(t, "git", "clone", "-q", str(remote), str(copy))
         agents = copy / ".claude" / "agents"
         agents.mkdir(parents=True)
-        hdr = f"<!-- pdw96/claude-kit@{base[:7]} 에서 옴. 이 레포에 맞게 고쳐도 된다 — 원본으로 되먹이지 않는다. -->\n\n"
+        # 출처 줄은 두 꼴이다 — 옛 사본의 줄(audit-a)과 지금 sync-agents.sh 가 박는 줄(audit-b). 어느 쪽이
+        # 후보로 새어도 1 에서 떨어진다(조각 8 설계 ② H4).
+        hdrs = {
+            "audit-a": f"<!-- pdw96/claude-kit@{base[:7]} 에서 옴. 이 레포에 맞게 고쳐도 된다 — 원본으로 되먹이지 않는다. -->\n\n",
+            "audit-b": f"<!-- pdw96/claude-kit@{base[:7]} 에서 옴. 이 레포에서만 참인 고침은 이 사본에만 산다 — "
+                       f"다른 레포에서도 같은 말이면 원본으로 넘긴다. -->\n\n",
+        }
         for n in ("audit-a", "audit-b"):
-            (agents / f"{n}.md").write_text(FRONT.format(n=n) + hdr + BODY, encoding="utf-8")
+            (agents / f"{n}.md").write_text(FRONT.format(n=n) + hdrs[n] + BODY, encoding="utf-8")
         # 공백만 다른 자리 둘 — 빈 줄 하나, 줄 끝 공백
         edit(agents / "audit-a.md", lambda s: s.replace("원본 문장 5 입니다.\n", "원본 문장 5 입니다.\n\n"))
         edit(agents / "audit-b.md", lambda s: s.replace("원본 문장 7 입니다.", "원본 문장  7 입니다.   "))

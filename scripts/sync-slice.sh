@@ -11,7 +11,8 @@
 # 않고, 비교 · 되먹임의 대상이 아니며, 덮을 때는 폴더째 덮는다. 출처는 사본 SKILL.md 머리 한 줄이
 # 든다. 보장하는 것은 조각 5 설계 ② C1 ~ C5 이고, 조각 6 설계 ② 가 그것을 스킬 하나에서
 # `vibe-slice/skills/` 아래 스킬 전부로 넓혔다 — 스킬마다 고르게 하면 한 레포 안에서 두 스킬의 판이
-# 갈린다(ADR 0014 의 7).
+# 갈린다(ADR 0014 의 7). 조각 8 설계 ② 가 P1 · L1 ~ L3 · H1 을 더했다 — 절차 지도 링크를 출처 커밋으로
+# 박고, 원격에 없는 원본은 심지 않는다(ADR 0017).
 
 set -euo pipefail
 
@@ -42,6 +43,17 @@ if ! SHA="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null)"; then
   echo "원본($SRC)의 HEAD 를 읽지 못한다 — 출처를 적을 커밋이 없으므로 심지 않는다." >&2
   exit 1
 fi
+# 링크는 전체 sha 로 박는다 — 짧은 sha 는 저장소가 커져 앞자리가 겹치면 GitHub 이 열지 못한다. 출처
+# 줄은 짧은 sha 그대로다(ADR 0017 의 6).
+FULL="$(git -C "$SRC" rev-parse HEAD)"
+
+# P1 **원격 가지에 없는 원본은 심지 않는다.** 사본의 절차 지도 링크가 이 커밋을 가리키므로, 푸시하지
+# 않은 커밋이면 그 링크가 열리지 않는다. 로컬에 받아 온 원격 추적 가지만 본다(ADR 0017 의 4).
+if [ -z "$(git -C "$SRC" branch -r --contains HEAD 2>/dev/null)" ]; then
+  echo "원본 HEAD($SHA)가 원격 가지 어디에도 없다 — 사본의 링크가 열리지 않으므로 심지 않는다." >&2
+  echo "푸시했으면 받아 와라(git fetch)." >&2
+  exit 1
+fi
 
 # C2 **커밋 안 된 원본은 심지 않는다.** 출처에 HEAD 를 적으므로, 고치던 중인 틀을 심으면 사본이
 # 「그 커밋에서 왔다」고 거짓을 적는다.
@@ -68,6 +80,22 @@ SKILLS=()
 while IFS= read -r d; do SKILLS+=("${d#"$REL"/}"); done < <(git -C "$SRC" ls-tree -d --name-only HEAD -- "$REL/")
 if [ "${#SKILLS[@]}" -eq 0 ]; then
   echo "원본 HEAD 에 $REL/ 아래 스킬 폴더가 없다 — 심을 것이 없다." >&2
+  exit 1
+fi
+
+# L2 **받는 claude-kit 링크 꼴은 `github.com/pdw96/claude-kit/blob/main/` 하나다.** 그 밖의 꼴(`tree/main` ·
+# 다른 가지 · 커밋 · `raw`)이 심을 파일에 있으면 고정 없이 사본에 새므로 심지 않는다 — 원본에 새 꼴을
+# 더한 PR 이 이 꼴을 넓힌다(조각 8 설계 ③).
+LINK='github.com/pdw96/claude-kit/blob/main/'
+bad=""
+while IFS= read -r rel; do
+  hits="$(git -C "$SRC" show "HEAD:$rel" | sed 's#github\.com/pdw96/claude-kit/blob/main/##g' \
+    | grep -n -E 'github(usercontent)?\.com/pdw96/claude-kit' || true)"
+  [ -z "$hits" ] || bad="$bad$(printf '%s\n' "$hits" | awk -v f="$rel" '{ print "  " f ":" $0 }')"$'\n'
+done < <(git -C "$SRC" ls-tree -r --name-only HEAD -- "$REL")
+if [ -n "$bad" ]; then
+  echo "원본에 받지 않는 claude-kit 링크 꼴이 있다 — 고정할 수 없어 아무것도 심지 않았다:" >&2
+  printf '%s' "$bad" >&2
   exit 1
 fi
 
@@ -102,22 +130,30 @@ if [ -n "$have" ]; then
   for k in "${SKILLS[@]}"; do rm -rf "${TARGET:?}/.claude/skills/$k"; done
 fi
 
-HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에 맞게 고쳐도 된다 — 원본으로 되먹이지 않는다. -->"
+# H1 출처 줄 — `sync-agents.sh` 의 HDR 과 글자 그대로 같다(H2, test-sync-slice.py 가 견준다).
+HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에서만 참인 고침은 이 사본에만 산다 — 다른 레포에서도 같은 말이면 원본으로 넘긴다. -->"
 count=0
 while IFS= read -r rel; do
   out="$TARGET/.claude/skills/${rel#"$REL"/}"
   mkdir -p "$(dirname "$out")"
+  # L1 링크가 든 파일만 바꿔 쓴다 — 나머지는 바이트 그대로다. grep -q 는 다 읽기 전에 끝나 앞의
+  # git show 가 SIGPIPE 로 죽고, pipefail 이 그것을 「없다」로 읽는다 — 그래서 다 읽힌다.
+  if git -C "$SRC" show "HEAD:$rel" | grep -F "$LINK" >/dev/null; then
+    pin() { sed "s#github\.com/pdw96/claude-kit/blob/main/#github.com/pdw96/claude-kit/blob/$FULL/#g"; }
+  else
+    pin() { cat; }
+  fi
   if [ "$(basename "$rel")" = "SKILL.md" ] && [ "$(dirname "$(dirname "$rel")")" = "$REL" ]; then
     # 출처는 프론트매터 **뒤**에 넣는다 — 앞에 한 줄이라도 있으면 머리말이 안 읽힌다.
-    git -C "$SRC" show "HEAD:$rel" | awk -v hdr="$HDR" '
+    git -C "$SRC" show "HEAD:$rel" | pin | awk -v hdr="$HDR" '
       /^---$/ { c++; print; if (c == 2) { print ""; print hdr } next }
       { print }
     ' > "$out"
   else
-    git -C "$SRC" show "HEAD:$rel" > "$out"
+    git -C "$SRC" show "HEAD:$rel" | pin > "$out"
   fi
   count=$((count + 1))
 done < <(git -C "$SRC" ls-tree -r --name-only HEAD -- "$REL")
 
-echo "→ $TARGET/.claude/skills/{$(IFS=,; echo "${SKILLS[*]}")} (파일 $count · 출처 pdw96/claude-kit@$SHA)"
+echo "→ $TARGET/.claude/skills/{$(IFS=,; echo "${SKILLS[*]}")} (파일 $count · 출처 pdw96/claude-kit@$SHA · 링크 blob/$FULL/)"
 echo "  대상 레포에 커밋하는 것은 그 레포의 일이다. 클라우드 세션에서는 /slice-docs · /slice-review 로 부른다."
