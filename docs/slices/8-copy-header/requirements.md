@@ -51,7 +51,7 @@
 1. **원본 스킬의 링크를 고치지 않는다** — `vibe-slice/skills/` 는 `blob/main/` 그대로다. 플러그인은 자기 커밋을 모르므로
    대화형 세션(강호쟁패)은 `main` 의 지도를 읽는다 — 조각 나눔 「플러그인의 절차 지도 판」(ADR 0017 의 1 · 7).
 2. **URL 이 아닌 「claude-kit `docs/procedure.md`」 글자를 바꾸지 않는다** — 틀 머리의 주석은 베낄 때 지운다.
-3. **감사자 사본에 원격 확인을 걸지 않는다** — `sync-agents.sh` 는 머리줄 문장만 바꾼다. 감사자 · 커맨드에는 claude-kit
+3. **감사자 사본에 원격 확인을 걸지 않는다** — `sync-agents.sh` 는 머리줄 문장과 사본 `README.md` 의 방향 문단만 바꾼다(설계 ② H3). 감사자 · 커맨드에는 claude-kit
    링크가 없다(ADR 0017 의 4).
 4. **이미 심긴 사본을 고치지 않는다** — ERP 의 사본은 그 레포가 다시 심을 때 바뀐다(`INTENT.md` Not 4).
 5. **사본 대장(`copies.json`)과 `compare-copies.py` 의 출처 줄 알아보기를 고치지 않는다** — 그것은 「… 에서 옴.」 접두만 보므로
@@ -64,7 +64,7 @@
 
 - 스택: bash · python3 표준 라이브러리, git.
 - 모델 비용: 수트 지문에 드는 파일(`eval-key.py route --list` · `full --list`)을 건드리지 않는다 — `eval.yml` 도. `sync-agents.sh`
-  의 「게이트가 무는가」 변조본은 `eval.yml` 에 있으니 그대로 두고, 머리줄 문장은 `test-sync-slice.py` 가 견준다.
+  의 「게이트가 무는가」 변조본은 `eval.yml` 에 있으니 그대로 두고, 머리줄 문장과 README 문단은 `test-sync-slice.py` 가 본다.
 - 글자 예산: 스킬 문구를 고치지 않으니 닿지 않는다. 천장은 올리지 않는다(ADR 0004).
 - 기간 **하루**.
 - `./scripts/gates.sh` 는 열일곱이 그대로 통과해야 한다 — 게이트 수는 늘지 않는다.
