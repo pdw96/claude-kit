@@ -9,9 +9,9 @@
 | `docs/master-plan.md` | A | 「사본 머리줄」 상태 `진행` · 조각 폴더 · 목표 한 줄에 감사자 사본의 머리줄(ADR 0017 의 3). 후보 줄 「플러그인의 절차 지도 판」(ADR 0017 의 7) |
 | `docs/adr/0017-copy-header.md` | A | 갈림길 여덟 |
 | `scripts/sync-slice.sh` | B | ② 의 P1 · L1 · L2 · H1. 쓰기 전에 다 보고, 하나라도 걸리면 아무것도 쓰지 않는다 |
-| `scripts/sync-agents.sh` | B | `HDR=` 한 줄 — H1 의 문장. 그 밖은 그대로 |
-| `scripts/test-sync-slice.py` | B | 임시 원본에 원격(맨 저장소)을 붙이고, ⑤ 의 꼴을 더한다. H2 — 두 스크립트의 `HDR=` 줄을 견준다 |
-| `scripts/test-compare-copies.py` | B | 가짜 사본의 머리줄을 H1 의 문장으로 — `sync-agents.sh` 가 적는 모양을 따른다 |
+| `scripts/sync-agents.sh` | B | `HDR=` 한 줄 — H1 의 문장. 사본 `README.md` 를 쓰는 문단 — H3. 그 밖은 그대로 |
+| `scripts/test-sync-slice.py` | B | 임시 원본에 원격(맨 저장소)을 붙이고, ⑤ 의 꼴을 더한다. H2 — 두 스크립트의 `HDR=` 줄을 견준다. H3 — `sync-agents.sh` 의 README 문단을 본다 |
+| `scripts/test-compare-copies.py` | B | 가짜 사본 둘의 머리줄을 하나는 옛 문장, 하나는 H1 의 문장으로 — H4. 옛 꼴을 지우지 않는다 |
 | `docs/architecture.md` | B | 「흐름」의 「스킬 심기」 — 링크를 출처 커밋으로 박고, 원격 가지에 없는 원본은 심지 않는다 |
 
 링크의 커밋과 출처 줄의 커밋은 같은 HEAD 다 — 링크는 `git rev-parse HEAD`(전체), 출처 줄은 `git rev-parse --short HEAD`(ADR 0017 의 6).
@@ -40,6 +40,14 @@ L1 의 바꿈만큼 좁힌다.
   - H1 두 스크립트가 박는 출처 줄은 이 글자다 —
     `<!-- pdw96/claude-kit@<출처> 에서 옴. 이 레포에서만 참인 고침은 이 사본에만 산다 — 다른 레포에서도 같은 말이면 원본으로 넘긴다. -->`
   - H2 `sync-slice.sh` 와 `sync-agents.sh` 의 `HDR=` 줄이 글자 그대로 같다 — `test-sync-slice.py` 가 견준다(ADR 0017 의 5).
+  - H3 `sync-agents.sh` 가 쓰는 감사자 사본 `README.md` 도 같은 방향이다. 옛 첫 문단(「**이 사본이 이 레포의 진실이다.** … 여기서
+    고친 것을 그쪽으로 올리지 않는다. 갈리는 것이 정상인 관계다.」)을 이 글자로 바꾼다 —
+    「**이 레포에서만 참인 고침은 이 사본에만 산다.** 원본은 아무 레포에도 안 들어가 본 일반형으로 남아 있어야 하므로, 이 레포의
+    특화는 그쪽으로 올리지 않는다 — 갈리는 것이 정상인 관계다. 다른 레포에서도 같은 말인 고침(감사자 자체의 결함)은 원본으로
+    넘긴다.」 `test-sync-slice.py` 가 `sync-agents.sh` 에 옛 두 글자(「원본으로 되먹이지 않는다」 · 「여기서 고친 것을 그쪽으로
+    올리지 않는다」)가 없고, 「다른 레포에서도 같은 말」이 `HDR=` 줄과 README 문단에 다 있는지 본다(PR #36 Codex 1회차).
+  - H4 `compare-copies.py` 는 옛 출처 줄과 H1 의 출처 줄을 다 출처 줄로 거른다 — 이미 심긴 사본은 옛 줄이다(하지 않을 일 4 · 5).
+    `test-compare-copies.py` 의 가짜 사본 둘이 하나씩 들어, 어느 쪽이 후보로 새어도 떨어진다(PR #36 Codex 1회차).
 - **비용**
   - X1 PR B 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
 
@@ -111,13 +119,15 @@ L1 의 바꿈만큼 좁힌다.
   | 원본에 `tree/main/` · `blob/<다른 가지>/` · `raw.githubusercontent.com` 의 claude-kit 링크 | 꼴마다 멈춤 · 대상 그대로(L2) |
   | 원격 없는 원본 · 푸시하지 않은 커밋이 HEAD 인 원본 | 멈춤 · 대상 그대로(P1) |
   | `sync-agents.sh` 와 `sync-slice.sh` 의 `HDR=` 줄 | 같다(H2) |
+  | `sync-agents.sh` 의 README 문단 | 옛 두 글자가 없고 「다른 레포에서도 같은 말」이 있다(H3) |
   | 조각 5 · 6 의 C1 ~ C5 꼴 | 그대로 지나간다 |
 
-- 어긋내 보기 넷 — 다 `test-sync-slice.py` 가 떨어진다: L1 의 바꿈을 지운다, L2 의 꼴 거절을 지운다, P1 의 원격 확인을 지운다,
-  `sync-agents.sh` 의 `HDR=` 한 글자를 바꾼다.
+- 어긋내 보기 다섯 — 다 `test-sync-slice.py` 가 떨어진다: L1 의 바꿈을 지운다, L2 의 꼴 거절을 지운다, P1 의 원격 확인을 지운다,
+  `sync-agents.sh` 의 `HDR=` 한 글자를 바꾼다, `sync-agents.sh` 의 README 문단을 옛 글자로 되돌린다.
+- 어긋내 보기 하나 — `compare-copies.py` 의 `PROVENANCE` 를 H1 의 문장 전체로 좁히면 `test-compare-copies.py` 가 떨어진다(H4).
 - 실물(성공 기준 2) — PR B 머리에서 빈 임시 git 레포에 `sync-slice.sh` 로 심고, `diff -r` 를 원본 스킬 폴더와 견준 출력.
-  `sync-agents.sh` 로 다른 임시 레포에 심고 `grep -rn '에서 옴'` 의 출력.
-- `test-compare-copies.py` — 새 머리줄의 가짜 사본에서 그대로 지나간다(`gates.sh`).
+  `sync-agents.sh` 로 다른 임시 레포에 심고 `grep -rn '에서 옴'` 과 `.claude/agents/README.md` 첫 문단의 출력.
+- `test-compare-copies.py` — 옛 머리줄 · 새 머리줄의 가짜 사본에서 그대로 지나간다(`gates.sh`, H4).
 - X1 — `git diff --name-only main...HEAD` 와 기준 · 머리 각각의 `eval-key.py route --list` · `full --list` 의 교집합이 0.
 
 **스스로 쓰기** — PR A · B 의 리뷰를 `slice-review` 로 가른다. PR 본문의 `## 리뷰 회차` 와 답글. PR B 는 `verify-slice-gate.py`
@@ -132,6 +142,6 @@ L1 의 바꿈만큼 좁힌다.
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A 착공 | 요구사항 · 설계 · ADR 0017 · 마스터플랜(「사본 머리줄」 `진행` · 후보 줄 「플러그인의 절차 지도 판」) | 단계 1 · 2 |
-| B 심기 | `sync-slice.sh` · `sync-agents.sh` 의 `HDR=` · `test-sync-slice.py` · `test-compare-copies.py` · `docs/architecture.md` | ② 의 P1 · L1 ~ L3 · H1 · H2 · X1, 성공 기준 1 · 2 · 3 · 5 |
+| B 심기 | `sync-slice.sh` · `sync-agents.sh` 의 `HDR=` 과 README 문단 · `test-sync-slice.py` · `test-compare-copies.py` · `docs/architecture.md` | ② 의 P1 · L1 ~ L3 · H1 ~ H4 · X1, 성공 기준 1 · 2 · 3 · 5 |
 
 성공 기준 4 는 단계 5 에서 저자가 본다. 조각을 닫는 기록은 그 뒤 따로 낸다(단계 6).
