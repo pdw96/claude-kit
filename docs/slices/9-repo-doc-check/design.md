@@ -7,7 +7,7 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/master-plan.md` | A | 「다른 레포의 문서 대조 검사」 상태 `진행` · 조각 폴더 · 목표 한 줄에 무는 자리와 원천(ADR 0018 의 1 · 2) |
-| `docs/adr/0018-repo-doc-check.md` | A | 갈림길 일곱 |
+| `docs/adr/0018-repo-doc-check.md` | A | 갈림길 여덟 |
 | `vibe-slice/skills/slice-docs/scripts/verify-docs.py` | B | `scripts/verify-docs.py` 를 `git mv` 로 옮긴다. ② 의 A — 다른 레포 모드(`--repo <루트>`). W3 — 기본 루트를 부른 경로에서 잡는다. 원본 모드의 판정은 그대로 |
 | `vibe-slice/skills/slice-docs/scripts/verify-slice-gate.py` | B | `scripts/verify-slice-gate.py` 를 `git mv` 로 옮긴다. 코드는 그대로 — 머리 주석의 자리 줄만 |
 | `scripts/verify-docs.py` · `scripts/verify-slice-gate.py` | B | 위 둘을 가리키는 상대 심볼릭 링크(`../vibe-slice/skills/slice-docs/scripts/<이름>`) — W2 |
@@ -80,8 +80,9 @@ B · D · G · R 은 그대로다.
     `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-slice-gate.py"` 를 돌려 둘 다 0 을 본다. 1 이면 찍힌 줄을 고치고 다시 돌린다.
     `python3` 가 없거나 3.9 보다 낮으면 그렇다고 말하고, 검사를 지났다고 하지 않는다.
   - K2 `slice-review` 「1. 기준」 — 구현 PR 이면 착공 머지를 `python3 "${CLAUDE_SKILL_DIR}/../slice-docs/scripts/verify-slice-gate.py"
-    --base <기본 가지> --head <PR 머리>` 로 본다. G2 · B2 면 가르지 않고 그렇다고 말한다 — 착공이 머지되지 않았거나 기준을 읽지 못했다.
-    문구와 「그 조각」 확인을 함께 둘지는 ④ 의 열어 둔 것.
+    --base <기본 가지> --head <PR 머리>` 로 보고, 그에 더해 그 조각이 기본 가지의 마스터플랜에서 `진행` 이고 설계가 있는지를 본다 —
+    스크립트는 어느 조각인지 가리지 않는다(ADR 0018 의 8). G2 · B2 이거나 그 조각이 그렇지 않으면 가르지 않고 그렇다고 말한다 —
+    착공이 머지되지 않았거나 기준을 읽지 못했다.
   - K3 `vibe-slice/.claude-plugin/plugin.json` 의 판이 기준 커밋보다 높고(PR B · C 각각), `claude plugin validate ./vibe-slice` ·
     `verify-manifest.py` 가 통과한다.
   - K4 `verify-budget.py` — `slice-review` · `slice-docs` 호출 시 ≤ 4,500, `vibe-slice` 상시 합계 ≤ 5,600. 천장 상수는 그대로이고,
@@ -148,14 +149,14 @@ B · D · G · R 은 그대로다.
 - 2 다른 레포 모드의 원천은 스킬 폴더의 틀 넷(저자)
 - 3 실물은 `vibe-slice` 로 옮기고 `scripts/` 에 링크를 남긴다 — `eval.yml` 을 고치지 않는다(저자)
 - 4 단계 5 의 실물은 강호쟁패에 저자가 세우는 마스터플랜(저자)
-- 5 모드는 인자 `--repo` 로만 고른다(세션 제안)
-- 6 다른 레포 모드의 변조본은 `gates.sh` 가 부르는 `bite-verify-docs.py`(세션 제안)
-- 7 검사 둘은 `slice-docs` 폴더에 — `slice-review` 는 `../slice-docs/scripts/` 로 부른다(세션 제안)
+- 5 모드는 인자 `--repo` 로만 고른다(세션 제안 · 저자)
+- 6 다른 레포 모드의 변조본은 `gates.sh` 가 부르는 `bite-verify-docs.py`(세션 제안 · 저자)
+- 7 검사 둘은 `slice-docs` 폴더에 — `slice-review` 는 `../slice-docs/scripts/` 로 부른다(세션 제안 · 저자)
+- 8 K2 는 스크립트의 판정에 더해 「그 조각」이 `진행` 이고 설계가 있는지를 본다(저자)
 
 **열어 둔 것**
 
-- K1 · K2 의 문구가 예산에 드는지, 그리고 K2 가 스크립트 판정만 쓸지 지금 문구의 「그 조각이 `진행` 이고 설계가 있다」 확인을 함께 둘지 —
-  검사는 어느 조각인지 가리지 않는다(ADR 0016 의 3). `slice-review` 호출 시 여유는 252 자다. PR C 가 열기 전에 이 설계 끝에 날짜를
+- K1 · K2 의 문구가 예산에 드는지 — `slice-review` 호출 시 여유는 252 자다. PR C 가 열기 전에 이 설계 끝에 날짜를
   박은 항목으로 정한다. 넘으면 압축이 먼저다(ADR 0004). 천장은 올리지 않는다.
 
 ## ⑤ 검증 계획
@@ -199,7 +200,7 @@ B · D · G · R 은 그대로다.
 
 **PR C**
 
-- K1 · K2 — 두 `SKILL.md` 에 그 명령이 있다(grep). 어긋내 보기: 기준 커밋에는 없다.
+- K1 · K2 — 두 `SKILL.md` 에 그 명령이 있고, `slice-review` 에 「그 조각」 확인이 남아 있다(grep). 어긋내 보기: 기준 커밋에는 명령이 없다.
 - K3 — `git show main:vibe-slice/.claude-plugin/plugin.json` 과 머리의 `version` 을 견줘 머리가 높다. `gates.sh` 의 `validate` ·
   `verify-manifest.py` 통과.
 - K4 — `verify-budget.py` 통과와 스냅숏의 값.

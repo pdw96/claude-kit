@@ -33,8 +33,8 @@ claude-kit 에서는 문서의 모양을 `verify-docs.py` 가, 착공 → 구현
 - 시나리오: 강호쟁패의 세션이 `/vibe-slice:slice-docs` 로 마스터플랜(의도 줄 `PRD.md`)을 쓴다 → 착공 PR 을 내기 전에 스킬이
   스킬 폴더의 `verify-docs.py --repo .` 와 `verify-slice-gate.py` 를 돌린다 → 설계에서 `## ③ 받는 입력` 을 빠뜨렸으면 파일과
   보장 번호를 찍고 1 로 떨어져, 세션이 고치고 다시 돌려 통과를 본 뒤 PR 을 연다 → 착공 PR 에 구현 파일을 실었으면 G1 로 떨어진다 →
-  구현 PR 에 리뷰가 오면 `/vibe-slice:slice-review` 가 가르기 전에 `verify-slice-gate.py` 로 착공 머지를 본다 — G2 면 가르지 않고
-  단계 3 의 조건이라고 말한다. claude-kit 에서는 같은 두 검사를 `gates.sh` 가 그대로 부르고, 원천은 `docs/procedure.md` 그대로다.
+  구현 PR 에 리뷰가 오면 `/vibe-slice:slice-review` 가 가르기 전에 `verify-slice-gate.py` 로 착공 머지를 보고, 그 조각이 기본 가지에서
+  `진행` 이고 설계가 있는지도 본다 — 아니면 가르지 않고 단계 3 의 조건이라고 말한다. claude-kit 에서는 같은 두 검사를 `gates.sh` 가 그대로 부르고, 원천은 `docs/procedure.md` 그대로다.
 
 ## 성공 기준
 
@@ -49,7 +49,7 @@ claude-kit 에서는 문서의 모양을 `verify-docs.py` 가, 착공 → 구현
    돌린다. 틀로 세운 대상에서 `verify-docs.py --repo` 가 통과하고 한 자리를 망가뜨리면 떨어지며, 착공 + 구현을 한 diff 로 둔
    대상에서 `verify-slice-gate.py` 가 G1 로 떨어진다.
 4. 스킬 — `slice-docs` 가 착공 PR · 닫는 PR 을 내기 전에 두 검사를 돌리고, `slice-review` 가 구현 PR 의 착공 머지를
-   `verify-slice-gate.py` 로 본다(grep). `vibe-slice` 판이 오르고, `claude plugin validate ./vibe-slice` · `verify-manifest.py` 가
+   `verify-slice-gate.py` 로 보며 「그 조각」 확인을 남긴다(grep, ADR 0018 의 8). `vibe-slice` 판이 오르고, `claude plugin validate ./vibe-slice` · `verify-manifest.py` 가
    통과하고, `verify-budget.py` 가 천장 안이다 — 호출 시 ≤ 4,500, `vibe-slice` 상시 합계 ≤ 5,600.
 5. 강호쟁패에서 — 저자가 단계 5 에서 `vibe-slice` 를 새 판으로 갱신하고 `slice-docs` 로 마스터플랜을 세운 뒤, 스킬이 부른 두
    검사가 통과하고 한 자리를 어긋내면(`## 범위 변경` 을 지운다) `verify-docs.py` 가 M1 로 떨어지는 것을 본다.
