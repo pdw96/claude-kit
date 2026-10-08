@@ -10,10 +10,12 @@
 | `docs/adr/0016-design-gate.md` | A | 갈림길 여섯 |
 | `scripts/verify-slice-gate.py` | B | 새 검사 — ③ 을 읽고 ② 의 B · G · R 을 판정한다. `python3 scripts/verify-slice-gate.py [--base <rev> --head <rev>]`, 통과 0 · 실패 1 · 잘못 부름 2 |
 | `scripts/test-verify-slice-gate.py` | B | 자체 시험 — 임시 git 레포에서 ⑤ 의 꼴마다 |
-| `scripts/gates.sh` | B | 두 줄 · 끝의 개수 「열넷」 → 「열여섯」 |
+| `scripts/bite-slice-gate.py` | B | 변조본 — 검사를 ⑤ 의 자리마다 망가뜨린 사본을 만들어 자체 시험에 대고, 다 떨어지는지 본다. 수트 지문 밖이다 |
+| `scripts/gates.sh` | B | 세 줄 · 끝의 개수 「열넷」 → 「열일곱」 |
 | `docs/procedure.md` | B · C | 「일곱 단계」 3 의 맡는 도구 — B 가 검사를, C 가 스킬 둘을 적는다. 머리의 「떨어지는 검사는 … 「설계 → 구현 관문」이 `닫힘` 이 되기 전까지 없다」와 빈자리 「설계 → 구현 관문」의 줄은 조각을 닫을 때 고친다 |
-| `CHECKLIST.md` | B | 「조각을 시작했다면」의 「구현은 그 PR 이 머지된 뒤」 — 순서는 `verify-slice-gate.py` 가 보고, 설계 ④ 의 열어 둔 것을 정했는지는 사람이 본다 |
-| `docs/architecture.md` | B | 「문서」 — 착공과 구현의 순서를 무는 검사 |
+| `CHECKLIST.md` | B | 「조각을 시작했다면」의 「구현은 그 PR 이 머지된 뒤」 — 순서는 `verify-slice-gate.py` 가 보고, 설계 ④ 의 열어 둔 것을 정했는지는 사람이 본다. 「항상」의 변조본 줄 — CI 「게이트가 무는가」나 `gates.sh` 가 부르는 변조본 |
+| `CLAUDE.md` | B | 「작업 방식」의 변조본 줄 — CI 「게이트가 무는가」나 `gates.sh` 가 부르는 변조본(R5). 앵커볼트 밖이다 |
+| `docs/architecture.md` | B | 「문서」 — 착공과 구현의 순서를 무는 검사. 「게이트가 무는가」 — 변조본이 `gates.sh` 에도 있다(R5) |
 | `vibe-slice/skills/slice-docs/SKILL.md` | C | 「조각을 꺼낼 때」 — 착공 PR 에 싣는 것(결정 문서) |
 | `vibe-slice/skills/slice-review/SKILL.md` | C | 「1. 기준」 — 구현 PR 이면 착공 머지를 먼저 본다. 「2. 가르기」 안 — 착공 PR 이 구현을 싣는다 |
 | `vibe-slice/.claude-plugin/plugin.json` | C | 판 `0.3.0`. 설명은 그대로 — `marketplace.json` 은 고치지 않는다 |
@@ -63,7 +65,12 @@ PR B 가 「문서」 절에 한 줄을 더한다.
     아니다. 머리가 바꾼 마스터플랜(상태를 `진행` 으로 고친 착공 PR)은 G2 의 근거가 되지 않는다.
   - R3 마스터플랜의 표는 문서 대조 검사와 같은 법(조각 3 설계 ③ 「줄을 읽는 법」)으로 읽는다. 기준 마스터플랜에서
     「조각 나눔」 표를 못 읽으면 G2 는 지나가지 않는다.
-  - R4 `gates.sh` 가 인자 없이 검사를 부르고, 자체 시험 `test-verify-slice-gate.py` 를 부른다.
+  - R4 `gates.sh` 가 인자 없이 검사를 부르고, 자체 시험 `test-verify-slice-gate.py` 와 변조본 `bite-slice-gate.py` 를 부른다.
+    자체 시험은 검사의 경로를 인자로 받는다(없으면 `scripts/verify-slice-gate.py`).
+  - R5 **변조본이 늘 문다.** `bite-slice-gate.py` 는 검사를 ⑤ 의 다섯 자리마다 한 군데씩 망가뜨린 사본을 임시 폴더에 쓰고,
+    사본마다 자체 시험을 돌려 떨어지는지 본다. 자체 시험이 사본 하나라도 지나가면 떨어지고(자체 시험을 비우거나 무르게 한
+    것), 망가뜨릴 자리가 검사에 꼭 한 번 있지 않으면 떨어진다(검사를 고치며 변조본을 따라 고치지 않은 것). 수트 지문 밖이라
+    고쳐도 route 가 돌지 않는다(ADR 0016 의 6, #32 Codex 2 회차).
 - **스킬** (`vibe-slice` — 다른 레포에 닿는 쪽)
   - K1 `slice-docs` 「조각을 꺼낼 때」가 착공 PR 에 싣는 것을 적는다 — 요구사항 · 설계 · ADR · 마스터플랜, 범위를 고쳤으면
     의도. 구현은 착공 PR 이 기준 가지에 머지된 뒤다.
@@ -142,7 +149,7 @@ PR B 가 「문서」 절에 한 줄을 더한다.
 
 **PR B**
 
-- R4 — `./scripts/gates.sh` 열여섯 통과.
+- R4 — `./scripts/gates.sh` 열일곱 통과.
 - B · D · G · R — `test-verify-slice-gate.py` 가 임시 git 레포(원격 `origin` 과 기본 가지 `main` 을 갖춘)에서 꼴마다 판정과
   보장 번호를 본다.
 
@@ -168,9 +175,11 @@ PR B 가 「문서」 절에 한 줄을 더한다.
   | 이름 바꿈 `scripts/a.py` → `docs/adr/0099-x.md` | 옛 경로로 G2 |
   | `--base` 만 · 모르는 인자 | exit 2 |
 
-- 어긋내 보기 — 다섯 다 자체 시험이 떨어진다: G1 의 판정을 지운 작업트리, G2 의 `design.md` 확인을 지운 작업트리, B1 의
-  쌓은 PR 대체를 지운 작업트리, B1 의 앞선 쪽 고르기를 `origin/main` 고정으로 바꾼 작업트리, B3 의 무시되지 않은 새 파일을
-  뺀 작업트리.
+- R5 변조본의 다섯 자리 — G1 의 판정을 지운다, G2 의 `design.md` 확인을 지운다, B1 의 쌓은 PR 대체를 지운다, B1 의 앞선 쪽
+  고르기를 `origin/main` 고정으로 바꾼다, B3 의 무시되지 않은 새 파일을 뺀다. 다섯 다 자체 시험이 떨어져야 `bite-slice-gate.py`
+  가 지나간다 — 이것은 PR B 에서 한 번이 아니라 `gates.sh` 가 돌 때마다 본다.
+- R5 어긋내 보기 — 둘 다 `bite-slice-gate.py` 가 떨어진다: 자체 시험의 꼴을 다 지운(빈) 작업트리, 검사에서 변조할 자리의 글자를
+  하나 바꾼 작업트리.
 - **역사 재연(성공 기준 2)** — 머지 커밋 `m` 마다 `--base m^1 --head m^2` 로 #14 ~ #31 과 #7 을 돌린 표, 그리고 `--base 69f0008
   --head 5eff890`(착공 #28 과 구현 #29 를 한 PR 로 붙인 꼴). 기대 — #15 ~ #31 통과, #14 · #7 보지 않음, 붙인 꼴 G1.
   PR A 의 머지(이 착공)도 표에 더한다 — 통과.
@@ -197,7 +206,7 @@ vibe-slice@pdw96-kit` → 리로드 뒤 `/vibe-slice:slice-docs` · `/vibe-slice
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A 착공 | 요구사항 · 설계 · ADR 0016 · 마스터플랜 | 단계 0 · 1 · 2 |
-| B 검사 | `verify-slice-gate.py` · 자체 시험 · `gates.sh` · `docs/procedure.md` 의 검사 줄 · `CHECKLIST.md` · `docs/architecture.md` · 역사 재연 | 성공 기준 1 · 2 · 3 · 6 |
+| B 검사 | `verify-slice-gate.py` · 자체 시험 · 변조본 `bite-slice-gate.py` · `gates.sh` · `docs/procedure.md` 의 검사 줄 · `CHECKLIST.md` · `CLAUDE.md` · `docs/architecture.md` · 역사 재연 | 성공 기준 1 · 2 · 3 · 6 |
 | C 스킬 | `slice-docs` · `slice-review` · `plugin.json` · 스냅숏 · `docs/procedure.md` 의 스킬 줄 | 성공 기준 4 · 6 |
 
 성공 기준 5 는 PR C 가 머지된 뒤 단계 5 에서 저자가 닫는다. B 가 C 보다 먼저다 — C 가 B 의 검사를 CI 에서 지나가는 것을 본다.
