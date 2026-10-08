@@ -172,6 +172,8 @@ def main():
         links = 0
         for n in want:
             links += (src / REL / n).read_bytes().count(LINK.encode())
+            if not (base / n).is_file():
+                continue  # 위의 「심은 파일이 원본과 다르다」가 이미 찍었다 — 예외로 끝내지 않는다
             expect(f"[L1] {n} 에 blob/main/ 링크가 남았다", LINK.encode() not in (base / n).read_bytes())
             if n.endswith("/SKILL.md") and n.count("/") == 1:
                 skill = (base / n).read_text(encoding="utf-8").splitlines()
