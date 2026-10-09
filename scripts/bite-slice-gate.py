@@ -38,6 +38,12 @@ MUTANTS = [
     ("B3 — 무시되지 않은 새 파일을 뺀다",
      '        out += must("ls-files", "--others", "--exclude-standard")\n',
      "        out += \"\"\n"),
+    ("E1 — 출력을 UTF-8 로 고정하지 않는다",
+     '        stream.reconfigure(encoding="utf-8")\n',
+     "        pass\n"),
+    ("E2 — git 출력을 로케일 인코딩으로 읽는다",
+     ', text=True, encoding="utf-8", errors="replace")\n',
+     ", text=True)\n"),
 ]
 
 
