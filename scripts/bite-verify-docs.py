@@ -42,6 +42,9 @@ MUTANTS = [
     ("A7 — `진행` · `닫힘` 줄 조건을 지운다(늘 받는다)",
      '    before_first = repo and not any(len(row) == 6 and row[4] in ("진행", "닫힘") for row in rows)\n',
      "    before_first = repo\n"),
+    ("E1 — 출력을 UTF-8 로 고정하지 않는다",
+     '        stream.reconfigure(encoding="utf-8")\n',
+     "        pass\n"),
 ]
 
 

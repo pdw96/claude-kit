@@ -248,3 +248,35 @@ B · D · G · R 은 그대로다.
   난 거짓 G1(로컬 `main` 이 멈춤)이다. K1 의 인자 없는 길은 받아 온 `origin/<기본 가지>` 와 로컬 `main` 가운데 앞선 쪽을 고른다.
 - **`slice-review` 는 착공 PR · 닫는 PR 에서 `verify-docs.py` 를 부르지 않는다** — ② K 에 없는 일이고, 그 PR 을 쓴 세션이 K1 로 이미 돌린다.
   리뷰에서 다시 돌릴 증거가 생기면 조각 나눔에 줄을 더한다.
+
+## 단계 5 에서 찾은 것 (2026-10-09, PR D 를 열기 전)
+
+저자가 강호쟁패에서 `vibe-slice` 를 갱신하고 `/vibe-slice:slice-docs` 로 첫 마스터플랜(의도 줄 `PRD.md`, 조각 나눔은 다 `예정`)을 세웠다.
+스킬이 부른 두 검사가 0 으로 끝났다 — 다만 그 세션이 `PYTHONIOENCODING=utf-8` 로 우회한 뒤였다. 우회 없이 부르면 Windows 의
+cp949 콘솔에서 통과 줄의 `—`(U+2014)를 찍다 `UnicodeEncodeError` 로 끝나고 1 을 돌려준다. ② R1(「잡히지 않은 예외로 끝나지 않는다」,
+조각 3 · 7)을 어기는 결함이고, 한국어 Windows 라면 어느 레포에서나 난다 — 원본에서 고친다. 저자가 이 조각에서 고치기로 정했다.
+
+**같은 갈래를 전수로 찾았다** — 로케일 인코딩에 기대는 자리.
+
+| 자리 | 무엇이 나나 | 재현 |
+|---|---|---|
+| 두 검사의 출력(stdout · stderr) | 콘솔 인코딩에 없는 글자에서 `UnicodeEncodeError` | `PYTHONIOENCODING=cp949` — 두 검사 다 Traceback |
+| `verify-slice-gate.py` 가 git 출력(기준의 마스터플랜)을 읽는 자리 | 로케일 인코딩으로 한글을 읽어 `UnicodeDecodeError` 이거나 깨진 표 | `LC_ALL=C PYTHONCOERCECLOCALE=0 PYTHONUTF8=0` — Traceback. 강호쟁패는 기준에 마스터플랜이 아직 없어(B4) 드러나지 않았고, 첫 마스터플랜이 머지된 다음 PR 부터 난다 |
+| `verify-docs.py` 가 문서를 읽는 자리 | 없다 — 이미 `encoding="utf-8"` 로 읽는다(R1 의 「읽지 못했다」) | — |
+
+**보장에 넣는다**
+
+- E1 두 검사의 출력(stdout · stderr)은 콘솔 인코딩과 상관없이 UTF-8 이다.
+- E2 `verify-slice-gate.py` 는 git 출력을 UTF-8 로 읽는다. 읽지 못하는 바이트는 바꿔 읽는다 — 표를 못 읽으면 G2 「표를 읽지 못했다」로
+  떨어지고, 예외로 끝나지 않는다.
+- 자체 시험 둘이 UTF-8 이 아닌 로케일 · cp949 콘솔 꼴(`LC_ALL=C` · `PYTHONIOENCODING=cp949`)을 이 기계에서 흉내 내어 본다 — 대조는 통과 줄을,
+  변조는 판정 줄을 예외 없이 찍는다. 변조본 둘이 그 자리(E1 · E2)를 망가뜨려 자체 시험이 떨어지는지 본다(`gates.sh`).
+
+**보장하지 않는 것** — 콘솔이 UTF-8 바이트를 제대로 보여 주는지. cp949 콘솔에 바로 찍으면 글자가 깨져 보일 수 있다 — 종료 코드와 판정은
+맞다. Claude Code 의 세션은 출력을 바이트로 받아 읽는다.
+
+**⑥ 에 한 줄을 더한다**
+
+| PR | 담는 것 | 닫는 것 |
+|---|---|---|
+| D 인코딩 | 두 검사의 E1 · E2 · `test-verify-docs.py` · `test-verify-slice-gate.py` · `bite-verify-docs.py` · `bite-slice-gate.py` · `plugin.json` 0.4.1 | E1 · E2. 성공 기준 5 의 「스킬이 부른 두 검사가 통과한다」를 우회 없이 — PR D 머지 뒤 단계 5 에서 저자가 다시 본다 |

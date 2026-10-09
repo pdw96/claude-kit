@@ -309,8 +309,13 @@ R_CONTROLS = [
 R_USAGE = [["--repo"], ["--repo", "{root}", "--force"], ["--repo", "-x"], ["{root}", "--repo"], ["-x"]]
 
 
-def run_repo(checker, *args):
-    p = subprocess.run([sys.executable, str(checker), *map(str, args)], capture_output=True, text=True)
+# UTF-8 이 아닌 로케일과 cp949 콘솔 — 한국어 Windows 를 이 기계에서 흉내 낸다(E1, 조각 9 설계 끝 「단계 5 에서 찾은 것」).
+NON_UTF8 = {**os.environ, "LC_ALL": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0", "PYTHONIOENCODING": "cp949"}
+
+
+def run_repo(checker, *args, env=None):
+    p = subprocess.run([sys.executable, str(checker), *map(str, args)], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=env)
     return p.returncode, p.stdout + p.stderr
 
 
@@ -349,6 +354,22 @@ def repo_mode(checker, tmp):
             passes += 1
         else:
             fails.append(f"다른 레포 대조 {name}: 원천을 찍고 통과해야 하는데 아니다 (종료코드 {rc}) — {out[-300:]}")
+
+    # E1 UTF-8 이 아닌 로케일 · cp949 콘솔 — 대조는 통과 줄을, 변조는 판정 줄을 예외 없이 찍는다.
+    for name, mutate, want_rc, want in (
+            ("대조", lambda t, tpl: None, 0, "PASS 문서의 모양(다른 레포"),
+            ("F3", lambda t, tpl: sub(t, f"{GO_DIR}/design.md", "\n## ③ 받는 입력\n", "\n"), 1, f"{GO_DIR}/design.md: [F3]")):
+        try:
+            c, tpl, t = bed()
+            mutate(t, tpl)
+        except Setup as e:
+            fails.append(f"다른 레포 E1 {name}: 준비 실패 — {e}")
+            continue
+        rc, out = run_repo(c, "--repo", t, env=NON_UTF8)
+        if rc == want_rc and "Traceback" not in out and want in out:
+            passes += 1
+        else:
+            fails.append(f"다른 레포 E1 {name}: UTF-8 이 아닌 로케일에서 {want} 를 예외 없이 찍어야 한다 (종료코드 {rc}) — {out[-300:]}")
 
     try:
         c, tpl, t = bed()
@@ -493,7 +514,7 @@ def main():
             print(f"  - {f}")
         return 1
     print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
-          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)}, 모두 {passes}")
+          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, 모두 {passes}")
     return 0
 
 

@@ -449,4 +449,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    # E1 출력은 콘솔 인코딩과 상관없이 UTF-8 이다 — cp949 콘솔에서 `—` 를 찍다 예외로 끝나지 않게
+    # (조각 9 설계 끝 「단계 5 에서 찾은 것」).
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8")
     sys.exit(main(sys.argv[1:]))

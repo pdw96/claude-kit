@@ -90,11 +90,16 @@ def repo(at, base, master=True):
     return at
 
 
-def run(cwd, *args, event=None):
-    env = dict(ENV)
+# UTF-8 이 아닌 로케일과 cp949 콘솔 — 한국어 Windows 를 이 기계에서 흉내 낸다(E1 · E2, 조각 9 설계 끝 「단계 5 에서 찾은 것」).
+NON_UTF8 = {"LC_ALL": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0", "PYTHONIOENCODING": "cp949"}
+
+
+def run(cwd, *args, event=None, extra=None):
+    env = dict(ENV, **(extra or {}))
     if event is not None:
         env["GITHUB_EVENT_PATH"] = str(event)
-    p = subprocess.run([sys.executable, str(CHECK), *args], cwd=cwd, capture_output=True, text=True, env=env)
+    p = subprocess.run([sys.executable, str(CHECK), *args], cwd=cwd, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=env)
     return p.returncode, p.stdout + p.stderr
 
 
@@ -234,6 +239,18 @@ def main():
         verdict("이름 바꿈 scripts/a.py → docs/adr/0099-x.md", got, 1, ["G2"])
         expect("이름 바꿈 — 옛 경로를 찍지 않았다", "scripts/a.py" in got[1], got[1])
 
+        # E1 · E2 UTF-8 이 아닌 로케일 · cp949 콘솔 — 한글 마스터플랜을 git 으로 읽고, 판정 줄을 예외 없이 찍는다.
+        r = repo(tmp / f"r{next(n)}", base_files())
+        commit(r, {"scripts/x.py": "x\n"})
+        got = run(r, extra=NON_UTF8)
+        verdict("UTF-8 이 아닌 로케일 — 기준에 설계가 있는 구현", got, 0)
+        expect("UTF-8 이 아닌 로케일 — 구현이 예외로 끝났다", "Traceback" not in got[1], got[1])
+        r = repo(tmp / f"r{next(n)}", base_files(doing=False))
+        commit(r, {"scripts/x.py": "x\n"})
+        got = run(r, extra=NON_UTF8)
+        verdict("UTF-8 이 아닌 로케일 — 기준에 진행 조각이 없는 구현", got, 1, ["G2"])
+        expect("UTF-8 이 아닌 로케일 — G2 가 예외로 끝났다", "Traceback" not in got[1], got[1])
+
         # 잘못 부름
         for what, args in [("--base 만", ["--base", "main"]), ("모르는 인자", ["--bse", "main"]),
                            ("--head 값 없음", ["--base", "main", "--head"])]:
@@ -244,7 +261,7 @@ def main():
         for b in bad:
             print(f"  {b}")
         return 1
-    print("PASS verify-slice-gate.py — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 잘못 부름")
+    print("PASS verify-slice-gate.py — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 로케일 · 잘못 부름")
     return 0
 
 
