@@ -15,7 +15,7 @@
 | `scripts/test-verify-map-pin.py` | C | 자체 시험 — 임시 git 레포에 ⑤ 의 꼴을 만들어 검사를 돌린다 |
 | `scripts/bite-map-pin.py` | C | 변조본 — 검사를 자리마다 망가뜨린 사본에 자체 시험을 댄다(V1). 수트 지문 밖이다 |
 | `scripts/gates.sh` | C | 세 줄 · 끝의 개수 「열여덟」 → 「스물하나」 |
-| `vibe-slice/skills/slice-docs/SKILL.md` · `vibe-slice/skills/slice-review/SKILL.md` | C | 지도 링크 한 줄씩 — `blob/main/` → `blob/<전체 sha>/`. 박는 커밋은 C 를 열 때의 `main` 머리(그 지도가 C 의 지도와 같다). 그 밖의 글자는 그대로 |
+| `vibe-slice/skills/slice-docs/SKILL.md` · `vibe-slice/skills/slice-review/SKILL.md` | C | 지도 링크 한 줄씩 — `blob/main/` → `blob/<전체 sha>/`. 박는 커밋은 C 를 열 때의 `main` 머리(그 지도가 C 의 지도와 같다). C 가 열린 사이 `main` 이 지도만 고쳐도 다시 박지 않는다 — M5 의 기준은 C 의 커밋이고, 판의 지도는 그 커밋의 것이다(ADR 0019 의 2). 그 밖의 글자는 그대로 |
 | `vibe-slice/.claude-plugin/plugin.json` | C | 판 `0.4.1` → `0.4.2` — 링크 두 줄만 바뀐다 |
 | `vibe-audit/evals/budget.txt` | C | 스냅숏의 `[vibe-slice]` 절. 수트 지문 밖이다 |
 
@@ -53,8 +53,8 @@ L1 · L2 를 아래로 넓힌다.
     변경 · 무시되지 않은 새 파일) 작업트리의 그 경로 파일, 아니면 HEAD 에서 `vibe-slice/` 를 마지막으로 고친 커밋
     (`git log -1 --format=%H HEAD -- vibe-slice/`)의 그 경로 파일. 메시지는 기준과 같은 내용을 가진 가장 가까운 조상 커밋을 박으라고 찍고,
     기준이 작업트리에만 있으면 「그 파일을 먼저 커밋하고 그 커밋을 박아라」를 찍는다.
-  - M6 `vibe-slice/skills/` 아래 스킬 폴더마다 그 `SKILL.md` 에 M1 의 꼴로 `docs/procedure.md` 를 박은 링크가 하나 이상 없으면, 그 스킬마다
-    떨어진다 — 스킬은 절차를 지도에서 읽게 한다. 한 스킬의 링크가 빠지거나 다른 경로를 박아도 다른 스킬의 링크로 지나가지 않고, 링크가 틀에만
+  - M6 `vibe-slice/skills/` 바로 아래 폴더마다 그 `SKILL.md` 에 M1 의 꼴로 `docs/procedure.md` 를 박은 링크가 하나 이상 없으면(`SKILL.md` 가 없어도),
+    그 스킬마다 떨어진다 — 스킬은 절차를 지도에서 읽게 한다. 한 스킬의 링크가 빠지거나 다른 경로를 박아도 다른 스킬의 링크로 지나가지 않고, 링크가 틀에만
     있어도 지나가지 않으며, 꼴을 못 읽어 아무것도 보지 않고 지나가는 일도 막는다. 지도 밖의 경로를 박은 링크는 그 밖에 더 있어도 되고 M2 ~ M5 가
     본다(PR #44 Codex 1회차).
   - O1 다 지나면 `PASS 절차 지도 판` 한 줄과 링크 수 · 박은 커밋(짧은 sha) · 기준(커밋의 짧은 sha 또는 `작업트리`)을 찍고 0. 떨어지면
@@ -63,7 +63,7 @@ L1 · L2 를 아래로 넓힌다.
 - **원본**
   - S1 두 `SKILL.md` 의 지도 링크가 `blob/<전체 sha>/docs/procedure.md` 이고, PR C 의 머리에서 `verify-map-pin.py` 가 통과한다.
 - **변조본**
-  - V1 `bite-map-pin.py` 가 검사의 자리마다(M1 의 꼴 · M2 · M3 · M4 · M5 의 비교 · M5 의 작업트리 기준 · M6 의 스킬마다 · M6 의 경로 · R2) 한 자리씩 망가뜨린 사본에
+  - V1 `bite-map-pin.py` 가 검사의 자리마다(M1 의 꼴 · M2 · M3 · M4 · M5 의 비교 · M5 의 작업트리 기준 · M6 의 스킬마다 · M6 의 경로 · M6 의 폴더 찾기 · R2) 한 자리씩 망가뜨린 사본에
     `test-verify-map-pin.py` 를 대어 다 떨어지는지 보고, 하나라도 지나가면 1 이다.
 - **비용**
   - X1 PR B · C 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
@@ -101,7 +101,8 @@ L1 · L2 를 아래로 넓힌다.
 UTF-8 로 읽는다. 링크는 `vibe-slice/skills/slice-docs/scripts/` 의 두 검사 안에는 없다(2026-10-10 grep).
 
 **스킬 폴더** — `vibe-slice/skills/` 바로 아래 폴더 둘(`slice-docs` · `slice-review`)이고, 둘 다 `SKILL.md` 에 지도 링크가 하나씩 있다(위 표).
-M6 은 폴더를 이름으로 적지 않고 그 아래 폴더마다 본다 — 스킬이 늘면 그 `SKILL.md` 도 지도를 박아야 지나간다.
+M6 은 폴더를 이름으로 적지 않고 그 아래 폴더마다 본다 — `SKILL.md` 가 있는 폴더만 고르지 않는다. 스킬이 늘면 그 `SKILL.md` 도 지도를 박아야
+지나가고, `SKILL.md` 가 없는 폴더도 떨어진다(PR #44 Codex 2회차).
 
 **git** — 검사가 부르는 것은 `rev-parse --show-toplevel` · `rev-parse --verify HEAD` · `rev-parse --is-shallow-repository` · `ls-files` ·
 `status --porcelain -- vibe-slice/` · `cat-file -e <커밋>^{commit}` · `merge-base --is-ancestor` · `log -1 --format=%H HEAD -- vibe-slice/` ·
@@ -169,11 +170,14 @@ M6 은 폴더를 이름으로 적지 않고 그 아래 폴더마다 본다 — �
   | 한 스킬의 링크가 `docs/README.md` 를 박음(그 커밋에 있는 경로) | M6 · 그 스킬 |
   | 한 스킬의 링크를 그 스킬의 틀 파일로 옮김 | M6 · 그 스킬 |
   | 지도 링크에 더해 다른 경로를 박은 링크 하나(그 경로가 기준과 같음) | 통과 |
+  | 스킬 폴더를 하나 더함 — `SKILL.md` 에 지도 링크 없음 | M6 · 새 스킬 |
+  | 스킬 폴더를 하나 더함 — `SKILL.md` 없음(틀 파일만) | M6 · 새 스킬 |
+  | 지도 커밋 뒤 플러그인 커밋 B(박음), 그 뒤 옆 가지가 지도만 고쳐 머지 커밋으로 들어옴 — 머지에서 | 통과 · 기준 B |
   | 얕은 클론 · `vibe-slice/` 없음 · git 아님 | R2 · R3 · R1 |
   | 인자를 줌 | 2 |
   | `LC_ALL=C` · `PYTHONIOENCODING=cp949` 로 실패 꼴 | 예외 없이 1(O2) |
 
-- `bite-map-pin.py` — V1 의 자리 아홉을 하나씩 망가뜨린 사본마다 자체 시험이 떨어진다.
+- `bite-map-pin.py` — V1 의 자리 열을 하나씩 망가뜨린 사본마다 자체 시험이 떨어진다.
 - 어긋내 보기 둘 — 자체 시험의 표에서 M3 꼴을 지우면 `bite-map-pin.py` 가 1 이다. 두 `SKILL.md` 가운데 하나를 `blob/main/` 으로 되돌리면
   `gates.sh` 가 M1 로 떨어진다.
 - 원본 — `claude plugin validate ./vibe-slice` · `verify-manifest.py` 통과, `verify-budget.py` 의 `slice-review` 호출 시 ≤ 4,500.
@@ -185,7 +189,8 @@ CI 에서 지나간다(이 착공이 머지된 뒤).
 
 **단계 5(배포)** — PR C 뒤: 저자가 강호쟁패에서 `claude plugin marketplace update pdw96-kit` · `claude plugin update vibe-slice@pdw96-kit` 로
 0.4.2 를 받고, 세션을 다시 연 뒤 `/vibe-slice:slice-docs` 가 읽은 `${CLAUDE_SKILL_DIR}/SKILL.md` 의 링크가 박은 커밋인지, claude-kit 에서
-`git show <박은 커밋>:docs/procedure.md` 가 C 머지의 `docs/procedure.md` 와 같은지 본다(성공 기준 4).
+`git show <박은 커밋>:docs/procedure.md` 가 C 머지에서 `vibe-slice/` 를 마지막으로 고친 커밋(`git log -1 --format=%H <C 머지> -- vibe-slice/`)의
+`docs/procedure.md` 와 같은지 본다 — 머지 트리의 지도가 아니다(성공 기준 4). 같은 비교를 `verify-map-pin.py` 가 C 머지에서 지나가는 것으로도 본다.
 
 ## ⑥ PR 나눔
 
