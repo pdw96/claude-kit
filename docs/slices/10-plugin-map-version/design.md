@@ -53,14 +53,17 @@ L1 · L2 를 아래로 넓힌다.
     변경 · 무시되지 않은 새 파일) 작업트리의 그 경로 파일, 아니면 HEAD 에서 `vibe-slice/` 를 마지막으로 고친 커밋
     (`git log -1 --format=%H HEAD -- vibe-slice/`)의 그 경로 파일. 메시지는 기준과 같은 내용을 가진 가장 가까운 조상 커밋을 박으라고 찍고,
     기준이 작업트리에만 있으면 「그 파일을 먼저 커밋하고 그 커밋을 박아라」를 찍는다.
-  - M6 M1 의 꼴로 박은 링크가 하나도 없으면 떨어진다 — 원본 스킬은 지도를 가리킨다. 꼴을 못 읽어 아무것도 보지 않고 지나가는 일을 막는다.
+  - M6 `vibe-slice/skills/` 아래 스킬 폴더마다 그 `SKILL.md` 에 M1 의 꼴로 `docs/procedure.md` 를 박은 링크가 하나 이상 없으면, 그 스킬마다
+    떨어진다 — 스킬은 절차를 지도에서 읽게 한다. 한 스킬의 링크가 빠지거나 다른 경로를 박아도 다른 스킬의 링크로 지나가지 않고, 링크가 틀에만
+    있어도 지나가지 않으며, 꼴을 못 읽어 아무것도 보지 않고 지나가는 일도 막는다. 지도 밖의 경로를 박은 링크는 그 밖에 더 있어도 되고 M2 ~ M5 가
+    본다(PR #44 Codex 1회차).
   - O1 다 지나면 `PASS 절차 지도 판` 한 줄과 링크 수 · 박은 커밋(짧은 sha) · 기준(커밋의 짧은 sha 또는 `작업트리`)을 찍고 0. 떨어지면
     `FAIL [<번호>] <파일>:<줄> — <까닭>` 을 자리마다 찍고 1. 인자를 주면 사용법을 찍고 2.
   - O2 출력과 git 읽기는 UTF-8 이다 — 로케일이 `C` 거나 `PYTHONIOENCODING` 이 다른 인코딩이어도 예외로 끝나지 않는다(조각 9 E1 · E2 와 같은 길).
 - **원본**
   - S1 두 `SKILL.md` 의 지도 링크가 `blob/<전체 sha>/docs/procedure.md` 이고, PR C 의 머리에서 `verify-map-pin.py` 가 통과한다.
 - **변조본**
-  - V1 `bite-map-pin.py` 가 검사의 자리마다(M1 의 꼴 · M2 · M3 · M4 · M5 의 비교 · M5 의 작업트리 기준 · M6 · R2) 한 자리씩 망가뜨린 사본에
+  - V1 `bite-map-pin.py` 가 검사의 자리마다(M1 의 꼴 · M2 · M3 · M4 · M5 의 비교 · M5 의 작업트리 기준 · M6 의 스킬마다 · M6 의 경로 · R2) 한 자리씩 망가뜨린 사본에
     `test-verify-map-pin.py` 를 대어 다 떨어지는지 보고, 하나라도 지나가면 1 이다.
 - **비용**
   - X1 PR B · C 가 바꾼 파일 가운데 수트 지문(`eval-key.py route --list` · `full --list`, 기준과 머리 둘 다)에 드는 것이 0 이다.
@@ -96,6 +99,9 @@ L1 · L2 를 아래로 넓힌다.
 
 **검사가 읽는 파일** — 작업트리의 `vibe-slice/` 아래 가운데 git 이 추적하거나 무시하지 않는 것(`git ls-files -co --exclude-standard -- vibe-slice/`).
 UTF-8 로 읽는다. 링크는 `vibe-slice/skills/slice-docs/scripts/` 의 두 검사 안에는 없다(2026-10-10 grep).
+
+**스킬 폴더** — `vibe-slice/skills/` 바로 아래 폴더 둘(`slice-docs` · `slice-review`)이고, 둘 다 `SKILL.md` 에 지도 링크가 하나씩 있다(위 표).
+M6 은 폴더를 이름으로 적지 않고 그 아래 폴더마다 본다 — 스킬이 늘면 그 `SKILL.md` 도 지도를 박아야 지나간다.
 
 **git** — 검사가 부르는 것은 `rev-parse --show-toplevel` · `rev-parse --verify HEAD` · `rev-parse --is-shallow-repository` · `ls-files` ·
 `status --porcelain -- vibe-slice/` · `cat-file -e <커밋>^{commit}` · `merge-base --is-ancestor` · `log -1 --format=%H HEAD -- vibe-slice/` ·
@@ -159,11 +165,15 @@ UTF-8 로 읽는다. 링크는 `vibe-slice/skills/slice-docs/scripts/` 의 두 �
   | 그 커밋에 없는 경로(`docs/nope.md`) | M4 |
   | 지도가 다른 옛 커밋 | M5 |
   | 링크가 없다 | M6 |
+  | 스킬 둘 가운데 한 `SKILL.md` 의 링크만 지움 | M6 · 그 스킬 |
+  | 한 스킬의 링크가 `docs/README.md` 를 박음(그 커밋에 있는 경로) | M6 · 그 스킬 |
+  | 한 스킬의 링크를 그 스킬의 틀 파일로 옮김 | M6 · 그 스킬 |
+  | 지도 링크에 더해 다른 경로를 박은 링크 하나(그 경로가 기준과 같음) | 통과 |
   | 얕은 클론 · `vibe-slice/` 없음 · git 아님 | R2 · R3 · R1 |
   | 인자를 줌 | 2 |
   | `LC_ALL=C` · `PYTHONIOENCODING=cp949` 로 실패 꼴 | 예외 없이 1(O2) |
 
-- `bite-map-pin.py` — V1 의 자리 여덟을 하나씩 망가뜨린 사본마다 자체 시험이 떨어진다.
+- `bite-map-pin.py` — V1 의 자리 아홉을 하나씩 망가뜨린 사본마다 자체 시험이 떨어진다.
 - 어긋내 보기 둘 — 자체 시험의 표에서 M3 꼴을 지우면 `bite-map-pin.py` 가 1 이다. 두 `SKILL.md` 가운데 하나를 `blob/main/` 으로 되돌리면
   `gates.sh` 가 M1 로 떨어진다.
 - 원본 — `claude plugin validate ./vibe-slice` · `verify-manifest.py` 통과, `verify-budget.py` 의 `slice-review` 호출 시 ≤ 4,500.

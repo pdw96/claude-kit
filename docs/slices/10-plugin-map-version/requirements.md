@@ -38,7 +38,7 @@
 
 1. 검사가 꼴마다 문다 — `test-verify-map-pin.py` 가 임시 레포에서 대조(박은 링크 · 지도만 고친 뒤 · 지도를 고친 커밋을 박은 플러그인
    커밋)는 통과, 변조본(`blob/main/` · 짧은 sha · 조상이 아닌 커밋 · 없는 커밋 · 지도가 다른 커밋 · 그 밖의 claude-kit 링크 꼴 · 박은
-   경로가 그 커밋에 없음)은 ② 의 기대 번호로 떨어진다. `bite-map-pin.py` 가 검사를 자리마다 망가뜨린 사본에서 자체 시험이 다 떨어진다.
+   경로가 그 커밋에 없음 · 한 스킬의 지도 링크가 빠지거나 다른 경로를 박음)은 ② 의 기대 번호로 떨어진다. `bite-map-pin.py` 가 검사를 자리마다 망가뜨린 사본에서 자체 시험이 다 떨어진다.
 2. 원본 — 두 `SKILL.md` 의 지도 링크가 `blob/<전체 sha>/` 이고, `verify-map-pin.py` 가 구현 PR 의 머리에서 통과한다. `vibe-slice` 판이 오르고
    `claude plugin validate ./vibe-slice` · `verify-manifest.py` 가 통과하며, `verify-budget.py` 가 천장 안이다(`slice-review` 호출 시 ≤ 4,500).
 3. 사본 길 — `test-sync-slice.py` 가 원본이 `blob/<전체 sha>/` 를 박은 꼴에서도 사본의 링크가 출처 전체 sha 로 바뀌는지 보고, 짧은 sha 를
