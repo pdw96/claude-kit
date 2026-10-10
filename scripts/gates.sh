@@ -13,8 +13,9 @@
 #
 # 게이트가 **무는지**는 대개 여기서 안 본다. 그건 CI 의 「게이트가 무는가」 단계가
 # 변조본을 만들어 떨어뜨려 본다. 물지 않는 검사는 게이트가 아니므로 둘 다 있다.
-# 예외 둘 — 설계 → 구현 관문의 변조본(`bite-slice-gate.py`)과 문서 대조 검사의 다른 레포
-# 모드 변조본(`bite-verify-docs.py`)은 수트 지문 밖에 두려고 여기서 부른다(ADR 0016 의 6 · ADR 0018 의 6).
+# 예외 셋 — 설계 → 구현 관문의 변조본(`bite-slice-gate.py`), 문서 대조 검사의 다른 레포
+# 모드 변조본(`bite-verify-docs.py`), 절차 지도 판의 변조본(`bite-map-pin.py`)은 수트 지문 밖에 두려고
+# 여기서 부른다(ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5).
 set -euo pipefail
 
 main() {
@@ -68,8 +69,17 @@ main() {
   # 그 자체 시험이 무는지 — 관문 검사를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
   python3 scripts/bite-slice-gate.py
 
+  # 플러그인의 절차 지도 판 — 원본 스킬이 지도를 커밋으로 박았고, 그 지도가 vibe-slice/ 를 마지막으로 고친 커밋의 것이다(조각 10 설계 ②).
+  python3 scripts/verify-map-pin.py
+
+  # 판 검사가 무는지 — 임시 git 레포에 박기 · 지도만 고침 · 머지 · 작업트리 · 틀린 꼴을 만들어 돌린다.
+  python3 scripts/test-verify-map-pin.py
+
+  # 그 자체 시험이 무는지 — 판 검사를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
+  python3 scripts/bite-map-pin.py
+
   echo
-  echo "열여덟 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "스물하나 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 
