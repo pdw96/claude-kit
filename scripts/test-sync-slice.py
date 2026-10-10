@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """`sync-slice.sh` 가 조각 5 설계 ② C1 ~ C5 — 조각 6 설계 ② 가 `vibe-slice/skills/` 의 스킬 전부로
-넓힌 것 — 와 조각 8 설계 ② P1 · L1 ~ L3 · H1 ~ H3 을 지키는지 본다. 모델도 네트워크도 안 쓴다.
+넓힌 것 — 와 조각 8 설계 ② P1 · L1 ~ L3 · H1 ~ H3 — 조각 10 설계 ② 가 L1 · L2 를 넓힌 것 — 을 지키는지 본다. 모델도 네트워크도 안 쓴다.
 
   python3 scripts/test-sync-slice.py
 
@@ -15,8 +15,10 @@
   C4 심을 자리(스킬 폴더마다)가 파일 · 링크 · 끊긴 링크면 --force 여도 멈춘다
   C5 원본의 copies.json 과 대상의 다른 파일을 건드리지 않고, 대상에 커밋하지 않는다
   P1 원본 HEAD 가 원격 추적 가지에 없으면(원격이 없어도) 아무것도 쓰지 않는다
-  L1 심는 파일마다 github.com/pdw96/claude-kit/blob/main/ 이 blob/<출처 전체 sha>/ 로 — 한 줄에 둘이어도
-  L2 그 밖의 claude-kit 링크 꼴(tree · 다른 가지 · 커밋 · raw)이 원본에 있으면 아무것도 쓰지 않는다
+  L1 심는 파일마다 github.com/pdw96/claude-kit/blob/main/ 과 원본이 박은 blob/<40 자 소문자 16진>/ 이
+     blob/<출처 전체 sha>/ 로 — 한 줄에 둘이어도, 두 꼴이 섞여도
+  L2 그 밖의 claude-kit 링크 꼴(tree · 다른 가지 · 짧은 sha · 대문자 sha · raw)이 원본에 있으면 아무것도
+     쓰지 않는다
   L3 손으로 blob/<옛 커밋>/ 을 박은 사본도 --force 면 새 출처로
   H1 출처 줄의 글자 · H2 sync-agents.sh 의 HDR 과 같은 글자 · H3 sync-agents.sh 의 사본 README 가 같은 방향
   Y1 심은 slice-docs/scripts/ 의 두 검사가 원본과 바이트 그대로(조각 9 설계 ②)
@@ -27,6 +29,7 @@
 """
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +38,10 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REL = "vibe-slice/skills"
 LINK = "github.com/pdw96/claude-kit/blob/main/"
+# L1 이 받는 두 꼴 — blob/main/ 과 원본이 박은 blob/<전체 sha>/(조각 10 설계 ②)
+PIN = re.compile(rb"github\.com/pdw96/claude-kit/blob/(?:main|[0-9a-f]{40})/")
+# 원본이 박았다고 치는 커밋 — 시험 원본의 역사에 없어도 sync-slice.sh 는 꼴만 본다
+OLD = "55a8a79" + "0" * 33
 HDR = ('HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에서만 참인 고침은 이 사본에만 산다 — '
        '다른 레포에서도 같은 말이면 원본으로 넘긴다. -->"')
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
@@ -72,7 +79,14 @@ def source(at, remote=True, change=None):
 
 def pinned(data, full):
     """원본 바이트에 L1 의 바꿈을 한 것."""
-    return data.replace(LINK.encode(), f"github.com/pdw96/claude-kit/blob/{full}/".encode())
+    return PIN.sub(f"github.com/pdw96/claude-kit/blob/{full}/".encode(), data)
+
+
+def pin_skills(at):
+    """원본 트리의 스킬 SKILL.md 마다 L1 이 받는 링크를 blob/<OLD>/ 로 박는 change — 원본이 이미 박았어도
+    OLD 로 다시 박아, 출처와 다른 커밋을 박은 꼴을 만든다."""
+    for f in (at / REL).glob("*/SKILL.md"):
+        f.write_bytes(PIN.sub(f"github.com/pdw96/claude-kit/blob/{OLD}/".encode(), f.read_bytes()))
 
 
 def add_line(rel, line):
@@ -148,10 +162,40 @@ def main():
         else:
             fails.append(f"{what}\n{out}")
 
+    def planted_as(what, src, base):
+        """심은 사본 base 가 원본 src 의 HEAD 와 출처 두 줄 · L1 의 바꿈 말고는 같은지 본다(C1 · H1 · L1).
+        원본의 L1 링크 수를 돌려준다."""
+        sha = sh(src, "git", "rev-parse", "--short", "HEAD")
+        full = sh(src, "git", "rev-parse", "HEAD")
+        mine = f"github.com/pdw96/claude-kit/blob/{full}/".encode()
+        names = sorted(p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file())
+        want = sorted(p.relative_to(src / REL).as_posix() for p in (src / REL).rglob("*") if p.is_file())
+        expect(f"{what}심은 파일이 원본과 다르다: {names} ≠ {want}", names == want)
+        hdr = HDR[len('HDR="'):-1].replace("$SHA", sha)
+        links = 0
+        for n in want:
+            links += len(PIN.findall((src / REL / n).read_bytes()))
+            if not (base / n).is_file():
+                continue  # 위의 「심은 파일이 원본과 다르다」가 이미 찍었다 — 예외로 끝내지 않는다
+            left = [m for m in PIN.findall((base / n).read_bytes()) if m != mine]
+            expect(f"[L1] {what}{n} 에 출처가 아닌 링크가 남았다: {left}", not left)
+            if n.endswith("/SKILL.md") and n.count("/") == 1:
+                skill = (base / n).read_text(encoding="utf-8").splitlines()
+                ends = [i for i, ln in enumerate(skill) if ln == "---"][:2]
+                expect(f"{what}{n} 이 프론트매터로 시작하지 않는다", ends[:1] == [0], "\n".join(skill[:3]))
+                expect(f"[H1] {what}{n} 의 출처 줄이 프론트매터 바로 뒤에 없거나 글자가 다르다",
+                       len(ends) == 2 and skill[ends[1] + 2] == hdr, "\n".join(skill[:12]))
+                orig = pinned((src / REL / n).read_bytes(), full).decode("utf-8").splitlines()
+                expect(f"{what}{n} 이 출처 두 줄 · 링크 고정 말고도 달라졌다",
+                       skill[:ends[1] + 1] + skill[ends[1] + 3:] == orig)
+            else:
+                expect(f"{what}{n} 이 링크 고정 말고는 바이트 그대로가 아니다",
+                       (base / n).read_bytes() == pinned((src / REL / n).read_bytes(), full))
+        return links
+
     with tempfile.TemporaryDirectory() as tmp:
         tmp = pathlib.Path(tmp)
         src = source(tmp / "src")
-        sha = sh(src, "git", "rev-parse", "--short", "HEAD")
         full = sh(src, "git", "rev-parse", "HEAD")
         ledger = (src / "copies.json").read_bytes()
 
@@ -165,28 +209,8 @@ def main():
         rc, out = run(src, t)
         base = t / ".claude/skills"
         expect("빈 대상에 심지 못했다", rc == 0, out)
-        names = sorted(p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file())
-        want = sorted(p.relative_to(src / REL).as_posix() for p in (src / REL).rglob("*") if p.is_file())
-        expect(f"심은 파일이 원본과 다르다: {names} ≠ {want}", names == want)
-        hdr = HDR[len('HDR="'):-1].replace("$SHA", sha)
-        links = 0
-        for n in want:
-            links += (src / REL / n).read_bytes().count(LINK.encode())
-            if not (base / n).is_file():
-                continue  # 위의 「심은 파일이 원본과 다르다」가 이미 찍었다 — 예외로 끝내지 않는다
-            expect(f"[L1] {n} 에 blob/main/ 링크가 남았다", LINK.encode() not in (base / n).read_bytes())
-            if n.endswith("/SKILL.md") and n.count("/") == 1:
-                skill = (base / n).read_text(encoding="utf-8").splitlines()
-                ends = [i for i, ln in enumerate(skill) if ln == "---"][:2]
-                expect(f"{n} 이 프론트매터로 시작하지 않는다", ends[:1] == [0], "\n".join(skill[:3]))
-                expect(f"[H1] {n} 의 출처 줄이 프론트매터 바로 뒤에 없거나 글자가 다르다",
-                       len(ends) == 2 and skill[ends[1] + 2] == hdr, "\n".join(skill[:12]))
-                orig = pinned((src / REL / n).read_bytes(), full).decode("utf-8").splitlines()
-                expect(f"{n} 이 출처 두 줄 · 링크 고정 말고도 달라졌다", skill[:ends[1] + 1] + skill[ends[1] + 3:] == orig)
-            else:
-                expect(f"{n} 이 링크 고정 말고는 바이트 그대로가 아니다",
-                       (base / n).read_bytes() == pinned((src / REL / n).read_bytes(), full))
-        expect(f"시험 준비 — 원본 스킬에 blob/main/ 링크가 없어 L1 을 잴 수 없다", links > 0)
+        links = planted_as("", src, base)
+        expect(f"시험 준비 — 원본 스킬에 L1 이 받는 링크가 없어 L1 을 잴 수 없다", links > 0)
         expect("원본의 copies.json 이 바뀌었다", (src / "copies.json").read_bytes() == ledger)
         expect("대상의 다른 파일이 바뀌었다", (t / "README.md").read_text(encoding="utf-8") == "대상\n")
         expect("대상에 커밋했다", sh(t, "git", "rev-parse", "HEAD") == head_before)
@@ -291,6 +315,38 @@ def main():
                rc == 0 and two.replace(LINK, f"github.com/pdw96/claude-kit/blob/{fullm}/") in got
                and f"blob/{fullm}/c.md" in tpl_got and LINK not in got + tpl_got, out)
 
+        # L1 — 원본이 스킬마다 blob/<전체 sha>/ 를 박았다(PR C 뒤의 꼴) — 사본은 출처 커밋으로 다시 박는다
+        srcp = source(tmp / "src-pinned", change=pin_skills)
+        fullp = sh(srcp, "git", "rev-parse", "HEAD")
+        own = [f for f in sorted((srcp / REL).glob("*/SKILL.md")) if f"blob/{OLD}/" in f.read_text(encoding="utf-8")]
+        expect(f"시험 준비 — 스킬마다 SKILL.md 에 blob/<전체 sha>/ 를 박지 못했다: {own}",
+               len(own) == len(skills) and all(LINK not in f.read_text(encoding="utf-8") for f in own))
+        t = target(tmp / "t-pinned")
+        rc, out = run(srcp, t)
+        expect("[L1] 원본이 blob/<전체 sha>/ 를 박은 꼴을 심지 못했다", rc == 0, out)
+        if rc == 0:
+            planted_as("원본이 박은 꼴 — ", srcp, t / ".claude/skills")
+            for k in skills:
+                got = (t / ".claude/skills" / k / "SKILL.md").read_text(encoding="utf-8")
+                expect(f"[L1] {k}/SKILL.md 가 원본이 박은 커밋을 출처 {fullp[:7]} 로 바꾸지 않았다",
+                       OLD not in got and f"blob/{fullp}/docs/procedure.md" in got)
+
+        # L1 — 한 줄에 blob/main/ 과 blob/<전체 sha>/ 가 섞였다, 틀 파일에 blob/<전체 sha>/
+        mixed = f"섞임 — https://{LINK}d.md · https://github.com/pdw96/claude-kit/blob/{OLD}/e.md"
+        srcx = source(tmp / "src-mixed", change=lambda at: (
+            add_line("slice-review/SKILL.md", mixed)(at),
+            add_line("slice-docs/templates/requirements.md", f"https://github.com/pdw96/claude-kit/blob/{OLD}/f.md")(at)))
+        fullx = sh(srcx, "git", "rev-parse", "HEAD")
+        t = target(tmp / "t-mixed")
+        rc, out = run(srcx, t)
+        got = (t / ".claude/skills/slice-review/SKILL.md").read_text(encoding="utf-8") if rc == 0 else ""
+        tpl_got = (t / ".claude/skills/slice-docs/templates/requirements.md").read_text(encoding="utf-8") if rc == 0 else ""
+        expect("[L1] 한 줄에 섞인 두 꼴 · 틀 파일의 blob/<전체 sha>/ 를 다 출처로 바꾸지 못했다",
+               rc == 0 and f"blob/{fullx}/d.md · https://github.com/pdw96/claude-kit/blob/{fullx}/e.md" in got
+               and f"blob/{fullx}/f.md" in tpl_got and OLD not in got + tpl_got and LINK not in got + tpl_got, out)
+        if rc == 0:
+            planted_as("섞인 꼴 — ", srcx, t / ".claude/skills")
+
         # L3 — 손으로 옛 커밋을 박은 사본도 --force 면 새 출처로
         t = target(tmp / "t-pin")
         rc, out = run(src, t)
@@ -307,6 +363,7 @@ def main():
             "https://github.com/pdw96/claude-kit/tree/main/docs",
             "https://github.com/pdw96/claude-kit/blob/dev/docs/procedure.md",
             "https://github.com/pdw96/claude-kit/blob/0123abc/docs/procedure.md",
+            f"https://github.com/pdw96/claude-kit/blob/{OLD.upper()}/docs/procedure.md",
             "https://raw.githubusercontent.com/pdw96/claude-kit/main/docs/procedure.md",
         ]):
             srcb = source(tmp / f"src-bad-{i}", change=add_line("slice-review/SKILL.md", f"보라 — {form}"))
