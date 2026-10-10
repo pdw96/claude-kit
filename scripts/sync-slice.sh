@@ -12,7 +12,8 @@
 # 든다. 보장하는 것은 조각 5 설계 ② C1 ~ C5 이고, 조각 6 설계 ② 가 그것을 스킬 하나에서
 # `vibe-slice/skills/` 아래 스킬 전부로 넓혔다 — 스킬마다 고르게 하면 한 레포 안에서 두 스킬의 판이
 # 갈린다(ADR 0014 의 7). 조각 8 설계 ② 가 P1 · L1 ~ L3 · H1 을 더했다 — 절차 지도 링크를 출처 커밋으로
-# 박고, 원격에 없는 원본은 심지 않는다(ADR 0017).
+# 박고, 원격에 없는 원본은 심지 않는다(ADR 0017). 조각 10 설계 ② 가 L1 · L2 를 원본이 박은 `blob/<전체 sha>/` 로
+# 넓혔다 — 그 링크도 출처 커밋으로 다시 박는다(ADR 0019 의 3).
 
 set -euo pipefail
 
@@ -83,13 +84,14 @@ if [ "${#SKILLS[@]}" -eq 0 ]; then
   exit 1
 fi
 
-# L2 **받는 claude-kit 링크 꼴은 `github.com/pdw96/claude-kit/blob/main/` 하나다.** 그 밖의 꼴(`tree/main` ·
-# 다른 가지 · 커밋 · `raw`)이 심을 파일에 있으면 고정 없이 사본에 새므로 심지 않는다 — 원본에 새 꼴을
-# 더한 PR 이 이 꼴을 넓힌다(조각 8 설계 ③).
-LINK='github.com/pdw96/claude-kit/blob/main/'
+# L2 **받는 claude-kit 링크 꼴은 둘이다 — `github.com/pdw96/claude-kit/blob/main/` 과 원본이 박은
+# `github.com/pdw96/claude-kit/blob/<40 자 소문자 16진>/`.** 그 밖의 꼴(`tree/main` · 다른 가지 · 짧은 sha ·
+# 대문자 sha · `raw`)이 심을 파일에 있으면 고정 없이 사본에 새므로 심지 않는다 — 원본에 새 꼴을 더한 PR 이
+# 이 꼴을 넓힌다(조각 8 설계 ③ · 조각 10 설계 ②).
+LINK='github\.com/pdw96/claude-kit/blob/(main|[0-9a-f]{40})/'
 bad=""
 while IFS= read -r rel; do
-  hits="$(git -C "$SRC" show "HEAD:$rel" | sed 's#github\.com/pdw96/claude-kit/blob/main/##g' \
+  hits="$(git -C "$SRC" show "HEAD:$rel" | sed -E "s#$LINK##g" \
     | grep -n -E 'github(usercontent)?\.com/pdw96/claude-kit' || true)"
   [ -z "$hits" ] || bad="$bad$(printf '%s\n' "$hits" | awk -v f="$rel" '{ print "  " f ":" $0 }')"$'\n'
 done < <(git -C "$SRC" ls-tree -r --name-only HEAD -- "$REL")
@@ -138,8 +140,8 @@ while IFS= read -r rel; do
   mkdir -p "$(dirname "$out")"
   # L1 링크가 든 파일만 바꿔 쓴다 — 나머지는 바이트 그대로다. grep -q 는 다 읽기 전에 끝나 앞의
   # git show 가 SIGPIPE 로 죽고, pipefail 이 그것을 「없다」로 읽는다 — 그래서 다 읽힌다.
-  if git -C "$SRC" show "HEAD:$rel" | grep -F "$LINK" >/dev/null; then
-    pin() { sed "s#github\.com/pdw96/claude-kit/blob/main/#github.com/pdw96/claude-kit/blob/$FULL/#g"; }
+  if git -C "$SRC" show "HEAD:$rel" | grep -E "$LINK" >/dev/null; then
+    pin() { sed -E "s#$LINK#github.com/pdw96/claude-kit/blob/$FULL/#g"; }
   else
     pin() { cat; }
   fi
