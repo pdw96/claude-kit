@@ -7,7 +7,7 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/master-plan.md` | A | 「main 푸시가 통과한 수트 지문을 읽게」 상태 `진행` · 조각 폴더 |
-| `docs/adr/0021-main-reads-pr-pass.md` | A | 갈림길 넷 |
+| `docs/adr/0021-main-reads-pr-pass.md` | A | 갈림길 일곱 |
 | `scripts/eval-merged-pass.py` | B | 새 파일. 판정 — `main` 푸시 커밋을 머지 커밋으로 가진 PR 하나의 merge ref 에 같은 키의 캐시가 있는가(② P1 ~ P6). `--probe` 는 PR 실행에서 같은 API 두 곳을 읽어 보기만 한다(② R1) |
 | `scripts/test-eval-merged-pass.py` | B | 새 파일. 자체 시험 — 로컬 가짜 API(`http.server`)에 ③ 의 꼴을 세워 판정을 본다 |
 | `scripts/bite-eval-merged-pass.py` | B | 새 파일. 변조본 — 판정을 한 자리씩 망가뜨린 사본에 자체 시험을 대어 다 떨어지는지 본다(`bite-map-pin.py` 와 같은 꼴) |
@@ -116,11 +116,14 @@
 - 1 근거를 찾는 길 — 캐시 목록 API(저자)
 - 2 믿는 범위 — 그 푸시를 머지 커밋으로 가진 PR 하나의 merge ref(저자)
 - 3 판정의 자리 — 수트 지문 밖 스크립트와 자체 시험 · 변조본, `eval.yml` 은 부르는 줄과 권한만(저자)
-- 4 머지 전에 PR 실행에서 API 를 읽어 보기만 한다(세션 제안 — 저자 승인 대기)
+- 4 머지 전에 PR 실행에서 API 를 읽어 보기만 한다(세션 제안 · 저자)
+- 5 B 의 리뷰가 `eval.yml` 로만 고칠 지적을 내면 수트 한 번을 더 감수하고 「닫으며」에 적는다 — ADR 0020 의 5 와 같다(세션 제안 · 저자)
+- 6 `bite-gates.sh` 의 K1 은 넓히지 않는다 — T3 이 한 번 본다(세션 제안 · 저자)
+- 7 `vibe-audit/evals/README.md` 의 재실행 문장은 그대로 둔다 — 하지 않을 일 5(세션 제안 · 저자)
 
 **열어 둔 것**
 
-없음 — 갈림길 넷을 착공에서 정한다.
+없음 — 갈림길 일곱을 착공에서 정했다.
 
 ## ⑤ 검증 계획
 
