@@ -15,7 +15,7 @@
 | `docs/architecture.md` | B | 「견주기」의 `compare-copies.py` 줄 — 판정한 후보는 새 레포에서 나올 때만 다시 나온다 |
 | `copies.json` | C | 둘째 줄 — `sync-agents.sh` 가 적는다(② S3) |
 | 강호쟁패 `.claude/agents/` 일곱 · `.claude/commands/audit-brief.md` · `.claude/scripts/verify-brief.py` | C(그 레포의 PR) | `sync-agents.sh` 가 쓴 그대로 |
-| 강호쟁패 `.claude/settings.json` | C(그 레포의 PR) | 새 파일 — 이 프로젝트에서 `vibe-audit@pdw96-kit` 를 끈다(ADR 0022 의 1). `claude plugin disable vibe-audit@pdw96-kit --scope project` 가 쓴 그대로. 다른 플러그인은 그대로 |
+| 강호쟁패 `.claude/settings.json` | C(그 레포의 PR) | 새 파일 — 이 프로젝트에서 `vibe-audit@pdw96-kit` 를 끈다(ADR 0022 의 1). 내용은 `{"enabledPlugins": {"vibe-audit@pdw96-kit": false}}` 한 줄을 손으로 쓴다 — 클라우드 세션에는 그 플러그인이 설치돼 있지 않아 `claude plugin disable` 이 아무것도 쓰지 않는다(③). 다른 플러그인은 그대로 |
 | 강호쟁패 `CLAUDE.md` 91줄 | C(그 레포의 PR) | 「사용자 전역 플러그인 vibe-audit의 에이전트. 저장소에는 없다」 — 사본을 가리키게. 그 레포의 문장이라 세션은 제안만 하고 저자가 정한다 |
 
 **앵커볼트.** 건드리지 않는다 — 이름 · 감사자의 `tools` · 공통 절 · 「…의 칸」 · `AGENTS.md` 그대로다. **대장의 모양**(`copies.json` ·
@@ -40,7 +40,7 @@
   - C5 쓰지 않는다 — `feedback.json` 은 지금처럼 읽기만 한다. 멈추는 규칙(ADR 0003)도 그대로다.
 - **시험** (B)
   - T1 `test-compare-copies.py` 가 같은 고침을 담은 임시 사본 둘(`a` · `b`)로 꼴 셋을 본다 — (가) `seen` 이 `a` 뿐인 후보가 기본 실행에
-    `새 레포 b` 로 나온다 · (나) `seen` 이 `a` · `b` 면 기본 실행에 안 나온다 · (다) `--json` 의 `new_repos` 가 (가)에서 `["b"]`, (나)에서 `[]`.
+    `새 레포 b` 로 나온다 · (나) `seen` 이 `a` · `b` 면 기본 실행에 안 나온다 · (다) `--json` 의 `new_repos` 가 (가)에서 `["b"]` 이고, (나)는 `--json` 에 그 후보가 없으며(C2) `--all --json` 에서 `[]` 다.
   - T2 `bite-gates.sh` 가 새 레포 갈래를 끈 비교기(새 레포를 늘 빈 목록으로)에 T1 을 대어 떨어지는 것을 본다. 변조할 자리가 비교기에 꼭 한 번
     있지 않으면 떨어진다(지금의 꼴 그대로).
 - **심기** (C)
@@ -49,7 +49,9 @@
     `node Tools/check.mjs --fast` 가 통과한다.
   - S3 `copies.json` 의 둘째 줄은 `sync-agents.sh` 가 적은 그대로다 — 손으로 쓰거나 옮기지 않는다(`CLAUDE.md` 「금지」).
   - S4 강호쟁패 PR 이 머지된 뒤 두 클론이 있는 세션에서 `verify-copies.py` 가 강호쟁패 사본을 견줘 PASS 이고, `compare-copies.py` 가 끝 0 으로
-    두 줄을 견주며 강호쟁패에서 나온 후보가 0 이다.
+    두 줄을 견주며 강호쟁패에서 나온 후보가 0 이다. 견주기 전에 두 클론을 다 원격 기본 가지의 머리로 옮긴다 — 강호쟁패 클론은 PR 을 낸 가지에
+    있어, 머지 커밋이 없는 그 머리로는 비교기가 「`origin/main` 보다 뒤」로 멈춘다(ADR 0003). `git switch main && git pull --ff-only`
+    (ERP 는 `pull --ff-only`)로 옮긴다.
   - S5 이 조각의 PR 셋은 수트 지문의 파일을 고치지 않는다 — 셋 다 eval 잡이 건너뛴다.
 
 **보장하지 않는 것(알려진 한계)**
@@ -99,7 +101,7 @@
 | 무엇 | 문서가 적은 것 |
 |---|---|
 | `enabledPlugins` 의 합침 | 출처(user `~/.claude/settings.json` < project `.claude/settings.json` < local `.claude/settings.local.json` < …)가 플러그인 id 마다 합쳐진다 — 그 id 를 적은 가장 높은 출처의 값이 선다. 프로젝트의 `"vibe-audit@pdw96-kit": false` 는 사용자 범위의 설치를 그 프로젝트에서 끄고, `vibe-slice@pdw96-kit` 는 건드리지 않는다 |
-| 끄는 명령 | `claude plugin disable <플러그인> --scope project` — 높은 범위에 덮어쓰기를 적는다. 커밋한 `false` 는 그 레포를 받은 모든 사람에게 든다 |
+| 끄는 명령 | `claude plugin disable <플러그인> --scope project` — 높은 범위에 덮어쓰기를 적는다. 커밋한 `false` 는 그 레포를 받은 모든 사람에게 든다. 다만 그 플러그인이 설치된 기계에서만 쓴다 — 이 세션(클라우드, CLI 2.1.296, `vibe-audit` 없음)의 빈 git 저장소에서 부르면 `Plugin "vibe-audit@pdw96-kit" is already disabled at project scope` 로 1 이고 `.claude/` 를 만들지 않았다(2026-10-12, #55 Codex 1회차). 그래서 C 는 파일을 손으로 쓴다(①) |
 | 이름이 겹친 에이전트 | 프로젝트 `.claude/agents/` 가 플러그인 `agents/` 보다 앞선다. 플러그인 에이전트는 `vibe-audit:audit-internal` 처럼 플러그인 이름이 앞에 붙는다. 플러그인 커맨드도 `/vibe-audit:audit-brief` 로 따로 뜬다 |
 
 **심어 본 결과** — 이 세션이 2026-10-12 에 버리는 사본(강호쟁패 클론의 복사본 · claude-kit c341169 의 작업트리)에 `sync-agents.sh` 를
@@ -151,7 +153,8 @@
 - S2 — 강호쟁패 PR 의 머리에서 `node Tools/check.mjs --fast` 일곱 통과. `git diff` 가 ① 의 파일만 담는다.
 - S3 — `git diff main...HEAD -- copies.json` 이 둘째 줄 하나를 더한다. 그 줄의 `synced_commit` 이 `git merge-base --is-ancestor` 로
   `origin/main` 에 든다.
-- S4 · 성공 기준 1 · 2 — ERP · 강호쟁패 두 클론에서 `python3 scripts/verify-copies.py` · `python3 scripts/compare-copies.py` 의 출력과 끝값.
+- S4 · 성공 기준 1 · 2 — ERP · 강호쟁패 두 클론을 원격 기본 가지의 머리로 옮긴 뒤(`git -C <클론> rev-parse HEAD` 가 `origin/main` 과 같다)
+  `python3 scripts/verify-copies.py` · `python3 scripts/compare-copies.py` 의 출력과 끝값.
 - 지문 — 교집합 0.
 
 **스스로 쓰기** — PR A · B · C 의 리뷰를 `slice-review` 로 가른다. PR 본문의 `## 리뷰 회차` 와 답글. B · C 는 `verify-slice-gate.py` 를
