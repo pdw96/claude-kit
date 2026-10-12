@@ -50,13 +50,17 @@ trap 'exit 143' TERM
 # 설 수 없는 꼴이면 아무 변조본도 돌리기 전에 멈춘다. 조각 11 설계 ② D1 ~ D3.
 n=$(grep -cE '^[[:space:]]*DEFAULT_MODEL=' scripts/run-evals.sh || true)
 model=$(sed -nE 's/^[[:space:]]*DEFAULT_MODEL=//p' scripts/run-evals.sh | head -1)
-if [ "$n" != 1 ] || ! [[ "$model" =~ ^[A-Za-z0-9._-]+$ ]]; then
+id_re='^([A-Za-z0-9._-]+)(\[[A-Za-z0-9._-]*\])?$'
+if [ "$n" != 1 ] || ! [[ "$model" =~ $id_re ]]; then
   echo "::error::run-evals.sh 의 DEFAULT_MODEL= 줄이 하나가 아니거나($n) 값이 모델 id 가 아니다('$model')"; exit 1
 fi
-# 이름이 겹치는 딴 모델 — 마지막 -<조각> 을 뗀 이름. 그 이름을 요청했는데 수트 모델로 돈 회차는 받으면 안 된다
-near=${model%-*}
-if [ "$near" = "$model" ]; then
-  echo "::error::수트 모델 id($model)에 - 가 없어 이름이 겹치는 딴 모델을 만들 수 없다"; exit 1
+# 이름이 겹치는 딴 모델 — 꼬리표([…])와 날짜(-<여덟 자리>)를 뗀 이름에서 마지막 -<조각> 을 뗀 것. 러너는 꼬리표 ·
+# 날짜만 다른 이름을 같은 모델로 받으므로 그것부터 뗀다. 그 이름을 요청했는데 수트 모델로 돈 회차는 받으면 안 된다
+name=${BASH_REMATCH[1]}
+if [[ "$name" =~ ^(.+)-[0-9]{8}$ ]]; then name=${BASH_REMATCH[1]}; fi
+near=${name%-*}
+if [ "$near" = "$name" ]; then
+  echo "::error::수트 모델 id($model)에 꼬리표 · 날짜 말고 - 가 없어 이름이 겹치는 딴 모델을 만들 수 없다"; exit 1
 fi
 # 딴 모델(claude-haiku-4-5)과 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)은 글자 그대로다 — 수트 모델이
 # 그 이름이면 딴 모델이 딴 모델이 아니다
