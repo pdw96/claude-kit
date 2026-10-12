@@ -87,7 +87,7 @@ hash = "sha256:" + sha256("\n".join(줄들))
 
 `scripts/verify-feedback.py` 가 위 「규칙」 칸을 전부 보고 `gates.sh` 에 든다. 모델도
 네트워크도 안 쓴다. 대장이 없거나 `candidates` 가 비면 「후보 0」으로 통과한다 — 아직 아무것도
-판정하지 않은 상태다. 그 검사가 무는지는 CI 「게이트가 무는가」가 변조한 대장 열로 본다.
+판정하지 않은 상태다. 그 검사가 무는지는 `scripts/bite-gates.sh` 가 변조한 대장 열로 본다.
 
 차이를 뽑는 쪽은 `scripts/compare-copies.py`, 그것이 무는지는 `scripts/test-compare-copies.py`
-(임시 원본 · 원격 · 사본)와 CI 「게이트가 무는가」의 비교기 변조 다섯이 본다.
+(임시 원본 · 원격 · 사본)와 `scripts/bite-gates.sh` 의 비교기 변조 다섯이 본다.

@@ -2,7 +2,7 @@
 """`compare-copies.py` 가 **무는지** 본다. 모델도 API 도 네트워크도 안 쓴다.
 
   python3 scripts/test-compare-copies.py                 # 저장소의 비교기
-  python3 scripts/test-compare-copies.py <비교기 경로>     # 다른 판 — CI 가 변조본으로 쓴다
+  python3 scripts/test-compare-copies.py <비교기 경로>     # 다른 판 — bite-gates.sh 가 변조본으로 쓴다
 
 임시 원본 저장소 · 맨(bare) 원격 · 그것을 받은 사본 레포를 만들고, PRD 조각 1 의
 성공 기준을 그대로 재현한다.

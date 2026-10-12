@@ -2,7 +2,7 @@
 """후보 대장(`feedback.json`)이 성한지 본다. 모델도 네트워크도 안 쓴다.
 
   python3 scripts/verify-feedback.py            # 저장소의 feedback.json
-  python3 scripts/verify-feedback.py <대장>      # 다른 대장 — CI 가 변조본으로 쓴다
+  python3 scripts/verify-feedback.py <대장>      # 다른 대장 — bite-gates.sh 가 변조본으로 쓴다
 
 **왜 있나.** 사본과 원본을 견줘 나온 후보를 저자가 판정하면 이 대장에 남고,
 `compare-copies.py` 는 여기 있는 해시를 빼고 미판정만 찍는다. 대장이 틀리면

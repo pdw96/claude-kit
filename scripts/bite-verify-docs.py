@@ -4,8 +4,8 @@
 
   python3 scripts/bite-verify-docs.py
 
-**왜 여기 있나.** 원본 모드의 변조 스무 자리는 CI 「게이트가 무는가」(`eval.yml`)에 있지만, `eval.yml` 은 수트 지문에
-들어 고치면 route 수트가 돈다. 이 파일은 지문 밖이고 `gates.sh` 가 부른다(ADR 0018 의 6, 조각 9 설계 ② V1).
+**왜 여기 있나.** 원본 모드의 변조 스무 자리는 `bite-gates.sh` 에 있다. 둘 다 수트 지문 밖이고 `gates.sh` 가
+부른다 — `eval.yml` 은 지문에 들어 고치면 route 수트가 돈다(ADR 0018 의 6, 조각 9 설계 ② V1).
 `bite-slice-gate.py` 와 같은 길이다.
 
 떨어지는 것 둘 — 자체 시험이 망가진 사본 하나라도 지나가면(시험을 비우거나 무르게 했다), 망가뜨릴 자리가
