@@ -65,17 +65,22 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 있으면 `samples/pass.md` · `samples/fail*.md` 로 그레이더가 가르는지도 본다(`verify-graders.py`).
 
 **수트.** `scripts/run-evals.sh` 가 깃발을 박아 `claude plugin eval` 을 돌린다. CI 는 같은 러너를 부른다. PR · `main` push 는
-`route-*` 만 돌리고, 그 수트 입력의 지문(`scripts/eval-key.py`)이 이미 통과했으면 다시 돌지 않는다. 사람이 부르는 전수
-(`workflow_dispatch`)는 지문을 찾아보지 않고 늘 돈다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`.
+`route-*` 만 돌리고, 그 수트 입력의 지문(`scripts/eval-key.py`)이 이미 통과했으면 다시 돌지 않는다. 통과한 지문은 실행의
+ref 범위에 캐시로 적혀, PR 은 제 merge ref 와 `main` 범위를 읽는다. `main` push 는 `main` 범위에서 못 찾으면 그 푸시를 머지
+커밋으로 가진 PR 하나의 merge ref 를 캐시 목록 API 로 읽고(`scripts/eval-merged-pass.py`), 같은 키가 있으면 건너뛰며 그 키를
+`main` 범위에도 적는다 — 지문을 바꾼 PR 의 수트가 머지 뒤 한 번 더 돌지 않는다(ADR 0021). 그래서 `main` 에서 다시 돌리려면
+`refs/heads/main` 과 그 PR 의 `eval-route-` 항목을 둘 다 지우거나 전수를 부른다. 사람이 부르는 전수(`workflow_dispatch`)는
+지문을 찾아보지 않고 늘 돈다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`.
 
 ## 게이트가 무는가
 
-키 없는 게이트는 도는 것과 무는 것을 따로 본다. 변조본은 다 `gates.sh` 가 부르는 파일 넷에 있다 — `scripts/bite-gates.sh`
+키 없는 게이트는 도는 것과 무는 것을 따로 본다. 변조본은 다 `gates.sh` 가 부르는 파일 다섯에 있다 — `scripts/bite-gates.sh`
 가 이 저장소의 검사기마다 변조본(사본 감사자의 `tools` 변조 · 대장의 없는 커밋 · 성하지 않은 후보 대장 · 파일 없는 라이선스
 선언 · 가짜 하네스 · 수트 지문 …)을 만들어 떨어지는지 보고, 설계 → 구현 관문(`scripts/bite-slice-gate.py`) · 문서 대조 검사의
-다른 레포 모드(`scripts/bite-verify-docs.py`) · 절차 지도 판(`scripts/bite-map-pin.py`)은 제 파일에 둔다. 검사기 몇은 자기 시험
-스크립트(`scripts/test-*.py`)를 `gates.sh` 에 둔다. 넷 다 수트 지문 밖이다 — `eval.yml` 은 지문에 들어 고치면 route 수트가
-돈다(ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5 · ADR 0020 의 1). `bite-gates.sh` 는 그 파일들이 지문에 들면 떨어지고(ADR
+다른 레포 모드(`scripts/bite-verify-docs.py`) · 절차 지도 판(`scripts/bite-map-pin.py`) · `main` 푸시가 머지된 PR 의 통과를
+읽는 판정(`scripts/bite-eval-merged-pass.py`)은 제 파일에 둔다. 검사기 몇은 자기 시험 스크립트(`scripts/test-*.py`)를
+`gates.sh` 에 둔다. 다섯 다 수트 지문 밖이다 — `eval.yml` 은 지문에 들어 고치면 route 수트가 돈다(ADR 0016 의 6 · ADR 0018 의
+6 · ADR 0019 의 5 · ADR 0020 의 1 · ADR 0021 의 3). `bite-gates.sh` 는 그 파일들이 지문에 들면 떨어지고(ADR
 0020 의 6), 제자리에서 흔드는 파일(`copies.json` · 지문 시험의 파일)은 흔들기 전의 백업에서 되돌려 로컬의 커밋 안 한 수정을
 남긴다(ADR 0020 의 3). `gates.sh` 의 `claude plugin validate` 는 정상 트리에서만 돈다 — 그것을 떨어뜨리는 변조본은 없다(ADR
 0020 의 4). 새 검사를 세우면 그 변조본을 함께 넣는다(`CLAUDE.md` 「작업 방식」).
