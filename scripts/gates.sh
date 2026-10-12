@@ -12,9 +12,9 @@
 # 「게이트가 떨어졌다」로 오해하기 쉽다 — 그래서 여기서 옳게 불러 준다.
 #
 # 게이트가 **무는지**도 여기서 본다 — 변조본을 만들어 떨어뜨려 본다. 물지 않는 검사는 게이트가
-# 아니므로 둘 다 있다. 변조본은 다 이 파일이 부르는 넷에 있다 — 열세 검사의 `bite-gates.sh`, 설계 → 구현 관문의 `bite-slice-gate.py`, 문서 대조 검사의 다른 레포 모드의
-# `bite-verify-docs.py`, 절차 지도 판의 `bite-map-pin.py`. 다 수트 지문 밖이라 고쳐도 수트가 다시 돌지 않는다
-# (ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5 · ADR 0020 의 1).
+# 아니므로 둘 다 있다. 변조본은 다 이 파일이 부르는 다섯에 있다 — 열세 검사의 `bite-gates.sh`, 설계 → 구현 관문의 `bite-slice-gate.py`, 문서 대조 검사의 다른 레포 모드의
+# `bite-verify-docs.py`, 절차 지도 판의 `bite-map-pin.py`, `main` 푸시가 머지된 PR 의 통과를 읽는 판정의 `bite-eval-merged-pass.py`.
+# 다 수트 지문 밖이라 고쳐도 수트가 다시 돌지 않는다(ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5 · ADR 0020 의 1 · ADR 0021 의 3).
 set -euo pipefail
 
 main() {
@@ -77,11 +77,17 @@ main() {
   # 그 자체 시험이 무는지 — 판 검사를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
   python3 scripts/bite-map-pin.py
 
+  # main 푸시가 머지된 PR 의 통과를 읽는 판정 — 로컬 가짜 API 에 꼴 열둘과 읽어 보기(--probe)를 세워 돌린다(조각 12 설계 ② T1).
+  python3 scripts/test-eval-merged-pass.py
+
+  # 그 자체 시험이 무는지 — 판정을 한 자리씩 망가뜨린 사본에 자체 시험을 댄다(T2).
+  python3 scripts/bite-eval-merged-pass.py
+
   # 위 검사들이 무는지 — 검사마다 변조본을 만들어 떨어뜨린다. 제자리에서 흔드는 파일은 백업에서 되돌린다(ADR 0020).
   ./scripts/bite-gates.sh
 
   echo
-  echo "스물둘 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "스물넷 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 
