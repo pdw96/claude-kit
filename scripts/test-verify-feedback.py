@@ -2,9 +2,9 @@
 """`verify-feedback.py` 의 **역사를 보는 규칙**이 무는지 본다. 모델도 네트워크도 안 쓴다.
 
   python3 scripts/test-verify-feedback.py                 # 저장소의 검사기
-  python3 scripts/test-verify-feedback.py <검사기 경로>     # 다른 판 — CI 가 변조본으로 쓴다
+  python3 scripts/test-verify-feedback.py <검사기 경로>     # 다른 판 — bite-gates.sh 가 변조본으로 쓴다
 
-한 판만 보고 가를 수 있는 규칙(빈 칸 · 겹친 해시 · 없는 상태)은 CI 「게이트가 무는가」가
+한 판만 보고 가를 수 있는 규칙(빈 칸 · 겹친 해시 · 없는 상태)은 `bite-gates.sh` 가
 변조한 대장으로 본다. 여기는 **git 역사가 있어야** 가를 수 있는 둘을 임시 저장소로 본다.
 
   1. 한 번 매긴 번호는 사라지지 않고 주인(hash)도 안 바뀐다 — 끝 후보 지우기 · 가운데 지우고

@@ -9,7 +9,7 @@
 - git — **역사 전체**가 있어야 한다. 얕은 클론에서는 `verify-copies.py` 가 대장의 커밋을 못 찾는다.
 - Claude Code CLI — `claude plugin validate` · `claude plugin eval`. 판은 고정하지 않는다 — CLI 판은 수트 지문(`eval-key.py`)이 든다.
 - CI: GitHub Actions — 잡과 그 역할은 `.github/workflows/eval.yml` 이 든다. 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이다.
-- 수트 모델 · 심판 모델 — `run-evals.sh` 가 박는다. 수트 모델을 바꾸면 `eval.yml` 「게이트가 무는가」의 가짜 트레이스에
+- 수트 모델 · 심판 모델 — `run-evals.sh` 가 박는다. 수트 모델을 바꾸면 `scripts/bite-gates.sh` 의 가짜 트레이스에
   박힌 모델 id 도 따라 고친다 — 러너가 트레이스의 모델을 견준다.
 
 ## 앵커볼트 — 바꾸려면 먼저 물어볼 것
@@ -33,7 +33,7 @@
 
 - **되먹임은 사본 → 원본 한 방향**이고, 가르는 질문은 「다른 레포에서도 같은 말인가」다(`INTENT.md` Why).
 - **되먹임 한 건에 eval 케이스 하나** — 진짜 부적합 하나 · 대조군 · `samples/fail*.md`.
-- **새 검사를 세우면 CI 「게이트가 무는가」나 `gates.sh` 가 부르는 변조본으로 떨어지는 것을 함께 넣는다.** 물지 않는
+- **새 검사를 세우면 `gates.sh` 가 부르는 변조본으로 떨어지는 것을 함께 넣는다.** 물지 않는
   검사는 게이트가 아니다. 키 없이 도는 검사의 목록은 `gates.sh` 한 군데에만 둔다.
 - 대안이 있던 결정은 `docs/adr/` 에 남긴다. 고치지 않고 새 ADR 로 대체한다.
 - **프로젝트의 의도는 `INTENT.md` 가 든다. 조각은 `docs/master-plan.md` 의 조각 나눔에서 꺼내 `docs/procedure.md` 대로 간다.** 살아 있는 문서와 기록의
