@@ -5,9 +5,10 @@
 #
 # **왜 여기 있나.** 이 본문은 CI 「게이트가 무는가」 스텝(`eval.yml`)이었다. `eval.yml` 은 수트에 깃발을 넘겨
 # 통째로 수트 지문(`eval-key.py`)에 들어, 변조본만 고쳐도 route 수트가 다시 돌았다. 그래서 스텝의 본문을 글자
-# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 스텝과 다른 자리는 다섯뿐이다 — 이 머리, 저장소 맨 위를
+# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 스텝과 다른 자리는 여섯뿐이다 — 이 머리, 저장소 맨 위를
 # git 에서 읽는 것(CI 의 `$GITHUB_WORKSPACE` 대신), 임시 폴더를 한 폴더에 모아 끝날 때 지우는 것, 제자리 변조를
-# 백업에서 되돌리는 것(ADR 0020 의 3), 끝의 「변조본 파일이 수트 지문 밖인가」(ADR 0020 의 6).
+# 백업에서 되돌리는 것(ADR 0020 의 3), 수트 모델 id 를 `run-evals.sh` 에서 읽는 것(ADR 0020 의 4), 끝의 「변조본
+# 파일이 수트 지문 밖인가」(ADR 0020 의 6).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -43,6 +44,31 @@ undo_all() {
 trap 'st=$?; undo_all; rm -rf "$tmp"; exit $st' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+# 수트 모델 id 는 run-evals.sh 의 DEFAULT_MODEL= 한 줄만 든다(ADR 0020 의 4). 가짜 트레이스가 그 id 로 돌았다고
+# 적어야 러너가 받으므로 여기서 읽는다 — 수트 모델을 바꿔도 이 파일은 그대로다. 읽은 id 로 변조본이 무는지
+# 설 수 없는 꼴이면 아무 변조본도 돌리기 전에 멈춘다. 조각 11 설계 ② D1 ~ D3.
+n=$(grep -cE '^[[:space:]]*DEFAULT_MODEL=' scripts/run-evals.sh || true)
+model=$(sed -nE 's/^[[:space:]]*DEFAULT_MODEL=//p' scripts/run-evals.sh | head -1)
+id_re='^([A-Za-z0-9._-]+)(\[[A-Za-z0-9._-]*\])?$'
+if [ "$n" != 1 ] || ! [[ "$model" =~ $id_re ]]; then
+  echo "::error::run-evals.sh 의 DEFAULT_MODEL= 줄이 하나가 아니거나($n) 값이 모델 id 가 아니다('$model')"; exit 1
+fi
+# 이름이 겹치는 딴 모델 — 꼬리표([…])와 날짜(-<여덟 자리>)를 뗀 이름에서 마지막 -<조각> 을 뗀 것. 러너는 꼬리표 ·
+# 날짜만 다른 이름을 같은 모델로 받으므로 그것부터 뗀다. 그 이름을 요청했는데 수트 모델로 돈 회차는 받으면 안 된다
+name=${BASH_REMATCH[1]}
+if [[ "$name" =~ ^(.+)-[0-9]{8}$ ]]; then name=${BASH_REMATCH[1]}; fi
+near=${name%-*}
+if [ "$near" = "$name" ]; then
+  echo "::error::수트 모델 id($model)에 꼬리표 · 날짜 말고 - 가 없어 이름이 겹치는 딴 모델을 만들 수 없다"; exit 1
+fi
+# 딴 모델(claude-haiku-4-5)과 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)은 글자 그대로다 — 수트 모델이
+# 그 이름이면 딴 모델이 딴 모델이 아니다
+if [[ "$model" == claude-haiku-4-5* ]]; then
+  echo "::error::수트 모델 id($model)가 claude-haiku-4-5 로 시작해 딴 모델 변조본이 서지 않는다"; exit 1
+fi
+export BITE_MODEL="$model"
+echo "수트 모델: $model (run-evals.sh) — 이름이 겹치는 딴 모델: $near"
 
 # verify-copy.py — tools 를 변조한 사본은 실패해야 한다
 python3 scripts/verify-copy.py vibe-audit/agents
@@ -387,11 +413,11 @@ printf '%s\n' '#!/usr/bin/env bash' \
 chmod +x "$f/claude"
 for n in 3 1; do
   python3 - "$f/r$n.json" "$n" "$f/tr$n" <<'PY'
-import json, pathlib, sys
+import json, os, pathlib, sys
 out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
 for i in range(3):
     (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
-    (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
+    (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
 gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
 # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
 gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
@@ -437,9 +463,9 @@ fi
 # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
 # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
 python3 - "$f/ra.json" <<'PY'
-import json, pathlib, sys
+import json, os, pathlib, sys
 # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
-tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
+tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
 rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
         if p.stem not in ("auditor-fired", "trap-not-an-nc")]
 runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
@@ -477,11 +503,11 @@ fi
 # 사용량 한도에 걸린 회차는 회귀가 아니라 한도로 따로 끝나야 한다(종료코드 6).
 mkdir -p "$f/lim"; printf '%s\n' '{"type":"result","result":"You'"'"'ve hit your weekly limit · resets Sep 26, 6pm (UTC)"}' > "$f/lim/trace.jsonl"
 python3 - "$f" <<'PY'
-import json, pathlib, sys
+import json, os, pathlib, sys
 f = pathlib.Path(sys.argv[1])
 names = sorted(p.parent.name for p in pathlib.Path("vibe-audit/evals").glob("route-*/case.yaml"))
 disk = lambda n: [p.stem for p in sorted(pathlib.Path(f"vibe-audit/evals/{n}/graders").glob("*.md"))]
-(f / "ok.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
+(f / "ok.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
 ok = lambda n: {"score": 1.0, "passed": True, "tracePath": str(f / "ok.jsonl"),
                 "graders": [{"name": g, "passed": True, "weight": 3, "scored": True} for g in disk(n)]}
 def case(n, runs):
@@ -513,7 +539,7 @@ two = lambda n, wo: dict(case(n, [ok(n)] * 3), arms={"with": [ok(n)] * 3, "witho
 json.dump({"cases": [two(n, ok) for n in names]}, open(f / "wook.json", "w"))
 json.dump({"cases": [two(n, lambda n: dict(ok(n), graders=[])) for n in names]}, open(f / "woempty.json", "w"))
 PY
-mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"claude-sonnet-5-5":{}}}' > "$f/words/trace.jsonl"
+mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"'"$model"'":{}}}' > "$f/words/trace.jsonl"
 for m in miss:3 lim:6 empty:3 limpass:6 ratetext:0 allok:0 errrun:3 errlim:6; do
   set +e
   FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
@@ -534,9 +560,9 @@ if [ "$st" != 3 ] || [ -z "$r" ] || ! ls "$r"/traces/*.jsonl >/dev/null 2>&1; th
 fi
 # --runs 를 안 주면 케이스에 적힌 회차 수(3)를 요구한다 — 한 회차만 돈 결과는 3
 json_one=$(mktemp); python3 - "$json_one" <<'PY'
-import json, pathlib, sys
+import json, os, pathlib, sys
 g = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/route-quiet/graders").glob("*.md"))]
-tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok","modelUsage":{"claude-sonnet-5-5":{}}}\n')
+tr = pathlib.Path(sys.argv[1] + ".trace.jsonl"); tr.write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
 run = {"score": 1.0, "passed": True, "tracePath": str(tr),
        "graders": [{"name": n, "passed": True, "weight": 3, "scored": True} for n in g]}
 json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
@@ -549,7 +575,7 @@ set -e
 if [ "$st" != 3 ]; then
   echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
 fi
-# 트레이스에 요청한 모델(claude-sonnet-5-5)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
+# 트레이스에 요청한 모델(수트 모델)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
 printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5":{}}}' > "$f/haiku.jsonl"
 python3 -c "
 import json
@@ -565,15 +591,15 @@ set -e
 if [ "$st" != 3 ]; then
   echo "::error::run-evals.sh 가 요청한 모델이 안 보이는 회차를 받았다 (exit $st)"; exit 1
 fi
-# 이름이 겹치는 딴 모델은 같은 모델이 아니다 — claude-sonnet-5 를 요청했는데
-# claude-sonnet-5-5 로 돈 회차(→ 3). 부분 문자열로 견주던 러너는 이것을 받았다.
+# 이름이 겹치는 딴 모델은 같은 모델이 아니다 — $near 를 요청했는데
+# 수트 모델($model)로 돈 회차(→ 3). 부분 문자열로 견주던 러너는 이것을 받았다.
 # 거꾸로 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)은 받아야 한다(→ 0).
 set +e
-FAKE_RESULT="$f/allok.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model claude-sonnet-5 >/dev/null 2>&1
+FAKE_RESULT="$f/allok.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model "$near" >/dev/null 2>&1
 st=$?
 set -e
 if [ "$st" != 3 ]; then
-  echo "::error::run-evals.sh 가 claude-sonnet-5 를 요청했는데 claude-sonnet-5-5 로 돈 회차를 받았다 (exit $st)"; exit 1
+  echo "::error::run-evals.sh 가 $near 를 요청했는데 $model 로 돈 회차를 받았다 (exit $st)"; exit 1
 fi
 printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5-20251001":{}}}' > "$f/dated.jsonl"
 python3 -c "
