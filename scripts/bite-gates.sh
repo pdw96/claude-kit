@@ -5,9 +5,9 @@
 #
 # **왜 여기 있나.** 이 본문은 CI 「게이트가 무는가」 스텝(`eval.yml`)이었다. `eval.yml` 은 수트에 깃발을 넘겨
 # 통째로 수트 지문(`eval-key.py`)에 들어, 변조본만 고쳐도 route 수트가 다시 돌았다. 그래서 스텝의 본문을 글자
-# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 스텝과 다른 자리는 넷뿐이다 — 이 머리, 저장소 맨 위를
-# git 에서 읽는 것(CI 의 `$GITHUB_WORKSPACE` 대신), 제자리 변조를 백업에서 되돌리는 것(ADR 0020 의 3), 끝의
-# 「변조본 파일이 수트 지문 밖인가」(ADR 0020 의 6).
+# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 스텝과 다른 자리는 다섯뿐이다 — 이 머리, 저장소 맨 위를
+# git 에서 읽는 것(CI 의 `$GITHUB_WORKSPACE` 대신), 임시 폴더를 한 폴더에 모아 끝날 때 지우는 것, 제자리 변조를
+# 백업에서 되돌리는 것(ADR 0020 의 3), 끝의 「변조본 파일이 수트 지문 밖인가」(ADR 0020 의 6).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -20,8 +20,13 @@ set -euo pipefail
 R=$(git rev-parse --show-toplevel)
 cd "$R"
 
+# 임시 폴더는 다 한 폴더 아래 만들고 끝날 때 지운다 — 본문의 mktemp 는 지우지 않아, 로컬에서 돌릴 때마다 /tmp 에
+# 서른 남짓 · 45MB 쯤이 남았다(CI 는 러너를 버려 몰랐다). 조각 11 설계 끝 「PR B 에서 정했다」.
+tmp=$(mktemp -d)
+export TMPDIR="$tmp"
+
 # 제자리 변조의 백업(ADR 0020 의 3). hold 는 흔들기 전에 실행 비트까지 베끼고, undo 는 거기서 되돌린 뒤 백업을
-# 지운다. 끝날 때 남은 백업은 trap 이 되돌린다 — 떨어져 끝나도 · INT · TERM 으로 끊겨도.
+# 지운다. 끝날 때 남은 백업은 trap 이 되돌린 뒤 임시 폴더를 지운다 — 떨어져 끝나도 · INT · TERM 으로 끊겨도.
 held=$(mktemp -d)
 echo "제자리에서 흔드는 파일은 흔들기 전에 $held 에 베낀다 — 되돌리지 못하고 죽으면 거기 남은 파일을 저장소 맨 위의 같은 경로로 되돌려 놓는다"
 hold() {  # $1=저장소 맨 위 기준 경로
@@ -35,7 +40,7 @@ undo_all() {
   (cd "$held" && find . -type f -print0) | while IFS= read -r -d '' p; do undo "${p#./}"; done
   rm -rf "$held"
 }
-trap 'st=$?; undo_all; exit $st' EXIT
+trap 'st=$?; undo_all; rm -rf "$tmp"; exit $st' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
