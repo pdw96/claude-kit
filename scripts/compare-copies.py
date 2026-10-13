@@ -252,7 +252,7 @@ def main():
             if len(body) > SHOW:
                 print(f"  {sign} … {len(body) - SHOW} 줄 더")
     unjudged = sum(1 for h in cands if h not in known)
-    print(f"\n후보 {len(cands)} — 미판정 {unjudged} · 판정됨 {len(cands) - unjudged} · 판정됨 · 새 레포 {fresh}")
+    print(f"\n후보 {len(cands)} — 미판정 {unjudged} · 판정됨 {len(cands) - unjudged}(새 레포 {fresh})")
     if unjudged:
         print("판정은 feedback.json 에 적는다(docs/schema.md). 미판정은 대장에 안 적는다.")
     if fresh:

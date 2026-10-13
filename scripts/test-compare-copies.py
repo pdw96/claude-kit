@@ -270,7 +270,7 @@ def main():
             rc, _, out = compare(reg_path=reg2, ledger_path=led2, text=True)
             expect("새 레포 꼬리표가 안 찍혔다", rc == 0 and "FB-1 특화 · 새 레포 b  sha256:" in out, out[-400:])
             expect("끝 줄의 새 레포 셈이나 seen 안내가 없다",
-                   "판정됨 · 새 레포 1" in out and "seen 은 저자가 더한다" in out, out[-400:])
+                   "미판정 0 · 판정됨 1(새 레포 1)" in out and "seen 은 저자가 더한다" in out, out[-400:])
 
             # (나) seen 이 a · b — 기본 실행에 숨고, --all 에서 new_repos 가 빈 목록이다
             judge(["a", "b"])
@@ -284,7 +284,7 @@ def main():
             rc, _, out = compare("--all", reg_path=reg2, ledger_path=led2, text=True)
             expect("seen 안의 후보에 새 레포 꼬리표가 붙었다",
                    rc == 0 and "FB-1 특화  sha256:" in out and "새 레포 b" not in out
-                   and "판정됨 · 새 레포 0" in out and "seen 은 저자가 더한다" not in out, out[-400:])
+                   and "미판정 0 · 판정됨 1(새 레포 0)" in out and "seen 은 저자가 더한다" not in out, out[-400:])
 
     # 뜻이 바뀐 줄 옆에 공백만 바뀐 줄이 붙어도 같은 후보다(Codex 리뷰) — 함수로 직접 본다
     import importlib.util
