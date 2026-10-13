@@ -295,6 +295,31 @@ if python3 scripts/verify-copies.py >/dev/null 2>&1; then
 fi
 undo copies.json
 
+# verify-copies.py — 사본 줄이 그 뒤 바뀐 원본 파일의 이름을 찍어야 한다(조각 15 설계 ② V2). 경로가 없는 줄
+# (CI 의 꼴)에 커맨드를 마지막으로 고친 커밋의 부모를 적으면, 그 커밋이 고친 커맨드 이름이 그 줄에 나와야 한다.
+k=$(git log -1 --no-merges --format=%H -- vibe-audit/commands/)
+want=$(git diff --name-only "$k^" "$k" -- vibe-audit/commands/ | sed 's#.*/##')
+if [ -z "$k" ] || [ -z "$want" ]; then
+  echo "::error::vibe-audit/commands/ 를 고친 커밋을 못 찾았다 — 바뀐 원본 이름 변조를 못 한다"; exit 1
+fi
+hold copies.json
+python3 - "$(git rev-parse "$k^")" <<'PY'
+import json, pathlib, sys
+p = pathlib.Path("copies.json")
+d = json.loads(p.read_text(encoding="utf-8"))
+d["copies"].append({"repo": "이름-보는-사본", "agents_path": "/없는/자리/.claude/agents",
+                    "synced_commit": sys.argv[1], "synced_at": "2026-01-01"})
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+line=$(python3 scripts/verify-copies.py 2>&1 | grep '이름-보는-사본:' || true)
+undo copies.json
+for n in $want; do
+  case "$line" in
+    *"바뀐 원본: "*"$n"*) ;;
+    *) echo "::error::verify-copies.py 가 그 뒤 바뀐 원본 $n 의 이름을 사본 줄에 안 찍었다 — $line"; exit 1 ;;
+  esac
+done
+
 # verify-feedback.py — 성하지 않은 후보 대장은 실패해야 한다(docs/schema.md 의 규칙).
 # 같은 모양의 성한 대장은 통과해야 한다 — 다 떨어뜨리는 검사도 무는 것처럼 보인다.
 fb=$(mktemp -d)
@@ -319,6 +344,8 @@ bad("fed-no-feedback", lambda c: c.pop("feedback"))
 bad("fed-commit-missing", lambda c: c["feedback"].update(commit="0" * 40))
 bad("fed-case-missing", lambda c: c["feedback"].update(cases=["없는-케이스"]))
 bad("feedback-not-fed", lambda c: c.update(status="defect"))
+bad("files-folder", lambda c: c["seen"][0].update(files=["commands/audit-brief.md"]))
+bad("files-ext", lambda c: c["seen"][0].update(files=["sync.sh"]))
 PY
 python3 scripts/verify-feedback.py "$fb/ok.json" >/dev/null || {
   echo "::error::verify-feedback.py 가 성한 대장을 떨어뜨렸다"; python3 scripts/verify-feedback.py "$fb/ok.json"; exit 1; }
@@ -337,7 +364,9 @@ for m in 'if behind != "0":|if False:' \
          'rows = [(n, ln, " ".join(ln.split()))|rows = [(n, ln, ln)' \
          'if loose:|if False:' \
          'h = content_hash(o, cl)|h = content_hash(o, cl + [str(at)])' \
-         'new = sorted(set(e["seen"]) - judged[2]) if judged else []|new = []'; do
+         'new = sorted(set(e["seen"]) - judged[2]) if judged else []|new = []' \
+         'for src, ext, there in SPOTS:|for src, ext, there in SPOTS[:1]:' \
+         '"--untracked-files=all", "--", *dirs)|"--untracked-files=all", "--", rel)'; do
   python3 - "${m%%|*}" "${m##*|}" "$cc/c.py" <<'PY'
 import pathlib, sys
 s = pathlib.Path("scripts/compare-copies.py").read_text(encoding="utf-8")
