@@ -40,8 +40,9 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
   - R1 원본 감사자 여섯의 「출력 형식」 코드 울타리 안, 머리의 `- 감사자:` 줄 바로 다음에 `- 감사한 커밋:` 으로 시작하는 줄이 하나 있다.
     여섯의 그 줄은 글자가 같다.
   - R2 그 줄의 자리표시가 말하는 것 — 지금 것인 브리핑(「세 도구로 할 수 없는 것」의 대조를 지난 브리핑)이 있으면 그 「대상」의 SHA 를 백틱으로
-    적고, 그 브리핑의 「커밋 안 된 변경」이나 「추적 안 된 파일」이 있음이면 끝에 `· 커밋 안 된 변경 포함` 을 붙인다. 지금 것인 브리핑이 없으면
-    SHA 를 짐작하지 않고 「모름」을 적는다(ADR 0026 의 3).
+    적고, 그 브리핑의 diff 가 커밋 안 된 변경이나 추적 안 된 파일을 하나라도 **담았으면**(머리 두 줄의 「diff 에 포함 여부」) 끝에
+    `· 커밋 안 된 변경 포함` 을 붙인다. 있었지만 하나도 담지 못했으면 붙이지 않는다 — 그 변경은 브리핑의 「담지 않은 것」이고 이 회차가
+    감사하지 않았다. 지금 것인 브리핑이 없으면 SHA 를 짐작하지 않고 「모름」을 적는다(ADR 0026 의 3).
   - R3 공통 절 넷과 프론트매터는 글자가 그대로다 — `git diff main...HEAD` 의 감사자 덩어리가 다 「출력 형식」과 R4 의 줄인 문구 안이다.
     `verify-copy.py vibe-audit/agents` 가 통과하고, 두 사본이 `verify-copies.py` PASS 그대로다.
   - R4 예산 — `verify-budget.py` 의 천장 넷은 그대로다. 줄을 넣어 호출 시 11,000 을 넘는 감사자는 **그 감사자의** 문구를 줄여 넣는다 —
@@ -50,7 +51,7 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
 - **케이스** (B)
   - K1 `brief-audited-commit` — 감사자 `audit-secrets`, 커맨드를 부르지 않는다(ADR 0026 의 2). 픽스처는 저자 · 커미터 시각을 박아 SHA 가
     늘 같은 저장소를 만든다 — 기준 커밋 · HEAD 커밋, 그리고 **커밋하지 않은** 작업트리 변경. 진짜 부적합 하나는 그 커밋 안 된 변경 안에
-    있다. 픽스처가 놓는 브리핑은 커맨드 「셋」의 모양이고 「대상」은 HEAD(지금 것), 「커밋 안 된 변경」은 있음, diff 절의 `### 작업트리`
+    있다. 픽스처가 놓는 브리핑은 커맨드 「셋」의 모양이고 「대상」은 HEAD(지금 것), 「커밋 안 된 변경」은 있음 — diff 에 포함, diff 절의 `### 작업트리`
     아래에 그 변경이 있다. 그레이더 —
     - `real-nc-found`(정규식) 대조군 — 그 부적합이 NC 절에 결함의 흔적과 함께 있다
     - `gate-commit-recorded`(정규식) — 「감사한 커밋」 줄에 HEAD 의 SHA 가 있다. 기준의 SHA 만 적은 줄은 떨어진다
@@ -58,7 +59,7 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
     - `auditor-fired`(`tool_used`, `arm: with-only`)
     - 표본 — `pass.md` 한 벌, 그리고 `fail*.md` 넷: 줄이 없는 옛 모양(두 목적 그레이더) · 꼬리가 없는 줄(`gate-dirty-marked`) · 기준
       SHA 를 적은 줄(`gate-commit-recorded`) · 대조군 결함을 놓친 기록(`real-nc-found`). `verify-evals.py` · `verify-graders.py` 통과.
-  - K2 측정 — `run-evals.sh --case brief-audited-commit`(3 회차)을 고치기 전의 감사자(케이스만 더한 커밋)에서 돌리면 세 회차 다 목적
+  - K2 측정 — `run-evals.sh --case brief-audited-commit --ablation none --runs 3` 을 고치기 전의 감사자(케이스만 더한 커밋)에서 돌리면 세 회차 다 목적
     그레이더 둘이 떨어지고, 고친 감사자에서 돌리면 세 회차 다 지나가 점수가 문턱(0.8) 이상이다.
   - K3 전수 — 고친 감사자의 머리에서 `workflow_dispatch` 전수의 verdict 가 초록이다. R4 의 줄인 문구가 닿는 판정 케이스(`audit-internal` ·
     `audit-data` 의 것)가 이 안에서 문턱을 넘는다.
@@ -76,6 +77,7 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
   옮기는 레포에서는 그 줄이 남지 않을 수 있다. 커맨드를 고치지 않는다(하지 않을 일 2).
 - **여섯 중 다섯** — 케이스는 `audit-secrets` 하나로 잰다. 다른 다섯은 같은 글자의 줄을 들 뿐 그 줄을 쓰는지는 재지 않는다.
 - **브리핑이 없거나 지난 회차 것일 때** — 「모름」을 적는지는 재지 않는다(하지 않을 일 6).
+- **커밋 안 된 변경이 있었지만 diff 에 담지 못한 브리핑** — 꼬리를 붙이지 않는지는 재지 않는다. 케이스는 담은 꼴 하나다.
 - **줄의 이름에 기댄다** — 정규식은 「감사한 커밋」이라는 이름의 줄을 찾는다. 같은 사실을 다른 이름의 줄이나 본문에 적은 기록은 떨어진다 —
   출력 형식을 따르는가를 재는 것이다.
 - **다음 회차가 그 줄을 쓰는가** — 기준을 그 SHA 로 고르는 규칙은 세우지 않는다(하지 않을 일 5).
@@ -92,8 +94,11 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
 | 브리핑 줄 | 모양 | 새 줄이 쓰는 것 |
 |---|---|---|
 | `- 대상:` | `` `<HEAD 짧은 SHA>` (브랜치 `<이름>`) `` | 백틱 안의 SHA |
-| `- 커밋 안 된 변경:` | `없음` / `있음 — <경로 목록, diff 포함 여부>` | 있음이면 꼬리 |
-| `- 추적 안 된 파일:` | `없음` / `<경로 목록 — diff 포함 여부>` | 없음이 아니면 꼬리 |
+| `- 커밋 안 된 변경:` | `없음` / `있음 — <경로 목록, diff 포함 여부>` | 있음이고 diff 에 담았으면 꼬리 |
+| `- 추적 안 된 파일:` | `없음` / `<경로 목록 — diff 포함 여부>` | 목록 가운데 diff 에 담은 것이 있으면 꼬리 |
+
+커맨드는 추적 안 된 파일 가운데 파일 · 링크가 아니거나 넣지 못한 것을 diff 에서 빼고 「담지 않은 것」에 적는다(「둘」). 그래서 꼬리는
+「있음」이 아니라 「담았음」에 건다.
 
 그 밖의 줄(만든 시각 · 기준 · 자름 · 검사)은 이 줄에 쓰지 않는다. 브리핑이 지금 것인지는 감사자의 지금 규칙(「대상」 SHA 와 `.git/HEAD`)이
 가르고, 그 규칙은 바뀌지 않는다.
@@ -142,8 +147,10 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
 **PR B** (A 가 머지된 뒤) — 커밋 순서가 측정의 순서다.
 
 1. 케이스만 더한 커밋 — `verify-evals.py` · `verify-graders.py` 통과(K1). 픽스처를 두 번 돌려 HEAD SHA 가 같고 그레이더의 SHA 와 같은지 본다.
-   `run-evals.sh --case brief-audited-commit` → 목적 그레이더 둘이 세 회차 다 떨어진다(K2 의 옛 쪽, 성공 기준 4).
-2. 감사자 여섯 · `budget.txt` · 판 — `run-evals.sh --case brief-audited-commit` → 세 회차 다 지나간다(K2 의 새 쪽).
+   `run-evals.sh --case brief-audited-commit --ablation none --runs 3` → 목적 그레이더 둘이 세 회차 다 떨어진다(K2 의 옛 쪽, 성공 기준 4).
+2. 감사자 여섯 · `budget.txt` · 판 — `run-evals.sh --case brief-audited-commit --ablation none --runs 3` → 세 회차 다 지나간다
+   (K2 의 새 쪽). `--ablation none` 이 없으면 러너가 플러그인 없는 팔까지 돌아 세션이 두 배다 — 그 팔은 지목한 감사자를 부를 수 없어
+   이 비교에 값이 없다(CI 의 수트와 같은 깃발).
    `python3 scripts/verify-budget.py` 통과 · `budget.txt` diff(R4). `verify-copy.py vibe-audit/agents` 통과 ·
    `git diff main...HEAD -- vibe-audit/agents` 가 R3 의 자리 안(R3). 두 클론이 있으면 `verify-copies.py` PASS 와 「바뀐 원본」 이름 —
    없으면 CI gate 잡의 같은 출력(성공 기준 2).
@@ -159,7 +166,8 @@ B 는 수트 지문(`eval-key.py route --list` · `full --list`)의 파일을 �
 **스스로 쓰기** — PR A · B 의 리뷰를 `slice-review` 로 가른다. PR 본문의 `## 리뷰 회차` 와 답글. B 는 `verify-slice-gate.py` 를 CI 에서
 지나간다(이 착공이 머지된 뒤).
 
-**단계 5(배포)** — 플러그인 판이 오른다(0.4.0). 마켓플레이스로 설치한 레포는 `claude plugin update` 로 받는다. 사본 레포는 다음 심기에서
+**단계 5(배포)** — 플러그인 판이 오른다(0.4.0). 마켓플레이스로 설치한 레포는 `claude plugin marketplace update pdw96-kit` 뒤 `claude plugin update vibe-audit@pdw96-kit` 으로
+받고 리로드한다 — 이 마켓플레이스는 자동 갱신이 기본으로 꺼져 있다(`README.md` · ADR 0013). 사본 레포는 다음 심기에서
 받는다(하지 않을 일 7). 되돌리는 길은 B 의 되돌림과 판을 다시 올리는 것이다 — 대장의 FB-24 는 되돌림과 함께 `defect` 로 돌아간다.
 
 ## ⑥ PR 나눔
