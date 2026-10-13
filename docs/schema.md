@@ -19,6 +19,12 @@
 같은 문구가 나와도 같은 후보다 — 두 레포가 따로 같은 말을 썼다면 그것이 곧 「다른 레포에서도
 같은 말」의 증거다.
 
+그 증거는 비교기가 찍는다. 판정한 후보의 해시가 그 후보의 `seen[].repo` 밖의 레포 사본에서 나오면
+`compare-copies.py` 가 `--all` 없이도 `FB-n <상태> · 새 레포 <이름>` 으로 찍는다(`--json` 은 `judged.new_repos`).
+`seen` 에 그 레포를 더하는 것은 저자다 — 비교기는 대장을 쓰지 않는다. 해시에는 원본 쪽 줄이 들어, 두 사본의
+`synced_commit` 이 다르고 그 사이 그 자리의 원본 문구가 바뀌었으면 같은 고침도 해시가 갈려 다른 후보로 나온다
+(ADR 0022 의 3).
+
 ## 차이를 뽑는 법
 
 - **원본 쪽:** `git show <synced_commit>:vibe-audit/agents/<이름>.md` — 원본의 HEAD 가 아니라
@@ -90,4 +96,4 @@ hash = "sha256:" + sha256("\n".join(줄들))
 판정하지 않은 상태다. 그 검사가 무는지는 `scripts/bite-gates.sh` 가 변조한 대장 열로 본다.
 
 차이를 뽑는 쪽은 `scripts/compare-copies.py`, 그것이 무는지는 `scripts/test-compare-copies.py`
-(임시 원본 · 원격 · 사본)와 `scripts/bite-gates.sh` 의 비교기 변조 다섯이 본다.
+(임시 원본 · 원격 · 사본)와 `scripts/bite-gates.sh` 의 비교기 변조 일곱이 본다.

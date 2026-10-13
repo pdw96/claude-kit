@@ -336,7 +336,8 @@ for m in 'if behind != "0":|if False:' \
          'if PROVENANCE.match(ln):|if False:' \
          'rows = [(n, ln, " ".join(ln.split()))|rows = [(n, ln, ln)' \
          'if loose:|if False:' \
-         'h = content_hash(o, cl)|h = content_hash(o, cl + [str(at)])'; do
+         'h = content_hash(o, cl)|h = content_hash(o, cl + [str(at)])' \
+         'new = sorted(set(e["seen"]) - judged[2]) if judged else []|new = []'; do
   python3 - "${m%%|*}" "${m##*|}" "$cc/c.py" <<'PY'
 import pathlib, sys
 s = pathlib.Path("scripts/compare-copies.py").read_text(encoding="utf-8")
