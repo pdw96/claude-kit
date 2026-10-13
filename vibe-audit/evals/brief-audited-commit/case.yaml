@@ -1,0 +1,21 @@
+schema_version: "1.1"
+name: brief-audited-commit
+description: |
+  FB-24 의 일반 몫을 잰다 — 감사 기록이 어느 커밋을 감사했는지, 그 회차가
+  커밋 안 된 변경을 담았는지를 머리에 든다. 브리핑은 회차가 끝나면
+  `.claude/briefs/` 로 옮겨지고 `.gitignore` 라 새 클론에서 사라진다. 기록이
+  그 SHA 를 들지 않으면 다음 회차는 어디까지 봤는지 짐작해야 한다(ERP 의 실물).
+
+  작업트리에 커밋 안 된 변경이 있고, 브리핑은 그것을 `### 작업트리` 아래에
+  담았다. 그래서 이 회차가 본 상태는 「대상」 커밋이 아니다 — SHA 만 적으면
+  다음 사람이 그 커밋을 감사한 상태로 읽는다.
+
+  커맨드는 이 케이스에서 부르지 않는다 — 브리핑은 픽스처가 놓는다(ADR 0026 의 2).
+  픽스처는 시각을 박아 SHA 가 늘 같다 — 기준 3e17f24 · HEAD 0db47d4.
+expected_outcome: |
+  기록 머리의 「감사한 커밋」 줄에 HEAD 의 SHA(0db47d4)와
+  「· 커밋 안 된 변경 포함」을 적는다. 커밋 안 된 변경으로 붙은
+  /admin/users/{user_id} 삭제 라우트가 무인증인 것을 부적합으로 잡는다.
+tags: [brief, secrets]
+context:
+  scaffold_script: fixture.sh
