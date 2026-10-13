@@ -14,6 +14,10 @@
      성하지 않은 후보 대장에서는 멈춘다(종료코드 1)
   5. 같은 고침을 담은 사본 둘(`a` · `b`)에서, 판정한 후보의 `seen` 이 `a` 뿐이면 기본 실행에
      「새 레포 b」로 나오고, `a` · `b` 면 지금처럼 숨는다(조각 13 설계 ② T1)
+  6. 커맨드(`vibe-audit/commands/c.md`) · 검사기(`vibe-audit/scripts/v.py`)도 견준다(조각 15 설계 ② T1) —
+     (가) 출처 줄만 다른 커맨드 · 바이트 그대로인 검사기에서 후보 0 · (나) 둘의 고친 줄이 후보 둘이고 자리 줄이
+     `c.md` · `v.py` 다 · (다) 사본 `commands/` 의 커밋 안 된 변경, `scripts/` 의 추적 안 된 파일에서 멈춘다 ·
+     (라) 무시돼 HEAD 에 없는 사본 커맨드에서 멈춘다
 
 비교기를 고치고 이것이 안 돌면, 멈춰야 할 것이 견주고 지나가도 아무도 모른다.
 
@@ -285,6 +289,76 @@ def main():
             expect("seen 안의 후보에 새 레포 꼬리표가 붙었다",
                    rc == 0 and "FB-1 특화  sha256:" in out and "새 레포 b" not in out
                    and "미판정 0 · 판정됨 1(새 레포 0)" in out and "seen 은 저자가 더한다" not in out, out[-400:])
+
+        # 6. 커맨드 · 검사기 — 원본에 둘을 더한 커밋을 심은 사본을 따로 둔다. 1 ~ 5 의 사본은 그 앞 커밋을
+        # 심어 커맨드 · 검사기가 없다. sync-agents.sh 처럼 커맨드는 머리말 뒤에 출처 줄, 검사기는 바이트 그대로다
+        cmd = "---\nname: c\ndescription: x\n---\n\n" + "".join(f"커맨드 문장 {i} 입니다.\n" for i in range(12))
+        chk = "".join(f"x{i} = {i}  # 검사기 줄\n" for i in range(12))
+        (orig / "vibe-audit" / "commands").mkdir()
+        (orig / "vibe-audit" / "scripts").mkdir()
+        (orig / "vibe-audit" / "commands" / "c.md").write_text(cmd, encoding="utf-8")
+        (orig / "vibe-audit" / "scripts" / "v.py").write_text(chk, encoding="utf-8")
+        commit(orig, "커맨드 · 검사기")
+        base6 = sh(orig, "git", "rev-parse", "HEAD")
+        rm6 = t / "remote-6.git"
+        sh(t, "git", "init", "-q", "--bare", "-b", "main", str(rm6))
+        c6 = t / "copy-6"
+        sh(t, "git", "clone", "-q", str(rm6), str(c6))
+        ag6, cm6, sc6 = (c6 / ".claude" / d for d in ("agents", "commands", "scripts"))
+        for d in (ag6, cm6, sc6):
+            d.mkdir(parents=True)
+        hdr6 = hdrs["audit-b"].replace(base[:7], base6[:7])
+        for f in ("audit-a", "audit-b"):
+            (ag6 / f"{f}.md").write_text(FRONT.format(n=f) + hdr6 + BODY, encoding="utf-8")
+        (cm6 / "c.md").write_text(cmd.replace("---\n\n", "---\n\n" + hdr6, 1), encoding="utf-8")
+        (sc6 / "v.py").write_text(chk, encoding="utf-8")
+        sh(c6, "git", "checkout", "-q", "-b", "main")
+        commit(c6, "심음")
+        sh(c6, "git", "push", "-q", "-u", "origin", "main")
+        reg6 = t / "copies-6.json"
+        reg6.write_text(json.dumps({"copies": [{"repo": "y", "agents_path": str(ag6), "synced_commit": base6,
+                                                "synced_at": "2026-01-01"}]}))
+        led6 = t / "feedback-6.json"
+        led6.write_text('{"candidates": []}\n')
+
+        # (가) 출처 줄만 다른 커맨드 · 바이트 그대로인 검사기
+        rc, d, out = compare(reg_path=reg6, ledger_path=led6)
+        expect("출처 줄만 다른 커맨드 · 바이트 그대로인 검사기에서 후보가 나왔다",
+               rc == 0 and d is not None and d["candidates"] == [], out[-400:])
+
+        # (나) 고친 줄 — 커맨드 하나 · 검사기 하나
+        edit(cm6 / "c.md", lambda s: s.replace("커맨드 문장 6 입니다.", "이 레포는 커맨드를 고쳤습니다."))
+        edit(sc6 / "v.py", lambda s: s.replace("x8 = 8", "x8 = 80"))
+        commit(c6, "고침")
+        sh(c6, "git", "push", "-q")
+        rc, d, out = compare(reg_path=reg6, ledger_path=led6)
+        got = d["candidates"] if d else []
+        where = sorted(w for c in got for w in c["where"])
+        expect("커맨드 · 검사기의 고친 줄이 후보 둘로 안 나왔다", rc == 0 and len(got) == 2, out[-400:])
+        expect("커맨드 · 검사기 후보의 자리 줄이 c.md · v.py 가 아니다",
+               len(where) == 2 and where[0].startswith("y · c.md:") and where[1].startswith("y · v.py:"), out[-400:])
+        expect("커맨드 · 검사기 후보의 seen.files 가 이름 하나가 아니다",
+               sorted(c["seen"][0]["files"][0] for c in got if len(c["seen"][0]["files"]) == 1) == ["c.md", "v.py"],
+               out[-400:])
+
+        # (다) commands/ 의 커밋 안 된 변경 · scripts/ 의 추적 안 된 파일
+        keep6 = (cm6 / "c.md").read_text(encoding="utf-8")
+        edit(cm6 / "c.md", lambda s: s + "고치던 중\n")
+        rc, _, out = compare(reg_path=reg6, ledger_path=led6)
+        expect("사본 commands/ 에 커밋 안 된 변경이 있는데 안 멈췄다", rc == 1, out[-400:])
+        (cm6 / "c.md").write_text(keep6, encoding="utf-8")
+        (sc6 / "new.py").write_text("x\n")
+        rc, _, out = compare(reg_path=reg6, ledger_path=led6)
+        expect("사본 scripts/ 에 추적 안 된 파일이 있는데 안 멈췄다", rc == 1, out[-400:])
+        (sc6 / "new.py").unlink()
+
+        # (라) 무시돼 HEAD 에 없는 사본 커맨드
+        sh(c6, "git", "rm", "-q", "--cached", ".claude/commands/c.md")
+        (c6 / ".gitignore").write_text(".claude/commands/c.md\n")
+        commit(c6, "커맨드를 무시")
+        sh(c6, "git", "push", "-q")
+        rc, _, out = compare(reg_path=reg6, ledger_path=led6)
+        expect("무시돼 HEAD 에 없는 사본 커맨드가 있는데 안 멈췄다", rc == 1 and "HEAD 에 없다" in out, out[-400:])
 
     # 뜻이 바뀐 줄 옆에 공백만 바뀐 줄이 붙어도 같은 후보다(Codex 리뷰) — 함수로 직접 본다
     import importlib.util

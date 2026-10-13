@@ -18,15 +18,19 @@
 `--json` 의 `judged` 에는 `new_repos`(없으면 빈 목록)가 든다. `seen` 에 그 레포를 더하는 것은
 저자다 — 이 스크립트는 `feedback.json` 을 읽기만 한다.
 
-**무엇과 견주나.** 원본은 대장의 `synced_commit` 의 `vibe-audit/agents/*.md`, 사본은
-그 레포 `HEAD` 에 커밋된 파일이다. 원본의 HEAD 와 견주면 원본이 그 뒤 움직인 것이
-사본의 차이로 보인다. `sync-agents.sh` 가 넣는 출처 주석 줄과 공백만 다른 덩어리는 거른다.
+**무엇과 견주나.** 원본은 대장의 `synced_commit` 의 `vibe-audit/agents/*.md` · `vibe-audit/commands/*.md` ·
+`vibe-audit/scripts/*.py`, 사본은 그 레포 `HEAD` 에 커밋된 같은 이름이다 — 감사자는 `agents_path`, 커맨드 ·
+검사기는 그 부모의 `commands/` · `scripts/`(`sync-agents.sh` 가 심는 자리 · ADR 0025 의 1). 사본에만 있는
+이름은 견주지 않는다. 원본의 HEAD 와 견주면 원본이 그 뒤 움직인 것이 사본의 차이로 보인다.
+`sync-agents.sh` 가 넣는 출처 주석 줄과 공백만 다른 덩어리는 거른다 — 검사기는 출처 줄 없이 바이트
+그대로 심기므로 거를 것이 없다. 자리 줄은 `<레포> · <파일 이름>:<줄>` 이다(원본에 겹치는 이름이 없다).
 
 **견주기 전에 멈춘다**(ADR 0003) — 하나라도 걸리면 아무것도 견주지 않고 1 로 끝난다.
   - 사본 자리가 없다 · git 저장소가 아니다
   - 대장의 synced_commit 이 이 저장소에 없다
   - 사본 레포가 원격(origin)의 기본 가지보다 뒤다 — 받아(fetch) 본다. 못 받으면 멈춘다
-  - 사본 자리에 커밋 안 된 변경이나 추적 안 된 파일이 있다
+  - 사본 자리(감사자 · 커맨드 · 검사기 폴더)에 커밋 안 된 변경이나 추적 안 된 파일이 있다
+  - 견줄 파일이 디스크에는 있는데 HEAD 에 없다(무시됨)
   - 후보 대장이 성하지 않다(`verify-feedback.py`)
 낡은 사본으로 판정하면 그 판정이 대장에 남아 다음 비교를 거르므로, 한 번 틀리면 오래 간다.
 
@@ -45,6 +49,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import posixpath
 import re
 import subprocess
 import sys
@@ -52,6 +57,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROVENANCE = re.compile(r"^<!-- pdw96/claude-kit@[0-9a-f]{7,40} 에서 옴\.")
 SHOW = 6  # 후보마다 한쪽에서 보여 줄 줄 수
+# 견줄 자리 — (원본 폴더, 확장자, `agents_path` 에서 본 사본 폴더). 대장의 칸은 `agents_path` 하나다(ADR 0025 의 1).
+SPOTS = (("vibe-audit/agents/", ".md", "."),
+         ("vibe-audit/commands/", ".md", "../commands"),
+         ("vibe-audit/scripts/", ".py", "../scripts"))
 
 
 def run(*args, cwd=None):
@@ -103,6 +112,20 @@ def hunks(orig_text, copy_text):
         yield at, [r[1] for r in a[i1:i2]], [r[1] for r in b[j1:j2]]
 
 
+def inside(*parts):
+    """사본 레포 맨 위 기준의 posix 경로 — 맨 위면 "." 이 아니라 이름만 남는다."""
+    return posixpath.normpath(posixpath.join(*parts))
+
+
+def originals(sha, rel):
+    """sha 의 견줄 원본 파일 — (원본 경로, 이름, 사본 레포 안의 경로)."""
+    for src, ext, there in SPOTS:
+        for n in sorted(git("ls-tree", "--name-only", sha, src).stdout.split()):
+            name = posixpath.basename(n)
+            if name.endswith(ext):
+                yield n, name, inside(rel, there, name)
+
+
 def preflight(c):
     """멈출 까닭 목록과, 견줄 준비(사본 레포 루트 · 사본 자리 상대 경로 · 사본 HEAD)."""
     who = c.get("repo") or "?"
@@ -134,20 +157,23 @@ def preflight(c):
             behind = rg("rev-list", "--count", "HEAD..FETCH_HEAD").stdout.strip()
             if behind != "0":
                 stop.append(f"{who}: 사본 레포 HEAD 가 origin/{branch} 보다 {behind} 커밋 뒤다 — 받은 뒤 다시 돌려라")
-    dirty = rg("status", "--porcelain", "--untracked-files=all", "--", rel).stdout.strip()
-    if dirty:
-        stop.append(f"{who}: 사본 자리에 커밋 안 된 것이 있다 — {len(dirty.splitlines())} 개")
-    # **견줄 감사자 파일은 HEAD 에 추적돼 있어야 한다.** 사본 레포가 `.claude/` 를 무시하면
+    # 세 자리 다 본다 — 폴더가 없으면 status 는 아무것도 안 찍는다. 그 파일은 「사본에 없는 파일」로
+    # 견주고, 빠진 것 자체는 verify-copies.py 가 떨어뜨린다(조각 15 설계 ② C4).
+    dirs = [inside(rel, there) for _, _, there in SPOTS]
+    st = rg("status", "--porcelain", "--untracked-files=all", "--", *dirs)
+    dirty = st.stdout.strip()
+    if st.returncode != 0:  # 못 읽은 것을 깨끗한 것으로 두지 않는다 — 예: 자리가 레포 밖으로 나간다
+        stop.append(f"{who}: 사본 자리의 상태를 못 읽었다 — {(st.stderr.strip().splitlines() or ['말 없음'])[-1]}")
+    elif dirty:
+        stop.append(f"{who}: 사본 자리(감사자 · 커맨드 · 검사기)에 커밋 안 된 것이 있다 — {len(dirty.splitlines())} 개")
+    # **견줄 파일은 HEAD 에 추적돼 있어야 한다.** 사본 레포가 `.claude/` 를 무시하면
     # status 는 그 파일을 안 보여 주고, 아래 `git show HEAD:` 는 감사자를 다 지운 것으로 읽어
     # 거짓 「삭제」 후보를 낸다(Codex 리뷰). 디스크에 있는데 HEAD 에 없으면 멈춘다.
     if not stop:
-        names = git("ls-tree", "--name-only", sha, "vibe-audit/agents/").stdout.split()
-        loose = [pathlib.PurePosixPath(n).name for n in names
-                 if (path / pathlib.PurePosixPath(n).name).exists()
-                 and rg("cat-file", "-e", f"HEAD:{rel}/{pathlib.PurePosixPath(n).name}" if rel != "." else
-                        f"HEAD:{pathlib.PurePosixPath(n).name}").returncode != 0]
+        loose = [there for _, _, there in originals(sha, rel)
+                 if (root / there).exists() and rg("cat-file", "-e", f"HEAD:{there}").returncode != 0]
         if loose:
-            stop.append(f"{who}: 사본 자리의 감사자가 HEAD 에 없다(무시됐거나 추적 안 됨) — {', '.join(loose)}")
+            stop.append(f"{who}: 사본 자리의 견줄 파일이 HEAD 에 없다(무시됐거나 추적 안 됨) — {', '.join(loose)}")
     if stop:
         return stop, None
     head = rg("rev-parse", "HEAD").stdout.strip()
@@ -207,11 +233,9 @@ def main():
     for c, root, rel, head in ready:
         sha = c["synced_commit"]
         heads.append((c["repo"], sha, head))
-        names = git("ls-tree", "--name-only", sha, "vibe-audit/agents/").stdout.split()
-        for n in sorted(x for x in names if x.endswith(".md")):
-            name = pathlib.PurePosixPath(n).name
+        for n, name, there in originals(sha, rel):
             orig = git("show", f"{sha}:{n}").stdout
-            cp = run("git", "-C", str(root), "show", f"HEAD:{rel}/{name}" if rel != "." else f"HEAD:{name}")
+            cp = run("git", "-C", str(root), "show", f"HEAD:{there}")
             copy = cp.stdout if cp.returncode == 0 else ""
             for at, o, cl in hunks(orig, copy):
                 h = content_hash(o, cl)

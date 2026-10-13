@@ -14,7 +14,10 @@
 찍는다** — 안 본 것을 본 것처럼 두지 않는다.
 
 **갈린 것 자체는 실패가 아니다.** 사본은 그 레포에 맞게 갈리라고 둔 것이다
-(루트 README). 몇 커밋만큼 멀어졌는지는 찍어 주되 판정하지 않는다.
+(루트 README). 몇 커밋만큼 멀어졌는지는 찍어 주되 판정하지 않는다. 그 사이 바뀐 원본
+파일의 이름도 붙인다(`— 바뀐 원본: audit-brief.md`) — 사본이 받아야 할 것이 무엇인지 git 을
+손으로 돌리지 않고 보이려는 알림이다(ADR 0025 의 3). 대장의 커밋과 이 저장소의 역사로
+나오므로 사본 경로가 없는 CI 에서도 찍힌다.
 
 표준 라이브러리만 쓴다.
 """
@@ -63,6 +66,15 @@ def against_commit(sha, copy):
                            capture_output=True, text=True)
     lines = (p.stdout or p.stderr).strip().splitlines()
     return p.returncode == 0, (lines[0] if lines else "(말이 없다)")
+
+
+def moved(sha):
+    """「원본은 그 뒤 N 커밋 움직임」 — 그 사이 바뀐 원본 파일 이름이 있으면 붙인다. 알림이다."""
+    r = git("rev-list", "--count", f"{sha}..HEAD", "--", *WATCHED)
+    out = f"원본은 그 뒤 {r.stdout.strip() if r.returncode == 0 else '?'} 커밋 움직임"
+    names = [pathlib.PurePosixPath(n).name for n in
+             git("diff", "--name-only", sha, "HEAD", "--", *WATCHED).stdout.split("\n") if n]
+    return out + (f" — 바뀐 원본: {', '.join(names)}" if names else "")
 
 
 def commands_missing(sha, agents_dir):
@@ -150,12 +162,11 @@ def main():
             )
             continue
 
-        r = git("rev-list", "--count", f"{sha}..HEAD", "--", *WATCHED)
-        drift = r.stdout.strip() if r.returncode == 0 else "?"
+        drift = moved(sha)
 
         path = pathlib.Path(c["agents_path"]).expanduser()
         if not path.is_dir():
-            notes.append(f"{who}: 이 기계에 {path} 가 없어 못 봤다 (원본은 그 뒤 {drift} 커밋 움직임)")
+            notes.append(f"{who}: 이 기계에 {path} 가 없어 못 봤다 ({drift})")
             continue
 
         reachable += 1
@@ -208,11 +219,11 @@ def main():
 
         ok, head = against_commit(sha, path)
         if ok is None:
-            notes.append(f"{who}: {head} (원본은 그 뒤 {drift} 커밋 움직임)")
+            notes.append(f"{who}: {head} ({drift})")
         elif not ok:
             bad.append(f"{who}: 공통 절이 {sha[:7]} 의 원본과 다르다 — {head}")
         else:
-            notes.append(f"{who}: 공통 절이 {sha[:7]} 의 원본과 같음 (원본은 그 뒤 {drift} 커밋 움직임)")
+            notes.append(f"{who}: 공통 절이 {sha[:7]} 의 원본과 같음 ({drift})")
 
     if bad:
         print("FAIL\n  - " + "\n  - ".join(bad))

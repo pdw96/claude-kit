@@ -28,6 +28,7 @@ SHA = re.compile(r"^[0-9a-f]{40}$")
 HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ID = re.compile(r"^FB-([1-9]\d*)$")
+NAMES = (".md", ".py")  # seen[].files 가 받는 확장자 — 감사자 · 커맨드는 .md, 검사기는 .py
 
 
 def has_commit(sha):
@@ -47,9 +48,10 @@ def check_seen(who, seen):
         if not isinstance(s.get("repo"), str) or not s["repo"]:
             bad.append(f"{at}: repo 가 없다")
         files = s.get("files")
+        # 감사자 · 커맨드 · 검사기의 이름 — 폴더는 붙이지 않는다(ADR 0025 의 2). 원본에 겹치는 이름이 없다
         if (not isinstance(files, list) or not files
-                or not all(isinstance(f, str) and f.endswith(".md") and "/" not in f for f in files)):
-            bad.append(f"{at}: files 는 감사자 파일 이름(*.md)의 목록이어야 한다")
+                or not all(isinstance(f, str) and f.endswith(NAMES) and "/" not in f for f in files)):
+            bad.append(f"{at}: files 는 감사자 · 커맨드 · 검사기 파일 이름(*.md · *.py, 폴더 없음)의 목록이어야 한다")
         if not SHA.match(str(s.get("commit", ""))):
             bad.append(f"{at}: commit 이 40자 SHA 가 아니다 — 판정할 때 견준 사본 커밋")
         base = str(s.get("base", ""))

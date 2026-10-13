@@ -11,6 +11,8 @@
      당기기 · 두 번호의 hash 바꾸기는 떨어지고, 상태만 바꾼 것은 통과한다
   2. 되먹임 완료의 케이스는 `feedback.commit` 에 있어야 한다 — 케이스보다 앞선 커밋을 적으면
      떨어지고, 케이스가 든 커밋을 적으면 통과한다
+  3. 검사기 이름(`verify-brief.py`)을 `seen[].files` 에 든 성한 후보는 통과한다(조각 15 설계 ② F2).
+     폴더가 붙은 이름 · 다른 확장자가 떨어지는 것은 `bite-gates.sh` 가 변조한 대장으로 본다
 
 표준 라이브러리만 쓴다.
 """
@@ -107,6 +109,15 @@ def main():
         write([three[0], fed(after), three[2]])
         rc, out = check()
         expect("케이스가 든 커밋을 적은 되먹임이 떨어졌다", rc == 0, out)
+
+        # 3. 검사기 · 커맨드 후보 — 새 번호로 더한다
+        py = row(4, "d")
+        py["seen"][0]["files"] = ["verify-brief.py"]
+        md = row(5, "e")
+        md["seen"][0]["files"] = ["audit-brief.md"]
+        write(three + [py, md])
+        rc, out = check()
+        expect("files 에 verify-brief.py · audit-brief.md 를 든 성한 대장이 떨어졌다", rc == 0, out)
 
     if fails:
         for f in fails:
