@@ -345,6 +345,125 @@
         ],
         "budget_delta": 235
       }
+    },
+    {
+      "id": "FB-19",
+      "hash": "sha256:1173140907fba897d211c9da31cac91b5fe88b29c6dc766316a70a59ac74d6c7",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "원본의 일반 규칙 「레포가 대장을 따로 두었으면 그 파일도 뺀다」를 ERP 대장 두 경로로 채운 것",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-20",
+      "hash": "sha256:836ac00dc39df9c5bcd794188127734074ba6f553fdddcae79e3d0f121cff9fa",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "ERP 의 「심각도 낮음은 audit-low 이슈로」 절차(그 레포의 ADR 0011)를 모으는 줄",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-21",
+      "hash": "sha256:5f3199e0d397bc8e5f42969b0324bbe29e8659ee3ba5dd1f49b8196874b8041d",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-20 의 짝 — 같은 절차의 브리핑 절",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-22",
+      "hash": "sha256:932018066576420f4061d41dd857afcd8ba0b62d003d58b581eca32427c59e4d",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "원본의 `--exclude <경로>` 를 ERP 대장 두 경로로 채운 것. 플러그인 폴더 문장은 ERP 가 사본으로 깔아 뺐다",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-23",
+      "hash": "sha256:2302bed544dcae6c0ee6437d7127356170ebfb133bcec5940682ed9adcd9bf50",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "원본이 「대장을 따로 두었으면 그 대장에 등록」으로 일반형을 이미 둔다 — ERP 의 대장 경로 · 낮음은 이슈 · 회차 절 파일을 채운 것(FB-1 과 같은 근거)",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-24",
+      "hash": "sha256:41cfe7859b884e1d5d43f09587c295eceff7f03b70dd57cb509212870dd99688",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "defect",
+      "reason": "혼합 — 일반: 감사 기록에 감사한 커밋과 그 회차가 커밋 안 된 변경을 담았는지를 남긴다. 원본 기록 모양(범위 · 일시 · 감사자)에 감사한 커밋이 없고, 그 SHA 를 든 브리핑 보관본은 .gitignore 라 새 클론 · 클라우드 세션에서 사라져 다음 회차가 기준을 고를 근거가 없다 — 어느 레포에서도 같은 말. 뺄 것: 「회차 절 머리 아래 첫 줄」 자리 · ERP 대장의 「회차 절이 여는 줄」 · 브리핑 보관 이름(ERP 에 기록 파일 이름이 없어서 나온 말)",
+      "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-25",
+      "hash": "sha256:84817602bf7270b012fb933a149693d4c49d1e92f5caa3fd15fdb21cb301347c",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-brief.md"
+          ],
+          "commit": "248317a34b1cc81f8ed0b3854ff292e3655025db",
+          "base": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60"
+        }
+      ],
+      "status": "specific",
+      "reason": "ERP 가 .claude/audits/ 를 쓰지 않아 뺀 문장",
+      "decided_at": "2026-10-13"
     }
   ]
 }
