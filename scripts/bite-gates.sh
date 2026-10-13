@@ -739,6 +739,19 @@ if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
   echo "::error::verify-evals.py 가 스캐폴드 없는 케이스를 통과시켰다"; exit 1
 fi
 
+# verify-evals.py — 커맨드 케이스가 대조군 command-ran 을 잃거나 없는 커맨드를 부르면 실패해야 한다(조각 14 설계 ② V4).
+# 커맨드 이름은 `audit-` 밖으로 바꾼다 — 그 앞머리면 「없는 감사자」 검사가 대신 물어 커맨드 갈래가 안 보인다.
+s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+rm "$s/vibe-audit/evals/command-base-only/graders/command-ran.md"
+if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+  echo "::error::verify-evals.py 가 command-ran 없는 커맨드 케이스를 통과시켰다"; exit 1
+fi
+s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
+sed -i 's#^/vibe-audit:audit-brief #/vibe-audit:no-such-command #' "$s/vibe-audit/evals/command-base-only/prompt.md"
+if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
+  echo "::error::verify-evals.py 가 없는 커맨드를 부르는 커맨드 케이스를 통과시켰다"; exit 1
+fi
+
 # verify-manifest.py — 검사가 모르는 라이선스 선언은 실패해야 한다
 m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
 sed -i 's/"license": "MIT"/"license": "GPL-3.0"/' "$m/vibe-audit/.claude-plugin/plugin.json"
