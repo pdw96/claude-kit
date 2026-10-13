@@ -80,7 +80,7 @@
 - 스택: bash · python3 표준 라이브러리 · git · Claude Code CLI(`run-evals.sh`). 감사자 문구 · 케이스 · 대장 · 문서.
 - 수트 지문: 구현 PR 은 `vibe-audit/agents/` 와 `vibe-audit/evals/` 를 고친다 — route 수트가 PR 의 CI 에서 돈다. 착공 PR 은 지문 밖이다.
 - 비용: 새 케이스의 옛 · 새 측정(`--case`, 각 3 회차)과 전수 한 번(`workflow_dispatch`) — 월 한도 $20 안에서(`CHECKLIST.md`). 측정은
-  자격이 있는 세션이 돌린다. 이 세션의 컨테이너에는 자격이 없다 — 저자가 자격을 주거나 전수(`workflow_dispatch`)로 잰다.
+  자격이 있는 세션이 돌린다. 착공 세션의 컨테이너에는 자격이 없어, 저자가 구현 세션에 자격을 준다(2026-10-13).
 - 예산: 감사자 호출 시 천장 11,000 · 커맨드 4,500 은 그대로다(ADR 0004).
 - 사본 클론: 성공 기준 2 를 두 클론이 있는 세션에서 보면 대장 경로대로 받는다 — ERP 는 익명 클론(`GIT_LFS_SKIP_SMUDGE=1`), 강호쟁패는
   `add_repo` 뒤 LFS 이미지를 `assume-unchanged` 로 재운다. claude-kit 은 역사 전체가 있어야 한다(`CLAUDE.md` 「스택」).
