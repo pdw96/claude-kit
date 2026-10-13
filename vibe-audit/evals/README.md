@@ -145,6 +145,9 @@ CI(`.github/workflows/eval.yml`)는 PR 과 `main` push 에서 **`route-*` 만** 
 - **`audit-internal` · `audit-quality` 의 자기 트리거** — 위 「트리거 정확도」.
 - **`audit-contract` 의 판정** — 판정 케이스가 없다. 되먹임에 기록된 거짓 판정이 그 감사자에서는
   안 나왔다. 나오면 그때 붙인다.
+- **커맨드 `audit-brief`** — 케이스가 커맨드를 부르지 않는다(`brief-used` · `brief-absent` 는 브리핑을 픽스처가 놓는다).
+  eval 세션은 don't-ask 모드라 커맨드가 브리핑을 쓰는 자리 `.claude/` 에 쓰기가 늘 거부되어, 커맨드를 부른 케이스는
+  브리핑을 못 쓰고 멈춘다(ADR 0024). 커맨드의 동작은 판을 올린 뒤 대화형 세션에서 저자가 본다.
 
 ## 고정한 것
 
