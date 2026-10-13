@@ -5,6 +5,12 @@
       "agents_path": "/home/user/erp/.claude/agents",
       "synced_commit": "3d6964a7ab5edebe7b7dfe652c1ccdc307ff2c60",
       "synced_at": "2026-09-28"
+    },
+    {
+      "repo": "ganghojaengpae",
+      "agents_path": "/home/user/ganghojaengpae/.claude/agents",
+      "synced_commit": "b8d924396e55856f4a2baef92bfb0a348a8257c9",
+      "synced_at": "2026-10-13"
     }
   ]
 }
