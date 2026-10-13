@@ -10,15 +10,12 @@
 `fixture.sh` 가 실행 권한을 잃어도 초록이 난다. 물지 않는 검사는 게이트가
 아니다.
 
-케이스는 세 모양이다. 이름의 앞머리로 가른다.
+케이스는 두 모양이다. 이름의 앞머리로 가른다.
 
 - `trap-*` · `gate-*` — **판정**을 잰다. 감사자를 이름으로 불러 놓고, 그 기록이
   함정을 밟았는지 본다
 - `route-*` — **트리거**를 잰다. 감사자를 지목하지 않은 자연스러운 말에 맞는
   감사자가 뜨는가. 프론트매터 `description` 이 시험 대상이다
-- `command-*` — **커맨드**를 잰다. `prompt.md` 의 첫 줄이 플러그인의 커맨드를
-  부르고(`/<플러그인>:<커맨드> …`), 그 커맨드가 `commands/` 에 실재해야 한다
-  (조각 14 · ADR 0023 의 3)
 
 판정 케이스에서 특히 보는 것은 **대조군**이다. 함정 그레이더만 있는 케이스는
 아무것도 안 내는 망가진 감사자에게 만점을 준다 — 함정을 안 걸었으니까. 그래서
@@ -28,12 +25,6 @@
 감사와 무관한 말에는 **아무도 뜨면 안 된다** — 그 모양은 `route-quiet` 하나로
 적고, 그때는 `route-correct` 를 두지 않는다.
 여섯을 전부 띄우는 세션도 「맞는 감사자가 떴다」로는 통과하기 때문이다.
-
-커맨드 케이스의 대조군은 **`command-ran`** 이다 — 커맨드가 실제로 펴져 일을 했는가
-(`file_exists`, `exists: false` 는 안 된다). 판정 케이스의 `real-nc-found` ·
-`auditor-fired` · 감사자 지목은 요구하지 않는다 — 감사자를 부르지 않는 것이 이
-모양의 정상일 수 있어서, 그것을 요구하면 덫과 정반대를 요구하게 된다. 목적
-그레이더(`trap-*` · `gate-*`) · `arm` · 스캐폴드 · 심판 무게는 판정 케이스와 같다.
 
 트리거 케이스의 `prompt.md` 는 감사자를 **지목하면 안 된다.** 지목하면 재는
 것이 트리거가 아니라 복종이 된다.
@@ -65,10 +56,6 @@ GRADER_TYPES = {"regex", "tool_used", "tool_order", "file_exists", "llm", "basel
 CONTROL = "real-nc-found"
 PURPOSE_PREFIXES = ("trap-", "gate-")
 ROUTE_PREFIX = "route-"
-COMMAND_PREFIX = "command-"
-COMMAND_CONTROL = "command-ran"
-# 커맨드 케이스의 `prompt.md` 본문 첫 줄 — `/<플러그인>:<커맨드>` 뒤는 인자다.
-COMMAND_LINE = re.compile(r"/(?P<plugin>[\w.-]+):(?P<cmd>[\w-]+)(?:\s|$)")
 
 # Agent 호출 입력은 공백 없는 JSON 으로 펴져서 input_match 에 닿는다.
 FIRED = re.compile(r'"subagent_type":"(?P<plugin>[\w.-]+):(?P<agent>audit-[a-z]+)"')
@@ -158,18 +145,8 @@ def yaml_shallow(path):
     return out
 
 
-def prompt_body(text):
-    """prompt.md 의 머리말(--- … ---)을 뺀 본문."""
-    if text.startswith("---\n"):
-        end = text.find("\n---\n", 3)
-        if end != -1:
-            return text[end + 5:]
-    return text
-
-
 def check(suite, agents_dir):
     known = {p.stem for p in agents_dir.glob("audit-*.md")}
-    commands = {p.stem for p in (agents_dir.parent / "commands").glob("*.md")}
     if not known:
         return [f"감사자를 못 찾았다: {agents_dir}"]
     import json
@@ -230,23 +207,10 @@ def check(suite, agents_dir):
                     bad.append(f"{name}: {script} 에 실행 비트가 없다 — 하네스가 직접 실행하면 빈 작업공간에서 돈다")
 
         route = name.startswith(ROUTE_PREFIX)
-        command = name.startswith(COMMAND_PREFIX)
 
         # 부르는 감사자가 실재하는가
         body = pm.read_text(encoding="utf-8")
-        # 커맨드 케이스는 본문 첫 줄이 이 플러그인의 실재하는 커맨드를 부른다. 이름을 틀리게
-        # 적으면 커맨드가 안 펴진 채 그 글이 그냥 말로 가고, 대조군만 떨어져 까닭이 가려진다.
-        if command:
-            lines = [ln for ln in prompt_body(body).splitlines() if ln.strip()]
-            m = COMMAND_LINE.match(lines[0].strip()) if lines else None
-            if not m:
-                bad.append(f"{name}: 커맨드 케이스인데 prompt.md 의 첫 줄이 /{plugin}:<커맨드> 로 시작하지 않는다")
-            elif m["plugin"] != plugin:
-                bad.append(f"{name}: prompt.md 가 다른 플러그인({m['plugin']})의 커맨드를 부른다 — {plugin} 여야 한다")
-            elif m["cmd"] not in commands:
-                bad.append(f"{name}: prompt.md 가 없는 커맨드 {m['cmd']} 를 부른다 — commands/{m['cmd']}.md 가 없다")
-        # 커맨드 이름(`audit-brief`)은 감사자 지목이 아니다 — 같은 앞머리라 빼고 센다.
-        called = set(re.findall(r"audit-[a-z]+", body)) - commands
+        called = set(re.findall(r"audit-[a-z]+", body))
         for a in sorted(called - known):
             bad.append(f"{name}: prompt.md 가 없는 감사자 {a} 를 부른다")
         if route and called:
@@ -254,7 +218,7 @@ def check(suite, agents_dir):
                 f"{name}: 트리거 케이스인데 prompt.md 가 {sorted(called)} 를 지목한다 — "
                 "재는 것이 트리거가 아니라 복종이 된다"
             )
-        if not route and not command and not called:
+        if not route and not called:
             bad.append(f"{name}: prompt.md 가 어떤 감사자도 지목하지 않는다")
 
         graders = sorted(gd.glob("*.md"))
@@ -263,7 +227,6 @@ def check(suite, agents_dir):
             continue
 
         names, purpose_weight, has_control = set(), 0, False
-        command_control = None  # 커맨드 케이스의 대조군 command-ran 의 머리말
         route_target, route_negatives, route_quiet = None, [], False
         route_weights = {}
         route_others = None  # (제외 목록, 본문이 선언한 허용 목록)
@@ -284,8 +247,6 @@ def check(suite, agents_dir):
                 purpose_weight += float(fm.get("weight", 1))
             if g.stem == CONTROL:
                 has_control = True
-            if g.stem == COMMAND_CONTROL:
-                command_control = fm
             # **arm 은 `auditor-fired` 의 `with-only` 에만 허용한다.** 붙은 그레이더는
             # 점수에서 빠지므로, 목적 · 대조군 · 트리거 그레이더에 한 줄만 붙어도 재는
             # 행동이 집계에서 사라지고 회귀가 초록이 된다. 전에는 대조군만 봤다(Codex 리뷰).
@@ -434,27 +395,13 @@ def check(suite, agents_dir):
         else:
             if purpose_weight == 0:
                 bad.append(f"{name}: trap-* · gate-* 그레이더가 없다 — 이 케이스의 목적이 없다")
-            if command:
-                # 대조군 — 커맨드가 펴져 일을 했는가. 덫(「감사자를 안 불렀다」)만 있으면 커맨드가
-                # 안 펴졌거나 아무것도 안 한 세션이 만점이다.
-                if command_control is None:
-                    bad.append(
-                        f"{name}: {COMMAND_CONTROL} 대조군이 없다 — "
-                        "커맨드가 안 펴졌거나 아무것도 안 한 세션이 덫을 안 밟았다는 이유로 만점을 받는다"
-                    )
-                elif command_control.get("type") != "file_exists" or command_control.get("exists") == "false":
-                    bad.append(
-                        f"{name}/{COMMAND_CONTROL}: type file_exists · exists 가 false 가 아니어야 한다 — "
-                        "커맨드가 남긴 것을 요구하지 않는다"
-                    )
-            else:
-                if not has_control:
-                    bad.append(
-                        f"{name}: {CONTROL} 대조군이 없다 — "
-                        "아무것도 안 내는 감사자가 함정을 안 걸었다는 이유로 만점을 받는다"
-                    )
-                if "auditor-fired" not in names:
-                    bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
+            if not has_control:
+                bad.append(
+                    f"{name}: {CONTROL} 대조군이 없다 — "
+                    "아무것도 안 내는 감사자가 함정을 안 걸었다는 이유로 만점을 받는다"
+                )
+            if "auditor-fired" not in names:
+                bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
             # **심판 그레이더 하나가 매번 떨어져도 문턱 아래로 가야 한다.** 결정론 그레이더는
             # run-evals.sh 가 「모든 회차에서 떨어짐」으로 따로 물지만, 심판은 틀린 적이 있어
             # 거기서 뺐다 — 그러니 심판이 재는 것은 **무게로만** 지켜진다. gap-unowned 의
@@ -494,12 +441,10 @@ def main(argv):
         return 1
     cases = [d for d in suite.iterdir() if d.is_dir() and d.name != "results"]
     routes = [d for d in cases if d.name.startswith(ROUTE_PREFIX)]
-    commands = [d for d in cases if d.name.startswith(COMMAND_PREFIX)]
     print(
         f"PASS 케이스 {len(cases)}개 — "
-        f"판정 {len(cases) - len(routes) - len(commands)}(목적 그레이더 · 대조군 · 감사자 지목), "
-        f"트리거 {len(routes)}(route-correct · 음성 그레이더 · 지목 없음), "
-        f"커맨드 {len(commands)}(실재하는 커맨드 · 목적 그레이더 · {COMMAND_CONTROL})"
+        f"판정 {len(cases) - len(routes)}(목적 그레이더 · 대조군 · 감사자 지목), "
+        f"트리거 {len(routes)}(route-correct · 음성 그레이더 · 지목 없음)"
     )
     print(f"     수트 {suite}")
     return 0
