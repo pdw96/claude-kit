@@ -12,6 +12,12 @@
 묶고, 후보 대장(`feedback.json`)에 이미 있는 해시는 빼고 찍는다. 판정은 하지 않는다 —
 특화인지 결함인지는 저자가 정한다(PRD 「하지 않을 일」 2).
 
+**판정한 해시가 새 레포에서 나오면 숨기지 않는다**(조각 13 · ADR 0022 의 4). 후보의 `seen[].repo`
+밖의 레포 사본에서 같은 해시가 나오면 `--all` 없이도 `FB-n <상태> · 새 레포 <이름>` 으로 찍는다 —
+두 레포가 따로 같은 말을 쓴 것이 「다른 레포에서도 같은 말」의 증거이기 때문이다(`docs/schema.md`).
+`--json` 의 `judged` 에는 `new_repos`(없으면 빈 목록)가 든다. `seen` 에 그 레포를 더하는 것은
+저자다 — 이 스크립트는 `feedback.json` 을 읽기만 한다.
+
 **무엇과 견주나.** 원본은 대장의 `synced_commit` 의 `vibe-audit/agents/*.md`, 사본은
 그 레포 `HEAD` 에 커밋된 파일이다. 원본의 HEAD 와 견주면 원본이 그 뒤 움직인 것이
 사본의 차이로 보인다. `sync-agents.sh` 가 넣는 출처 주석 줄과 공백만 다른 덩어리는 거른다.
@@ -159,7 +165,8 @@ def load_ledger(path):
     if not path.is_file():
         return {}, None
     data = json.loads(path.read_text(encoding="utf-8"))
-    return {c["hash"]: (c["id"], vf.STATUS[c["status"]]) for c in data["candidates"]}, None
+    return {c["hash"]: (c["id"], vf.STATUS[c["status"]], {s["repo"] for s in c["seen"]})
+            for c in data["candidates"]}, None
 
 
 def main():
@@ -214,13 +221,15 @@ def main():
                 if name not in sn["files"]:
                     sn["files"].append(name)
 
-    rows = []
+    rows, fresh = [], 0
     for h, e in cands.items():
         judged = known.get(h)
-        if judged and not a.all:
+        new = sorted(set(e["seen"]) - judged[2]) if judged else []
+        fresh += bool(new)
+        if judged and not new and not a.all:
             continue
         rows.append({**e, "seen": list(e["seen"].values()),
-                     "judged": None if not judged else {"id": judged[0], "status": judged[1]}})
+                     "judged": None if not judged else {"id": judged[0], "status": judged[1], "new_repos": new}})
 
     if a.json:
         print(json.dumps({"compared": [{"repo": r, "base": b, "commit": h} for r, b, h in heads],
@@ -231,6 +240,8 @@ def main():
         print(f"     {r}: 원본 {b[:7]} ↔ 사본 {h[:7]} (원격 기본 가지와 같거나 앞섬)")
     for e in rows:
         tag = f"{e['judged']['id']} {e['judged']['status']}" if e["judged"] else "미판정"
+        if e["judged"] and e["judged"]["new_repos"]:
+            tag += f" · 새 레포 {', '.join(e['judged']['new_repos'])}"
         print(f"\n{tag}  {e['hash']}")
         for w in e["where"]:
             print(f"  자리 {w}")
@@ -241,9 +252,11 @@ def main():
             if len(body) > SHOW:
                 print(f"  {sign} … {len(body) - SHOW} 줄 더")
     unjudged = sum(1 for h in cands if h not in known)
-    print(f"\n후보 {len(cands)} — 미판정 {unjudged} · 판정됨 {len(cands) - unjudged}")
+    print(f"\n후보 {len(cands)} — 미판정 {unjudged} · 판정됨 {len(cands) - unjudged}(새 레포 {fresh})")
     if unjudged:
         print("판정은 feedback.json 에 적는다(docs/schema.md). 미판정은 대장에 안 적는다.")
+    if fresh:
+        print("새 레포에서 나온 판정된 후보의 seen 은 저자가 더한다(docs/schema.md).")
     return 0
 
 

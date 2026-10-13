@@ -12,6 +12,8 @@
   3. 판정한 후보는 위에 문단이 생겨 줄이 옮겨져도 다시 안 나온다
   4. 사본이 원격보다 뒤 · 사본 자리가 더러움 · 추적 안 된 파일 · 없는 커밋 ·
      성하지 않은 후보 대장에서는 멈춘다(종료코드 1)
+  5. 같은 고침을 담은 사본 둘(`a` · `b`)에서, 판정한 후보의 `seen` 이 `a` 뿐이면 기본 실행에
+     「새 레포 b」로 나오고, `a` · `b` 면 지금처럼 숨는다(조각 13 설계 ② T1)
 
 비교기를 고치고 이것이 안 돌면, 멈춰야 할 것이 견주고 지나가도 아무도 모른다.
 
@@ -95,10 +97,13 @@ def main():
         ledger = t / "feedback.json"
         ledger.write_text('{"candidates": []}\n')
 
-        def compare(*extra, reg_path=reg):
+        def compare(*extra, reg_path=reg, ledger_path=ledger, text=False):
             p = subprocess.run([sys.executable, str(orig / "scripts" / "compare-copies.py"),
-                                "--registry", str(reg_path), "--ledger", str(ledger), "--json", *extra],
+                                "--registry", str(reg_path), "--ledger", str(ledger_path),
+                                *([] if text else ["--json"]), *extra],
                                capture_output=True, text=True, env=ENV)
+            if text:
+                return p.returncode, None, p.stdout + p.stderr
             data = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip().startswith("{") else None
             return p.returncode, data, p.stdout + p.stderr
 
@@ -148,6 +153,8 @@ def main():
                rc == 0 and shared and shared[0]["hash"] not in hashes, out[-400:])
         expect("새 문단이 미판정 후보로 안 나왔다",
                rc == 0 and any("새 문단 첫 줄." in ln for c in d["candidates"] for ln in c["copy"]), out[-400:])
+        expect("미판정 후보의 judged 가 null 이 아니다",
+               rc == 0 and all(c["judged"] is None for c in d["candidates"]), out[-400:])
         rc, d, out = compare("--all")
         expect("--all 이 판정한 후보를 안 찍었다",
                rc == 0 and any((c.get("judged") or {}).get("id") == "FB-1" for c in d["candidates"]), out[-400:])
@@ -217,6 +224,67 @@ def main():
 
         rc, _, out = compare()
         expect("되돌린 뒤에도 멈췄다", rc == 0, out[-400:])
+
+        # 5. 새 레포 — 같은 고침을 담은 사본 둘. 레포마다 원격을 따로 둔다
+        fix = "두 레포가 따로 쓴 같은 문장입니다.\n"
+        two = {}
+        for n in ("a", "b"):
+            rm = t / f"remote-{n}.git"
+            sh(t, "git", "init", "-q", "--bare", "-b", "main", str(rm))
+            cl = t / f"copy-{n}"
+            sh(t, "git", "clone", "-q", str(rm), str(cl))
+            ag = cl / ".claude" / "agents"
+            ag.mkdir(parents=True)
+            for f in ("audit-a", "audit-b"):
+                (ag / f"{f}.md").write_text(FRONT.format(n=f) + hdrs["audit-b"] + BODY, encoding="utf-8")
+            edit(ag / "audit-a.md", lambda s: s.replace("원본 문장 9 입니다.\n", "원본 문장 9 입니다.\n" + fix))
+            sh(cl, "git", "checkout", "-q", "-b", "main")
+            commit(cl, "심고 고침")
+            sh(cl, "git", "push", "-q", "-u", "origin", "main")
+            two[n] = (ag, sh(cl, "git", "rev-parse", "HEAD"))
+        reg2 = t / "copies-two.json"
+        reg2.write_text(json.dumps({"copies": [{"repo": n, "agents_path": str(ag), "synced_commit": base,
+                                                "synced_at": "2026-01-01"} for n, (ag, _) in two.items()]}))
+        led2 = t / "feedback-two.json"
+        led2.write_text('{"candidates": []}\n')
+        rc, d, out = compare(reg_path=reg2, ledger_path=led2)
+        both = d["candidates"] if d else []
+        expect("같은 고침을 담은 사본 둘이 후보 하나로 안 묶였다",
+               rc == 0 and len(both) == 1 and sorted(x["repo"] for x in both[0]["seen"]) == ["a", "b"], out[-400:])
+
+        def judge(repos):
+            led2.write_text(json.dumps({"candidates": [{
+                "id": "FB-1", "hash": both[0]["hash"],
+                "seen": [{"repo": n, "files": ["audit-a.md"], "commit": two[n][1], "base": base} for n in repos],
+                "status": "specific", "reason": "a 에서 본 특화", "decided_at": "2026-01-01"}]},
+                ensure_ascii=False))
+
+        if both:
+            # (가) seen 이 a 뿐 — 기본 실행에 「새 레포 b」로 나온다
+            judge(["a"])
+            rc, d, out = compare(reg_path=reg2, ledger_path=led2)
+            got = [x for x in (d["candidates"] if d else []) if x["hash"] == both[0]["hash"]]
+            expect("seen 밖의 레포에서 나온 판정된 후보가 기본 실행에 안 나왔다", rc == 0 and len(got) == 1, out[-400:])
+            expect("새 레포에서 나온 후보의 judged.new_repos 가 [\"b\"] 가 아니다",
+                   len(got) == 1 and (got[0]["judged"] or {}).get("new_repos") == ["b"], out[-400:])
+            rc, _, out = compare(reg_path=reg2, ledger_path=led2, text=True)
+            expect("새 레포 꼬리표가 안 찍혔다", rc == 0 and "FB-1 특화 · 새 레포 b  sha256:" in out, out[-400:])
+            expect("끝 줄의 새 레포 셈이나 seen 안내가 없다",
+                   "미판정 0 · 판정됨 1(새 레포 1)" in out and "seen 은 저자가 더한다" in out, out[-400:])
+
+            # (나) seen 이 a · b — 기본 실행에 숨고, --all 에서 new_repos 가 빈 목록이다
+            judge(["a", "b"])
+            rc, d, out = compare(reg_path=reg2, ledger_path=led2)
+            expect("seen 안의 레포에서만 나온 판정된 후보가 기본 실행에 나왔다",
+                   rc == 0 and d is not None and d["candidates"] == [], out[-400:])
+            rc, d, out = compare("--all", reg_path=reg2, ledger_path=led2)
+            got = [x for x in (d["candidates"] if d else []) if x["hash"] == both[0]["hash"]]
+            expect("--all 에서 seen 안의 후보의 judged.new_repos 가 [] 가 아니다",
+                   rc == 0 and len(got) == 1 and (got[0]["judged"] or {}).get("new_repos") == [], out[-400:])
+            rc, _, out = compare("--all", reg_path=reg2, ledger_path=led2, text=True)
+            expect("seen 안의 후보에 새 레포 꼬리표가 붙었다",
+                   rc == 0 and "FB-1 특화  sha256:" in out and "새 레포 b" not in out
+                   and "미판정 0 · 판정됨 1(새 레포 0)" in out and "seen 은 저자가 더한다" not in out, out[-400:])
 
     # 뜻이 바뀐 줄 옆에 공백만 바뀐 줄이 붙어도 같은 후보다(Codex 리뷰) — 함수로 직접 본다
     import importlib.util
