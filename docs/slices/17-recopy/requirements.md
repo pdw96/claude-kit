@@ -103,7 +103,7 @@ pdw96/ganghojaengpae#12(머지 ab2748e), C ERP pdw96/ERP#111(머지 1046566), D 
 | 4. 대장 | #70 — `copies.json` 두 줄 `018842c512f0…` · `2026-10-14`. 강호쟁패 줄은 `sync-agents.sh` 가 적은 그대로, ERP 줄은 위 2 의 `verify-copy.py` PASS 뒤 손으로. `verify-copies.py` → `PASS 사본 2개`, 두 줄 다 「원본은 그 뒤 0 커밋 움직임」, 「바뀐 원본」 없음 |
 | 5. 미판정 0 | #70 — 판정 전 `후보 27 — 미판정 12 · 판정됨 15`, 저자가 열둘을 갈라 FB-26 ~ FB-37(특화 아홉 · 결함 · 혼합 셋) 뒤 `후보 27 — 미판정 0 · 판정됨 27`, 끝 0. `verify-feedback.py` → `PASS 후보 37 — 특화 24 · 결함 7 · 보류 0 · 되먹임 완료 6`. 지난 스물다섯은 diff 가 지운 줄 0 |
 | 6. 원본은 그대로다 | claude-kit PR 둘의 바꾼 파일 — #69 `docs/` 넷, #70 `copies.json` · `feedback.json` — 에 `vibe-audit/` · `vibe-slice/` · `scripts/` 가 없다. 둘 다 `eval-key.py route --list` ∪ `full --list` 와의 교집합 0, CI eval 잡이 건너뛰었다. `git diff --stat 018842c e237322 -- vibe-audit/` 는 비었다 |
-| 7. `gates.sh` | 로컬 스물넷 통과 — #69 의 각 커밋 머리 · #70 f50d611. CI gate 잡 — #69 3c79abf([run 38526095102](https://github.com/pdw96/claude-kit/actions/runs/38526095102)) · #70 f50d611([run 38542401195](https://github.com/pdw96/claude-kit/actions/runs/38542401195)) · `main` 푸시 888419b([run 38526788355](https://github.com/pdw96/claude-kit/actions/runs/38526788355)) 통과. 검사 수는 스물넷 그대로다 |
+| 7. `gates.sh` | 로컬 스물넷 통과 — #69 의 각 커밋 머리 · #70 f50d611. CI gate 잡 — #69 3c79abf([run 38526095102](https://github.com/pdw96/claude-kit/actions/runs/38526095102)) · #70 f50d611([run 38542401195](https://github.com/pdw96/claude-kit/actions/runs/38542401195)) · `main` 푸시 888419b([run 38526788355](https://github.com/pdw96/claude-kit/actions/runs/38526788355)) · e237322([run 38543841820](https://github.com/pdw96/claude-kit/actions/runs/38543841820)) 통과. 검사 수는 스물넷 그대로다 |
 
 ### 배포
 
