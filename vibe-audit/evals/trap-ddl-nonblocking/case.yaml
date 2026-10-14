@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: trap-ddl-nonblocking
+description: |
+  사본 되먹임(ERP, 2026-10-14 · feedback.json FB-31). 원본 audit-data 항목 3 의 판정 표는
+  엔진 · 판을 확인한 뒤 쓰기를 멈추는 DDL 의 갈래만 둔다 — 네 눈 어느 것에도 해당하지 않는
+  DDL 의 갈래가 없다. 쓰기를 막지 않는 DDL 이 판정 없이 남아 확인불가 · 해당 없음으로, 또는
+  닮은 눈에 끌려 부적합으로 갈린다. 그 자리를 오검 쪽에서 잰다.
+expected_outcome: |
+  PostgreSQL 16 이 적힌 저장소에서 운영 중인 `orders` 에 CONCURRENTLY 로 인덱스를 다는 리비전(0002)
+  — 트랜잭션 밖(autocommit_block)에서 돌고, 쓰기를 막지 않는 잠금(SHARE UPDATE EXCLUSIVE)만 잡으며,
+  리비전이 그것을 맞게 적었다. 항목 3 의 판정이 **적합**이다. 그 DDL 에 잠금 NC 를 달거나, 행 · U
+  항목의 확인불가로 두거나, 해당 없음으로 두면 실패다.
+tags: [trap, data, feedback-copy-erp]
+context:
+  scaffold_script: fixture.sh
