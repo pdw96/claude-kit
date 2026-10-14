@@ -471,6 +471,225 @@
       "status": "specific",
       "reason": "ERP 가 .claude/audits/ 를 쓰지 않아 뺀 문장",
       "decided_at": "2026-10-13"
+    },
+    {
+      "id": "FB-26",
+      "hash": "sha256:91d57be22d7a2fc0452ac8dd69e0daca31f201aaecc125ccc07d2cfa26ce6d7d",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-contract.md",
+            "audit-data.md",
+            "audit-internal.md",
+            "audit-ops.md",
+            "audit-quality.md",
+            "audit-secrets.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "확인불가 번호 U-n → UNK-n — ERP 대장과 같은 파일의 특화 줄이 `### UNK-n` 을 쓴다(ERP#111 의 M2 예외 ②, 저자 결정). 여섯 감사자 출력 형식의 세 줄 가운데 제목 줄",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-27",
+      "hash": "sha256:fad11ada87b02c0f5a6ce11e41050c2d0b1a77fbebd5b589469af0626dc8416e",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-contract.md",
+            "audit-data.md",
+            "audit-internal.md",
+            "audit-ops.md",
+            "audit-quality.md",
+            "audit-secrets.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-26 의 짝 — 출력 형식 「다음 번호」 줄의 U → UNK",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-28",
+      "hash": "sha256:0d4bf06afe259d7cf1e1afd6c5b658e07506d94f96f596a752514096b77faafb",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-contract.md",
+            "audit-data.md",
+            "audit-internal.md",
+            "audit-ops.md",
+            "audit-quality.md",
+            "audit-secrets.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-26 의 짝 — 출력 형식 확인불가 표 줄의 U → UNK",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-29",
+      "hash": "sha256:10ba7ac49435503328408eda4f1d6431039235c61d0aad0e7f9442ccac41758d",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-data.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-4 의 「뺄 것」(Alembic API 열 · PG11+ `relfilenode` 실측)을 다시 붙인 것 — 원본의 네 줄 목록 자리에 사본의 두 열 표를 글자 그대로 되살렸다(ERP#111 Codex 3 라운드, 저자 결정). 일반 몫(엔진 · 판 먼저, DDL 이 무엇을 하는가)은 FB-3 · 4 로 원본에 들어갔다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-30",
+      "hash": "sha256:2c7ed190d7273cdc75dfb51761ec2f663dcd3cbcdcaa509867cb8643db6f866b",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-data.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "defect",
+      "reason": "혼합 — 일반: 원본 판정 표의 「쓰기를 멈추는데 피할 형태가 없다」 줄이 판정 넷 가운데 하나를 주지 않는다(심각도 확인불가만 적는다) — 어느 레포에서도 같은 빈 갈래. 특화: 「적었으면 적합」(FB-4 의 뺄 것 — ERP 에 배포처가 없어서 나온 말) · W-1. 원본으로 넘긴 후속 작업 카드가 든다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-31",
+      "hash": "sha256:3727874ef674a6133e86e55713690ad1336cb596a50fa2e8ef3151b28f9f54b2",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-data.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "defect",
+      "reason": "혼합 — 일반: 원본 판정 표에 「위 네 눈 어느 것에도 해당하지 않는다 → 적합」 갈래가 없다 — 어느 레포에서도 같은 빈 갈래. 특화: NC-21 의 예(FB-4 의 뺄 것). FB-30 과 같은 후속 작업 카드가 든다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-32",
+      "hash": "sha256:09caa389abac033e4c99d4b9d000a2bb334098c13febf34b13c34fddd0b4f9fb",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-6 의 특화 몫 — ERP 의 기준 문서 목록 · `CLAUDE.md` 인용. 일반 몫은 c7cc318 로 원본에 들어갔다(FB-6 은 케이스가 없어 결함 그대로)",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-33",
+      "hash": "sha256:8e511419b063e929ae0c9a9880783dcc42315af21122937f5ea6047f60bc10a0",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-7 의 특화 몫 — 항목 1 에 붙인 ERP 의 목록. 주석 · 독스트링을 맞는가로 묻는 일반 몫은 원본 항목 13 이 든다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-34",
+      "hash": "sha256:31a9a2bfb044f3281dc0616df1c68e70aa05082607e7e53031e11f3bc8c4bb90",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "defect",
+      "reason": "FB-8 의 새 꼴 — 혼합. 일반: 결정은 ADR 밖에도 산다(원본 항목 10 은 「ADR 에 기록된 결정」 · 「새 ADR 없이」만 묻는다). 특화: ERP 에서 결정이 사는 곳의 목록 · 「ADR 은 고치지 않고 대체한다」(레포 관례). 주석 · 독스트링 몫은 원본 항목 13 이 들어 ERP 가 뺐다(ERP#111 Codex 1 라운드). FB-8 은 그대로 둔다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-35",
+      "hash": "sha256:5619fbe618b50d897e173df87be75b678911a216600ed53c2fe99ce8631d3bcd",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-internal.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-9 의 문구(「무엇이 · 누구에게서 필요한지」 — 공통 절 「판정은 넷이다」가 이미 든다)와, 사본 항목 10 의 말(「기록 없이 뒤집혔는가」)을 따라간 것. 일반 몫은 FB-34 가 든다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-36",
+      "hash": "sha256:994f3654b8a23f4e58741101e2ed96c76a5e6326de32cf2b4a794061c1fa29f8",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-quality.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-10 — LLM 없는 제품에 맞춘 설명(평가셋을 뺐다). 원본 설명의 좁힘(a3b97f0)은 받았다",
+      "decided_at": "2026-10-14"
+    },
+    {
+      "id": "FB-37",
+      "hash": "sha256:d1becb40cc5399854a0d0e2162bb7f847faf5899701cf0f1b091159351e11158",
+      "seen": [
+        {
+          "repo": "erp",
+          "files": [
+            "audit-secrets.md"
+          ],
+          "commit": "10465660c63d1be44594ff10f5fa0e2c635d889c",
+          "base": "018842c512f098874680309f37bb33dc2f685a0d"
+        }
+      ],
+      "status": "specific",
+      "reason": "FB-17 의 특화 몫 — 「특채」 예 · `nonconformity_stage_rules`. 일반 몫(밖에서 보이는 권한 실패는 이 감사자의 NC)은 c7cc318 로 원본에 들어갔다",
+      "decided_at": "2026-10-14"
     }
   ]
 }
