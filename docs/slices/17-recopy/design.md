@@ -10,7 +10,7 @@
 | claude-kit `docs/adr/0027-recopy-three-way-merge.md` | A | 갈림길 셋 |
 | 강호쟁패 `.claude/agents/*.md` 여섯 · `.claude/agents/README.md` · `.claude/commands/audit-brief.md` · `.claude/scripts/verify-brief.py` | B | `018842c` 의 작업트리에서 `sync-agents.sh --force` 가 쓴 그대로(② S1) |
 | ERP `.claude/agents/*.md` 여섯 · `.claude/commands/audit-brief.md` | C | 세 쪽 병합과 충돌 여덟을 푼 모양 · 머리줄(② M1 ~ M5). `verify-brief.py` 는 `3d6964a` 와 `018842c` 가 바이트로 같아 그대로다 |
-| ERP `.claude/agents/README.md` | C | 저자가 정하면 출처 SHA 한 자리(`3d6964a`)만. 그 밖은 그대로(② M6) |
+| ERP `.claude/agents/README.md` | C | 출처 SHA 한 자리 — 3 줄의 `pdw96/claude-kit@3d6964a` 를 `018842c` 로. 그 밖은 그대로(② M6) |
 | claude-kit `copies.json` | D | 두 줄의 `synced_commit` · `synced_at`(② L1) |
 | claude-kit `feedback.json` | D | 비교기가 내는 새 후보와 저자의 판정 — `FB-26` 부터(② L2) |
 
@@ -63,7 +63,9 @@
   - M4 머리줄 — 감사자 여섯 · 커맨드의 출처 줄이 `sync-agents.sh` 의 `HDR` 과 글자가 같고 SHA 는 `018842c` 다.
   - M5 `verify-copy.py <ERP>/.claude/agents` 가 PASS 다(원본 = claude-kit `018842c` 의 `vibe-audit/agents`). 감사자 여섯의 「출력 형식」에
     `- 감사한 커밋:` 줄이 원본과 같은 글자로 있고, 커맨드가 `$base` · `$auditor` 로 받는다.
-  - M6 그 밖의 ERP 파일은 그대로다 — ERP PR 의 `git diff --name-only` 가 ① 의 C 줄 밖을 들지 않는다.
+  - M6 ERP 의 `.claude/agents/README.md` 는 출처 SHA 한 자리만 바뀐다 — `git diff` 가 3 줄의 `3d6964a` → `018842c` 하나다. 그 README 는 ERP 가
+    다시 쓴 글이라 덮지 않지만, 출처를 옛 커밋으로 두면 머리줄 · 대장(`018842c`)과 같은 사본의 출처가 둘로 갈린다. 그 밖의 ERP 파일은
+    그대로다 — ERP PR 의 `git diff --name-only` 가 ① 의 C 줄 밖을 들지 않는다.
   - M7 재현 — PR 본문에 M1 의 명령과 충돌마다 원본 문구 · 사본 문구 · 푼 모양 · 사본에서 빠지는 것을 적는다. 누가 M1 을 다시 돌리고 충돌을
     그 푼 모양으로 바꾸면 PR 의 파일과 바이트로 같다.
 - **대장** (D, B · C 가 머지된 뒤)
@@ -184,7 +186,7 @@
 |---|---|---|---|
 | A 착공 | claude-kit | 요구사항 · 설계 · ADR 0027 · 마스터플랜(「사본 다시 심기」 `진행`) | 단계 1 · 2, ② G2 |
 | B 강호쟁패 심기 | 강호쟁패 | `sync-agents.sh --force` 의 결과 | ② S1 · S2, 성공 기준 1 |
-| C ERP 심기 | ERP | 세 쪽 병합과 충돌 여덟을 푼 모양 · 머리줄 | ② M1 ~ M7, 성공 기준 2 · 3 |
+| C ERP 심기 | ERP | 세 쪽 병합과 충돌 여덟을 푼 모양 · 머리줄 · README 의 출처 SHA | ② M1 ~ M7, 성공 기준 2 · 3 |
 | D 대장 | claude-kit | `copies.json` · `feedback.json` | ② L1 ~ L3 · G1 · G3, 성공 기준 3 ~ 7 |
 
 B 와 C 는 서로 기대지 않는다 — 어느 쪽이 먼저 머지돼도 된다. D 는 둘 다 머지된 뒤다(제약 「순서」). 조각을 닫는 기록은 따로 낸다(단계 6).

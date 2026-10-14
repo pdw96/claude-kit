@@ -48,8 +48,8 @@
    있고, 커맨드가 이름 자리표시(`$base` · `$auditor`)로 기준 · 감사자를 받는다.
 3. ERP 특화가 산다 — 깨끗한 자리의 특화 열하나(FB-1 · 2 · 5 · 11 · 12 · 19 ~ 23 · 25)가 머지 뒤 비교기에 같은 해시로 다시 나온다(판정됨).
    충돌 여덟마다 ERP PR 본문이 원본 문구 · 사본 문구 · 푼 모양 · 사본에서 빠지는 것을 들고, 저자가 그 PR 에서 정했다. ERP 의
-   `.claude/agents/README.md` · `.claude/hooks/` · `.claude/skills/` · `.claude/settings.json` · `docs/` 는 ERP PR 의 diff 에 없다 — README 의
-   출처 SHA 한 자리는 저자가 정하면 그 자리만 고친다.
+   `.claude/hooks/` · `.claude/skills/` · `.claude/settings.json` · `docs/` 는 ERP PR 의 diff 에 없다. ERP 의 `.claude/agents/README.md` 는
+   출처 SHA 한 자리(3 줄의 `3d6964a`)만 `018842c` 로 바뀌고 그 밖의 글자는 그대로다 — 머리줄 · 대장과 출처가 갈리지 않게.
 4. 대장 — `copies.json` 두 줄의 `synced_commit` 이 `018842c` 의 전체 SHA 다. 강호쟁패 줄은 `sync-agents.sh` 가 적은 줄이고, ERP 줄은
    `verify-copy.py` PASS 를 본 뒤 손으로 옮긴다(`CLAUDE.md` 「금지」). 두 클론이 있는 세션에서 `verify-copies.py` → `PASS 사본 2개`, 두 줄 다
    「원본은 그 뒤 0 커밋 움직임」이고 「바뀐 원본」이 없다.
