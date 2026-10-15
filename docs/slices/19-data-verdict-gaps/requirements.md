@@ -93,7 +93,7 @@ eval-log 만 실었다(설계 ⑤ 끝). 성공 기준 일곱을 아래에 대어
 | 4. 가른 FB 는 `fed_back` | 가른 FB 가 없다. FB-30 · 31 은 `defect` 그대로이고 줄이 바뀌지 않았다 — `git diff --stat 9c64df8 0e754c2 -- feedback.json` 빔. `verify-feedback.py` → `PASS 후보 37 — 특화 24 · 결함 7 · 보류 0 · 되먹임 완료 6` |
 | 5. 들인 케이스는 `main` 에서 통과한다 | 들인 케이스가 없다 — `trap-lock-unavoidable` · `trap-ddl-nonblocking` 은 못 가른 판이라 77e2172 에서 내렸다(K3). 픽스처 · 그레이더 · 표본은 위 커밋들에 남는다 |
 | 6. 감사자 문구가 바뀌면 전수가 초록이다 | 감사자 문구가 바뀌지 않아 전수를 돌리지 않았다 |
-| 7. `gates.sh` | 로컬 스물넷 통과 — #75 의 8b5cd58 · a68ab25 · 37a3ef5, #76 의 9d5689f 커밋 뒤 · 77e2172 커밋 전 작업트리(ea43836 은 eval-log 한 문단이라 `verify-docs.py` 만), 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #75 머리 37a3ef5([run 38616006335](https://github.com/pdw96/claude-kit/actions/runs/38616006335)) · #76 머리 ea43836([run 38676885750](https://github.com/pdw96/claude-kit/actions/runs/38676885750)) 통과. 이 닫는 기록의 PR 머리는 그 PR 의 gate 잡이 본다. 검사 수는 스물넷 그대로다 |
+| 7. `gates.sh` | 로컬 스물넷 통과 — #75 의 8b5cd58 · a68ab25 · 37a3ef5, #76 의 9d5689f 커밋 뒤 · 77e2172 커밋 전 작업트리(ea43836 은 eval-log 한 문단이라 `verify-docs.py` 만), 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #75 머리 37a3ef5([run 38616006335](https://github.com/pdw96/claude-kit/actions/runs/38616006335)) · #76 머리 ea43836([run 38676885750](https://github.com/pdw96/claude-kit/actions/runs/38676885750)) · 이 닫는 기록 #77 의 첫 머리 8dd7a9b([run 38682104968](https://github.com/pdw96/claude-kit/actions/runs/38682104968)) 통과. 이 줄을 더한 커밋 뒤의 머리는 PR 의 gate 잡이 본다. 검사 수는 스물넷 그대로다 |
 
 ### 배포
 
