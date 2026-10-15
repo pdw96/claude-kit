@@ -17,6 +17,8 @@
 그래서 케이스가 표본 두 벌을 함께 두게 한다.
 
   <케이스>/samples/pass.md   — 바르게 쓴 기록. 모든 정규식 그레이더가 통과해야 한다
+  <케이스>/samples/pass-*.md — 바르게 쓴 기록 더. 벌마다 같은 요구다(선택)
+                             (정규식이 바른 모양을 여럿 받으면 모양마다 한 벌 둔다)
   <케이스>/samples/fail*.md  — 함정을 밟은 기록. 첫 줄에 물어야 할 그레이더를 적는다
                              (정규식 하나가 선택지를 여럿 담고 있으면 여러 벌 둔다)
 
@@ -96,6 +98,10 @@ def check(suite):
             continue
 
         ok_file = samples / "pass.md"
+        # 바른 기록도 여러 벌 둘 수 있다. 정규식이 바른 모양을 여럿 받으면 한 벌에
+        # 다 실을 때 한 갈래를 되돌려도 다른 모양이 지나가, 그 갈래가 서 있는지
+        # 못 본다. `pass.md` 는 그대로 필수다(조각 21, ADR 0031).
+        ok_files = [ok_file] + sorted(samples.glob("pass-*.md"))
         # 함정 표본은 여러 벌 둘 수 있다. 정규식 하나가 선택지를 여럿 담고
         # 있으면(`migrations/|ci\\.yml|test_invoices|…`) 한 벌로는 하나씩 못
         # 가른다 — 넷 중 셋을 지워도 표본은 여전히 물어서, 좁아진 것을 못 본다.
@@ -108,13 +114,14 @@ def check(suite):
         if not (ok_file.exists() and ng_files):
             continue
 
-        ok_text = ok_file.read_text(encoding="utf-8")
-        for name, g in sorted(graders.items()):
-            if not hits(g, ok_text):
-                bad.append(
-                    f"{case.name}/{name}: 바르게 쓴 기록(samples/pass.md)에서 실패한다 — "
-                    "정규식이 좁거나 출력 형식과 어긋난다"
-                )
+        for ok in ok_files:
+            ok_text = ok.read_text(encoding="utf-8")
+            for name, g in sorted(graders.items()):
+                if not hits(g, ok_text):
+                    bad.append(
+                        f"{case.name}/{name}: 바르게 쓴 기록(samples/{ok.name})에서 실패한다 — "
+                        "정규식이 좁거나 출력 형식과 어긋난다"
+                    )
 
         named = set()
         for ng_file in ng_files:

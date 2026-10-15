@@ -112,9 +112,10 @@
 
 - `verify-evals.py` — 케이스마다 목적 그레이더 · 대조군 · 감사자 지목(`auditor-fired` 가
   `prompt.md` 가 부르는 감사자를 `subagent_type` 으로 거는가)이 서 있는가.
-- `verify-graders.py` — 케이스가 표본(`samples/pass.md` 한 벌 · `samples/fail*.md` 한 벌 이상)을 두면,
-  모든 정규식 그레이더가 바른 기록에서 통과하고, 함정 표본 첫 줄이 지목한 그레이더는 전부 실패하며,
-  지목하지 않은 것은 전부 통과하는가. 정규식 하나가 선택지를 여럿 담으면 선택지마다 표본을 한 벌씩 둔다.
+- `verify-graders.py` — 케이스가 표본(`samples/pass.md` 와 `samples/pass-*.md` 여러 벌 · `samples/fail*.md` 한 벌 이상)을
+  두면, 모든 정규식 그레이더가 바른 기록 벌마다 통과하고, 함정 표본 첫 줄이 지목한 그레이더는 전부 실패하며,
+  지목하지 않은 것은 전부 통과하는가. 정규식 하나가 선택지를 여럿 담으면 선택지마다 표본을 한 벌씩 둔다 —
+  바른 모양을 여럿 받으면 `pass-*.md` 도 모양마다 한 벌씩이다.
   정규식 그레이더가 없는 케이스(`route-*` · `trap-rollback-unproven`)는 표본으로 볼 것이 없다 — 따로
   세어 찍는다.
 - `verify-budget.py` — 감사자 · 커맨드의 글자 수가 `budget.txt` 스냅숏과 천장 안에 있는가.
