@@ -66,7 +66,8 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
 항목은 재지 않고 단정한 것이기도 하다.
 
 **케이스.** 되먹임 한 건에 케이스 하나 — 진짜 부적합 하나(대조군)와 그 되먹임이 막는 거짓 판정. 정규식 그레이더가
-있으면 `samples/pass.md` · `samples/fail*.md` 로 그레이더가 가르는지도 본다(`verify-graders.py`).
+있으면 바른 기록 여러 벌(`samples/pass.md` · `pass-*.md`)과 `samples/fail*.md` 로 그레이더가 가르는지도 본다
+(`verify-graders.py`).
 
 **수트.** `scripts/run-evals.sh` 가 깃발을 박아 `claude plugin eval` 을 돌린다. CI 는 같은 러너를 부른다. PR · `main` push 는
 `route-*` 만 돌리고, 그 수트 입력의 지문(`scripts/eval-key.py`)이 이미 통과했으면 다시 돌지 않는다. 통과한 지문은 실행의

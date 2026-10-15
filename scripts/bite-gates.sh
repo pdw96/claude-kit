@@ -192,6 +192,15 @@ if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
   echo "::error::verify-graders.py 가 못 무는 그레이더를 통과시켰다"; exit 1
 fi
 
+# verify-graders.py — pass.md 밖의 바른 기록(pass-*.md)에서 떨어지는 그레이더는 실패해야 한다.
+# pass.md 만 보던 판은 이것을 지나보냈다. 수트 안의 pass-*.md 에 기대지 않고 pass.md 를
+# 베껴 report.py 줄을 뺀다 — gate-escalated-perf 하나만 떨어진다(조각 21, ADR 0031).
+g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
+grep -v 'report\.py' "$g/vibe-audit/evals/gap-unowned/samples/pass.md" > "$g/vibe-audit/evals/gap-unowned/samples/pass-bite.md"
+if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
+  echo "::error::verify-graders.py 가 pass-*.md 에서 떨어지는 그레이더를 통과시켰다"; exit 1
+fi
+
 # verify-budget.py — 문구가 자란 사본은 실패해야 한다
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
 python3 -c "
