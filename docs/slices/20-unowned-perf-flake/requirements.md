@@ -99,7 +99,7 @@ eval-log 만 실었고, 감사자 문구는 두 판에 못 가름이었다. 성�
 | 4. 고친 머리의 전수 | **못 미침.** 전수 run 38707296371(`7bb2637` — full 지문을 바꾼 마지막 커밋, 그 뒤 커밋과 full 지문의 교집합 0)이 빨강이다. `brief-absent` 가 0.708 로 문턱 아래였고, `gap-unowned` 은 0.821 — 세 회차 가운데 둘이 `gate-escalated-perf` 에서 감사자 갈래로 떨어졌다(1 은 성능 언급 없음, 2 는 「성능은 담당 없음입니다」 한 줄). 다시 돌려 채우지 않았다(E1). 넘긴 것으로 조각 나눔의 줄 「`gap-unowned` 의 감사자 문구와 표 모양」 · 「`brief-absent` 의 떨어짐」 |
 | 5. 못 가르거나 못 고친 몫은 고치지 않았다 | **미침.** 넓히지 않은 모양(표) · 못 가른 문구 · D5(형제 `gate-escalated`) 를 위해 바뀐 글자가 없다 — `git diff --stat 173219d 814d148 -- vibe-audit/` 는 F1 의 두 파일(`gate-escalated-perf.md` · `samples/pass.md`)뿐이다. 그 갈래 · 근거 · 비용은 eval-log 「고침」 · 「전수(E1)」 절에 있다 |
 | 6. 로컬 측정 비용 | **미침.** $4.34 / 상한 $10 — 옛 $1.41 · 새 1 $1.53 · 새 2 $1.40, 원문 진단 $0. 회차별 비용은 eval-log 「고침」 절 |
-| 7. `gates.sh` | **미침.** 로컬 스물넷 통과 — #78 의 128b40e · cf3b163 · 4b32d1f · f794733 커밋 전 작업트리, #79 의 진단 커밋 위와 6919bda 위(a31e0dc 는 eval-log 만이라 `verify-docs.py`), 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #78 머리 f794733([run 38702702917](https://github.com/pdw96/claude-kit/actions/runs/38702702917)) · #79 머리 a31e0dc([run 38713052225](https://github.com/pdw96/claude-kit/actions/runs/38713052225)) 통과. 검사 수는 스물넷 그대로다 |
+| 7. `gates.sh` | **미침.** 로컬 스물넷 통과 — #78 의 128b40e · cf3b163 · 4b32d1f · f794733 커밋 전 작업트리, #79 의 진단 커밋 위와 6919bda 위(a31e0dc 는 eval-log 만이라 `verify-docs.py`), 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #78 머리 f794733([run 38702702917](https://github.com/pdw96/claude-kit/actions/runs/38702702917)) · #79 머리 a31e0dc([run 38713052225](https://github.com/pdw96/claude-kit/actions/runs/38713052225)) · 이 닫는 기록 #80 의 첫 머리 0b8b869([run 38716002465](https://github.com/pdw96/claude-kit/actions/runs/38716002465)) 통과. 이 줄을 더한 커밋 뒤의 머리는 PR 의 gate 잡이 본다. 검사 수는 스물넷 그대로다 |
 
 ### 배포
 
