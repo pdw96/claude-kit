@@ -11,7 +11,7 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/master-plan.md` | A | 「`gap-unowned` 의 감사자 문구와 표 모양」 상태 `진행` · 조각 폴더 |
-| `docs/adr/0031-unowned-wording-table.md` | A | 갈림길 다섯 |
+| `docs/adr/0031-unowned-wording-table.md` | A | 갈림길 일곱 |
 | `scripts/verify-graders.py` | B | 케이스의 `samples/pass*.md` 를 다 읽는다(② S1) |
 | `scripts/bite-gates.sh` | B | `verify-graders.py` 의 변조본 하나를 더한다(② S2) |
 | `vibe-audit/evals/gap-unowned/graders/gate-escalated-perf.md` · `gate-escalated.md` | B | 넓힌 모양(② F3 · F4)과 그 까닭의 문단 |
@@ -180,13 +180,15 @@
 - 2 자 — 조각 20 J2 그대로 · 옛 쪽은 고친 그레이더로 다시 잰다 — 같은 날, 세션이 추천한 쪽
 - 3 새 문구 — 새 2 를 글자 그대로 먼저, 둘까지 — 같은 날, 세션이 추천한 쪽
 - 4 PR 나눔 — 착공 하나 · 구현 하나 — 같은 날, 세션이 추천한 쪽
-- 5 전수의 자 — `gap-unowned` 몫만 성공 기준에 들고 verdict 는 기록한다 — 세션이 착공 문서에서 정했다. 착공 PR 에서 저자가 본다
+- 5 전수의 자 — `gap-unowned` 몫만 성공 기준에 들고 verdict 는 기록한다 — 착공 PR 을 연 뒤의 인터뷰에서 저자가 정했다(같은 날, 세션이 추천한 쪽)
+- 6 ③ 밖의 모양 — 넓히지 않고 새 쪽의 떨어짐으로 센 뒤 넘긴다(② D6) — 같은 인터뷰
+- 7 넓힌 길의 막음 — 표의 행에 딴 담당을 적은 함정 표본을 그레이더마다 한 벌(② F5) — 같은 인터뷰
 
 비용 상한 $10 과 전수 한 번의 허락은 요구사항 「제약」이 든다(같은 날 저자).
 
 **열어 둔 것**
 
-없음 — 다섯 다 정했다. 정규식(F3 · F4) · 표본(S3 · F5) · 둘째 문구(J3)의 글자는 결정이 아니라 B 의 일이다 — 무엇을 골랐는지를 eval-log
+없음 — 일곱 다 정했다. 정규식(F3 · F4) · 표본(S3 · F5) · 둘째 문구(J3)의 글자는 결정이 아니라 B 의 일이다 — 무엇을 골랐는지를 eval-log
 항목과 PR 본문에 적는다.
 
 ## ⑤ 검증 계획
