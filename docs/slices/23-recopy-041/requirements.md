@@ -100,7 +100,7 @@ pdw96/ganghojaengpae#13(머지 82af872), C ERP pdw96/ERP#113(머지 6dda439), D 
 |---|---|
 | 1. 강호쟁패 사본이 `ddcd21f` 원본 그대로다 | #13 — S0: `git fetch` 뒤 `origin/main`(ab2748e)의 사본 여덟 · `.claude/agents/README.md` 가 `018842c` 작업트리의 `sync-agents.sh` 로 빈 자리에 심은 모양과 아홉 다 `cmp` 같음 → `--force` 로 갔다. S1: `ddcd21f` 작업트리의 `sync-agents.sh --force`(감사자 심음 6 · 커맨드 1 · 검사기 1 · 지움 0, 「기본 브랜치에 없다」 경고 없음), 머리줄 일곱이 `pdw96/claude-kit@ddcd21f`, `verify-brief.py` 는 원본과 `cmp` 같음, `git diff --name-only` 여덟이 설계 ① B 줄 안, `verify-copy.py` → `PASS 감사자 6개`. S2: 클론을 `origin/main`(82af872)에 두고 `copies.json` 이 `ddcd21f` 를 든 #88 머리에서 `compare-copies.py --repo ganghojaengpae --all` → `후보 0 — 미판정 0 · 판정됨 0` |
 | 2. ERP 사본이 원본의 고침을 받았다 | #113 — M1 의 세 재료로 파일마다 `git merge-file`, 여덟 다 충돌 0 이고 바뀐 줄이 설계 ③ 의 표와 같다(감사자 다섯 · 커맨드 1 · `audit-secrets` 2 · `verify-brief.py` 0). 그 PR 본문의 `m1.sh` 를 새 스크래치에서 다시 돌려 여덟 파일이 PR 과 `cmp` 같음(M6), 병합본 한 줄을 바꾸면 `cmp` 가 떨어짐. `audit-secrets` 「보지 않는 것」 첫 문단의 끝 문장이 `ddcd21f` 원본의 그 줄과 `grep -cxF` 1(M3). `verify-copy.py <ddcd21f 의 vibe-audit/agents> .claude/agents` → `PASS 감사자 6개`(M4) — #88 의 세션에서 머지 머리 6dda439 에 다시 봤다 |
-| 3. ERP 특화가 산다 | #88 머리에서 `compare-copies.py --repo erp --all` 이 판정된 스물일곱을 그대로 낸다(특화 스물 · 결함 셋 FB-30 · 31 · 34 · 되먹임 둘 FB-18 · 24). `--json` 의 후보 해시 스물일곱이 C 의 머지 전(ERP `main` · 대장 `018842c`)과 같은 집합이다. `git diff --name-only c75c215 6dda439` 는 `.claude/agents/` 일곱 · `.claude/commands/audit-brief.md` 뿐이고, README 의 diff 는 3 줄의 `018842c` → `ddcd21f` 하나다(M5) |
+| 3. ERP 특화가 산다 | #88 머리에서 `compare-copies.py --repo erp --all` 이 판정된 스물일곱을 그대로 낸다(특화 스물둘 · 결함 셋 FB-30 · 31 · 34 · 되먹임 둘 FB-18 · 24). `--json` 의 후보 해시 스물일곱이 C 의 머지 전(ERP `main` · 대장 `018842c`)과 같은 집합이다. `git diff --name-only c75c215 6dda439` 는 `.claude/agents/` 일곱 · `.claude/commands/audit-brief.md` 뿐이고, README 의 diff 는 3 줄의 `018842c` → `ddcd21f` 하나다(M5) |
 | 4. 대장 | #88 — `copies.json` 두 줄 `ddcd21f7d359…` · `2026-10-16`. 강호쟁패 줄은 S1 의 작업트리 `copies.json` 에 `sync-agents.sh` 가 적은 줄과 JSON 으로 같고, ERP 줄은 위 2 의 `verify-copy.py` PASS 뒤 손으로 옮겼다. `verify-copies.py` → `PASS 사본 2개`, 두 줄 다 「원본은 그 뒤 0 커밋 움직임」, 「바뀐 원본」 없음 |
 | 5. 미판정 0 | #88 머리에서 `compare-copies.py` → `후보 27 — 미판정 0 · 판정됨 27(새 레포 0)`, 끝 0. 새 후보가 없어 `feedback.json` 은 그대로다. `verify-feedback.py` → `PASS 후보 37 — 특화 24 · 결함 7 · 보류 0 · 되먹임 완료 6` |
 | 6. 원본은 그대로다 | claude-kit PR 의 바꾼 파일 — #87 `docs/` 넷, #88 `copies.json`, 이 닫는 기록 `docs/` 둘 — 에 `vibe-audit/` · `vibe-slice/` · `scripts/` 가 없다. 셋 다 `eval-key.py route --list` ∪ `full --list` 와의 교집합 0, CI eval 잡이 건너뛰었다. `git diff --stat ddcd21f 1d720eb -- vibe-audit/ vibe-slice/ scripts/` 는 비었다 |
@@ -155,4 +155,6 @@ pdw96/ganghojaengpae#13(머지 82af872), C ERP pdw96/ERP#113(머지 6dda439), D 
 이미 열려 있던 순서 없는 줄 — 「`brief-absent` 의 떨어짐」 · 「회수율 측정」 · 「가르지 못한 결함 다섯」 · 「항목 10 과 머리의 어긋남」 ·
 「가르지 못한 빈 갈래 둘」 — 은 그대로 둔다.
 
-다음 조각은 조각 나눔 「`gate-catches-unproven` 의 흔들림」(순서 24)(저자, 2026-10-16).
+다음 조각은 조각 나눔 「`gate-catches-unproven` 의 흔들림」(순서 24)(저자, 2026-10-16). 그 줄에 순서를 매긴 것은 절차 6 단계의 「다음 조각을
+정한다」이고 그 줄의 일을 한 것이 아니다 — 하지 않을 일 7 의 「다루지 않는다」는 그 줄의 목표 한 줄 · 범위를 이 조각에서 고치거나 푸는 것이다.
+줄의 목표 한 줄 · 의존 · 상태(`예정`)는 그대로다. 조각 「남은 결함 넷」의 닫는 기록이 「`audit-data` 판정 표의 빈 갈래 둘」에 순서 19 를 매긴 것과 같다.
