@@ -37,15 +37,17 @@
 
 ## 성공 기준
 
-1. 강호쟁패 사본이 `ddcd21f` 원본 그대로다 — 감사자 · 커맨드의 머리줄 일곱이 `pdw96/claude-kit@ddcd21f`, 검사기는 원본과 `cmp` 같고,
-   클론을 원격 기본 가지 머리로 두고 `copies.json` 이 `ddcd21f` 를 든 뒤 `compare-copies.py --repo ganghojaengpae --all` 이 후보 0 이다.
+1. 강호쟁패 사본이 `ddcd21f` 원본 그대로다 — 덮기 전에 사본이 `018842c` 를 심은 모양 그대로인지 본 결과(설계 ② S0)가 강호쟁패 PR 본문에
+   있고, 그대로였으면 감사자 · 커맨드의 머리줄 일곱이 `pdw96/claude-kit@ddcd21f`, 검사기는 원본과 `cmp` 같고, 클론을 원격 기본 가지 머리로
+   두고 `copies.json` 이 `ddcd21f` 를 든 뒤 `compare-copies.py --repo ganghojaengpae --all` 이 후보 0 이다. 그대로가 아니었으면 강호쟁패도
+   성공 기준 2 · 3 의 ERP 와 같은 기준이다.
 2. ERP 사본이 원본의 고침을 받았다 — ERP PR 의 감사자 · 커맨드 · 검사기가 「설계 ② M1 의 세 재료로 `git merge-file` 을 돌린 결과」와
    바이트로 같다. 그 결과로 `audit-secrets` 「보지 않는 것」 첫 문단의 끝 문장이 `ddcd21f` 원본과 같은 글자로 있다.
 3. ERP 특화가 산다 — ERP 머지 뒤 `compare-copies.py --repo erp --all` 이 지금의 판정된 해시 스물일곱을 그대로 내고 새 후보가 없다.
    `git diff --name-only` 는 `.claude/agents/` 일곱(감사자 여섯 · `README.md`)과 `.claude/commands/audit-brief.md` 뿐이고, README 는 3 줄의
    출처 SHA 한 자리(`018842c` → `ddcd21f`)만 바뀐다.
-4. 대장 — `copies.json` 두 줄의 `synced_commit` 이 `ddcd21f` 의 전체 SHA 다. 강호쟁패 줄은 `sync-agents.sh` 가 적은 줄이고, ERP 줄은
-   `verify-copy.py` PASS 를 본 뒤 손으로 옮긴다(`CLAUDE.md` 「금지」). 두 클론이 있는 세션에서 `verify-copies.py` → `PASS 사본 2개`, 두 줄 다
+4. 대장 — `copies.json` 두 줄의 `synced_commit` 이 `ddcd21f` 의 전체 SHA 다. 강호쟁패 줄은 `sync-agents.sh` 가 적은 줄이고(설계 ② S0 이
+   세 쪽 병합으로 돌렸으면 ERP 와 같이), ERP 줄은 `verify-copy.py` PASS 를 본 뒤 손으로 옮긴다(`CLAUDE.md` 「금지」). 두 클론이 있는 세션에서 `verify-copies.py` → `PASS 사본 2개`, 두 줄 다
    「원본은 그 뒤 0 커밋 움직임」이고 「바뀐 원본」이 없다.
 5. 미판정 0 — 두 클론을 원격 기본 가지 머리로 두고 `compare-copies.py` 가 끝 0 · `미판정 0` 이다. 새 후보가 나오면 저자가 판정해
    `feedback.json` 에 이어지는 번호로 적고, `verify-feedback.py` 가 통과한다. 안 나오면 `feedback.json` 은 그대로다.

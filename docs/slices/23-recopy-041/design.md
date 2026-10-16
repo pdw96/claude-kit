@@ -40,7 +40,11 @@
 **보장하는 것** — 번호는 ⑤ 와 PR 본문이 같이 쓴다.
 
 - **강호쟁패** (B)
-  - S1 claude-kit `ddcd21f` 의 작업트리(`git worktree add <자리> ddcd21f`)에서 `./scripts/sync-agents.sh <강호쟁패> --force` 를 돌린 그대로다 —
+  - S0 덮기 전에 사본이 그대로인지 본다 — 강호쟁패 클론을 `git fetch` 뒤 `origin/main` 으로 두고, 사본 여덟 파일이 M1 의 밑(`018842c` 를
+    심은 모양)과 `cmp` 로 같고 `.claude/agents/README.md` 가 `018842c` 의 생성본과 같다. 하나라도 다르면 강호쟁패가 그사이 사본을 고친
+    것이니 `--force` 를 돌리지 않는다 — ERP 와 같은 세 쪽 병합(M1 ~ M6, 사본은 강호쟁패 `origin/main`)으로 심고, README 도 생성본을 덮지 않고
+    출처 SHA 한 자리만 바꾼다(M5). 그때 대장 줄은 ERP 와 같이 `verify-copy.py` PASS 뒤 손으로 옮긴다(L1).
+  - S1 S0 이 같으면 claude-kit `ddcd21f` 의 작업트리(`git worktree add <자리> ddcd21f`)에서 `./scripts/sync-agents.sh <강호쟁패> --force` 를 돌린 그대로다 —
     감사자 · 커맨드의 머리줄이 `pdw96/claude-kit@ddcd21f`, 검사기는 원본과 바이트로 같다. 강호쟁패 PR 의 `git diff --name-only` 가 ① 의 B 줄
     밖을 들지 않는다.
   - S2 B 가 머지된 뒤 클론을 `origin/main` 으로 두고, `ddcd21f` 를 든 스크래치 대장으로 `compare-copies.py --repo ganghojaengpae --all` → 후보 0.
@@ -59,7 +63,7 @@
     닫는 기록의 `--merge` 줄의 근거다(ADR 0034 의 1).
 - **대장** (D, B · C 가 머지된 뒤)
   - L1 `copies.json` — 두 줄의 `synced_commit` 이 `ddcd21f` 의 전체 SHA, `synced_at` 이 심은 날. 강호쟁패 줄은 S1 의 작업트리 `copies.json` 에
-    `sync-agents.sh` 가 적은 줄 그대로, ERP 줄은 M4 의 PASS 뒤 손으로(`CLAUDE.md` 「금지」). `agents_path` 는 그대로다.
+    `sync-agents.sh` 가 적은 줄 그대로(S0 이 세 쪽 병합으로 돌렸으면 ERP 와 같이), ERP 줄은 M4 의 PASS 뒤 손으로(`CLAUDE.md` 「금지」). `agents_path` 는 그대로다.
   - L2 두 클론을 `origin/main` 으로 두고 `compare-copies.py` 가 끝 0 · `미판정 0` 이다. 모의대로면 `후보 27 — 미판정 0 · 판정됨 27` 이고
     `feedback.json` 은 그대로다. 새 후보가 나오면 저자가 판정해 이어지는 번호로 적는다 — `seen` 은 `erp` · 파일 · ERP 의 머지 커밋 · 밑
     `ddcd21f`.
@@ -78,7 +82,7 @@
   미판정을 찍는다. `verify-copies.py` 는 공통 절이 그대로라 PASS 다. CI 는 클론 경로가 닿지 않아 영향이 없다. D 가 그 창을 닫는다.
 - **병합 모드** — 다음 심기를 기계로 되풀이하는 길은 세우지 않는다(하지 않을 일 1). 줄은 닫는 기록이 더한다.
 - **아직 겪지 않은 가설적 경계 사례** — 예: 조각 중에 ERP · 강호쟁패가 사본을 또 고친다, `ddcd21f` 뒤 원본이 움직인다. 앞의 것은 그 머리에서
-  다시 병합하고(M2 의 충돌 길), 뒤의 것은 멈추고 저자에게 올린다. 리뷰가 그 밖을 짚으면 범위 밖이다(조각 6 「닫으며」).
+  다시 병합하고(ERP 는 M2 의 충돌 길, 강호쟁패는 S0 이 세 쪽 병합으로 돌린다), 뒤의 것은 멈추고 저자에게 올린다. 리뷰가 그 밖을 짚으면 범위 밖이다(조각 6 「닫으며」).
 
 ## ③ 받는 입력
 
@@ -142,6 +146,8 @@ ERP 모의본(위 병합 + README 3 줄의 SHA)에 스크래치 대장(`ddcd21f`
 **PR B** (A 가 머지된 뒤, 강호쟁패)
 
 - `git diff --stat ddcd21f origin/main -- vibe-audit/ scripts/sync-agents.sh` 가 비었는지 먼저 본다 — 비지 않으면 멈춘다.
+- S0 — 강호쟁패 `git fetch` 뒤 `origin/main` 의 사본 여덟 파일과 README 를 밑 · 생성본에 `cmp` 로 대어 본다. 결과를 PR 본문에 적고, 다르면
+  세 쪽 병합으로 간다.
 - `sync-agents.sh --force` 의 출력과 강호쟁패 PR 의 `git diff --name-only`(S1) · 머리줄 일곱의 SHA. 머지 뒤 S2.
 
 **PR C** (A 가 머지된 뒤, ERP)
@@ -171,7 +177,7 @@ ERP 모의본(위 병합 + README 3 줄의 SHA)에 스크래치 대장(`ddcd21f`
 | PR | 저장소 | 담는 것 | 닫는 것 |
 |---|---|---|---|
 | A 착공 | claude-kit | 요구사항 · 설계 · ADR 0034 · 마스터플랜(「사본을 0.4.1 로 다시 심기」 `진행`) | 단계 1 · 2, ② G2 |
-| B 강호쟁패 심기 | 강호쟁패 | `sync-agents.sh --force` 의 결과 | ② S1 · S2, 성공 기준 1 |
+| B 강호쟁패 심기 | 강호쟁패 | `sync-agents.sh --force` 의 결과(S0 이 다르면 세 쪽 병합의 결과) | ② S0 ~ S2, 성공 기준 1 |
 | C ERP 심기 | ERP | 세 쪽 병합의 결과 · README 의 출처 SHA | ② M1 ~ M6, 성공 기준 2 · 3 |
 | D 대장 | claude-kit | `copies.json` · 새 후보가 나오면 `feedback.json` | ② L1 ~ L3 · G1 · G3, 성공 기준 3 ~ 7 |
 
