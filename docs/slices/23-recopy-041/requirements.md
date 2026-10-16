@@ -104,14 +104,16 @@ pdw96/ganghojaengpae#13(머지 82af872), C ERP pdw96/ERP#113(머지 6dda439), D 
 | 4. 대장 | #88 — `copies.json` 두 줄 `ddcd21f7d359…` · `2026-10-16`. 강호쟁패 줄은 S1 의 작업트리 `copies.json` 에 `sync-agents.sh` 가 적은 줄과 JSON 으로 같고, ERP 줄은 위 2 의 `verify-copy.py` PASS 뒤 손으로 옮겼다. `verify-copies.py` → `PASS 사본 2개`, 두 줄 다 「원본은 그 뒤 0 커밋 움직임」, 「바뀐 원본」 없음 |
 | 5. 미판정 0 | #88 머리에서 `compare-copies.py` → `후보 27 — 미판정 0 · 판정됨 27(새 레포 0)`, 끝 0. 새 후보가 없어 `feedback.json` 은 그대로다. `verify-feedback.py` → `PASS 후보 37 — 특화 24 · 결함 7 · 보류 0 · 되먹임 완료 6` |
 | 6. 원본은 그대로다 | claude-kit PR 의 바꾼 파일 — #87 `docs/` 넷, #88 `copies.json`, 이 닫는 기록 `docs/` 둘 — 에 `vibe-audit/` · `vibe-slice/` · `scripts/` 가 없다. 셋 다 `eval-key.py route --list` ∪ `full --list` 와의 교집합 0, CI eval 잡이 건너뛰었다. `git diff --stat ddcd21f 1d720eb -- vibe-audit/ vibe-slice/ scripts/` 는 비었다 |
-| 7. `gates.sh` | 로컬 스물넷 통과 — #87 의 세 커밋 머리, #88 `46e15bd`, 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #87 `0199796`([run 38891309270](https://github.com/pdw96/claude-kit/actions/runs/38891309270)) · #88 `46e15bd`([run 38896166327](https://github.com/pdw96/claude-kit/actions/runs/38896166327)) · `main` 푸시 dde13f1([run 38892447983](https://github.com/pdw96/claude-kit/actions/runs/38892447983)) · 1d720eb([run 38898852262](https://github.com/pdw96/claude-kit/actions/runs/38898852262)) 통과. 검사 수는 스물넷 그대로다 |
+| 7. `gates.sh` | 로컬 스물넷 통과 — #87 의 세 커밋 머리, #88 `46e15bd`, 이 닫는 기록의 커밋 전 작업트리. CI gate 잡 — #87 `0199796`([run 38891309270](https://github.com/pdw96/claude-kit/actions/runs/38891309270)) · #88 `46e15bd`([run 38896166327](https://github.com/pdw96/claude-kit/actions/runs/38896166327)) · `main` 푸시 dde13f1([run 38892447983](https://github.com/pdw96/claude-kit/actions/runs/38892447983)) · 1d720eb([run 38898852262](https://github.com/pdw96/claude-kit/actions/runs/38898852262)) 통과. 이 닫는 PR(#89) — `33b1e6d`([run 38900274818](https://github.com/pdw96/claude-kit/actions/runs/38900274818)) · `78168fd`([run 38905284998](https://github.com/pdw96/claude-kit/actions/runs/38905284998)) 통과, 그 뒤 머리는 PR 의 gate 잡이 본다. 검사 수는 스물넷 그대로다 |
 | 8. `--merge` 줄 | 이 기록의 「넘긴 것」이 조각 나눔에 `sync-agents.sh --merge` 의 순서 없는 줄을 더한다. 근거는 #113 의 파일별 표(여덟 파일 충돌 0 · 바뀐 줄 1 · 1 · 1 · 1 · 1 · 2 · 1 · 0)와 조각 「사본 다시 심기」 C(pdw96/ERP#111)의 충돌 여덟이다(ADR 0034 의 1) |
 
 ### 배포
 
 배포가 곧 B · C 의 머지다(설계 ⑤ 「단계 5」) — 두 레포는 사본만 쓴다(ADR 0022 의 1). 2026-10-16 에 둘 다 머지됐다. 새 문장이 실제
 회차에서 일하는지(본 성능을 「담당 없음 — 호출자 판단 필요」 아래 항목으로 올리는가)는 두 레포의 다음 `audit-secrets` 회차가 보인다(하지
-않을 일 5). 되돌리는 길은 두 레포에서 그 머지를 되돌리고 #88 을 되돌리는 것이다 — 대장이 `018842c` 로 돌아간다.
+않을 일 5). 되돌리는 길은 이 닫는 기록을 먼저 되돌린 뒤 두 레포에서 그 머지를 되돌리고 #88 을 되돌리는 것이다 — 대장이 `018842c` 로 돌아간다.
+이 기록이 마스터플랜의 23 줄(`닫힘`) · 「`sync-agents.sh --merge`」 줄 · 「`gate-catches-unproven` 의 흔들림」의 순서를 고치므로, 그것을
+두고 배포만 되돌리면 살아 있는 문서가 되돌린 상태와 갈린다.
 
 ### 제약에서 어긋난 것
 
@@ -131,8 +133,12 @@ pdw96/ganghojaengpae#13(머지 82af872), C ERP pdw96/ERP#113(머지 6dda439), D 
 - pdw96/ganghojaengpae#13 1회차 — Codex 지적 0. CodeRabbit 은 리뷰 한도에 걸려 요약만 남겼다(지적 아님).
 - pdw96/ERP#113 1회차 — Codex 지적 0. 그 레포 `docs/리뷰-루프.md` 의 점수 추이 `0`.
 - #88 1회차 — 지적 0.
+- 이 닫는 PR(#89) — 1회차(`33b1e6d`) 안 셋(성공 기준 3 의 특화 수 오기 · `--merge` 줄에 파일별 바뀐 줄 없음 · 마스터플랜 새 줄의 시간에
+  기댄 문장) · 말하지 않음 하나(순서 24 와 하지 않을 일 7 의 경계 → 보장, 아래 「다음 조각」 문단). 2회차(`78168fd`) 안 셋(성공 기준 7
+  에 이 PR 의 CI 없음 · 되돌림에 이 기록 없음 · 이 절에 이 PR 의 갈래 없음) · 말하지 않음 하나(`--merge` 가 README 의 출처 SHA 를 어떻게
+  옮기는가 → 보장하지 않음, 그 줄을 꺼내는 조각이 정한다). 그 뒤 회차는 그 PR 본문이 든다.
 
-말하지 않음은 없다.
+말하지 않음은 이 닫는 PR 의 둘이다.
 
 ### 지켜본 것 — 줄을 더하지 않는다
 
