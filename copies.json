@@ -3,14 +3,14 @@
     {
       "repo": "erp",
       "agents_path": "/home/user/erp/.claude/agents",
-      "synced_commit": "018842c512f098874680309f37bb33dc2f685a0d",
-      "synced_at": "2026-10-14"
+      "synced_commit": "ddcd21f7d359d50462ad7e064e11d0154db1bb2a",
+      "synced_at": "2026-10-16"
     },
     {
       "repo": "ganghojaengpae",
       "agents_path": "/home/user/ganghojaengpae/.claude/agents",
-      "synced_commit": "018842c512f098874680309f37bb33dc2f685a0d",
-      "synced_at": "2026-10-14"
+      "synced_commit": "ddcd21f7d359d50462ad7e064e11d0154db1bb2a",
+      "synced_at": "2026-10-16"
     }
   ]
 }
