@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "for d in \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR/claude-kit\"; do if [ -f \"$d/scripts/verify-copies.py\" ] && [ \"$(git -C \"$d\" rev-parse --is-shallow-repository 2>/dev/null)\" = true ]; then git -C \"$d\" fetch --quiet --unshallow origin >/dev/null 2>&1; fi; done; true",
+            "command": "if [ -f \"$CLAUDE_PROJECT_DIR/scripts/verify-copies.py\" ] && [ \"$(git -C \"$CLAUDE_PROJECT_DIR\" rev-parse --is-shallow-repository 2>/dev/null)\" = true ]; then git -C \"$CLAUDE_PROJECT_DIR\" fetch --quiet --unshallow origin >/dev/null 2>&1; fi; true",
             "timeout": 120
           }
         ]
