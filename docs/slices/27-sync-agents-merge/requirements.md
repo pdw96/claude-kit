@@ -49,7 +49,8 @@
    결과와 바이트로 같고, README 는 출처 SHA 한 자리만 바뀌며, 대장의 그 줄은 `synced_commit` 이 HEAD 의 전체 SHA · `synced_at` 이 그날이고 `repo` ·
    `agents_path` 는 그대로다. 파일마다 충돌 수 · 바뀐 줄 수를 찍는다.
 2. **걸리면 아무것도 쓰지 않는다** — 충돌 하나 · README 의 출처 자리가 하나가 아님 · 원본의 파일 집합이 `synced_commit` 과 다름 · 병합본의
-   `verify-copy.py` FAIL · 대장에 그 사본의 줄이 없음 · 얕은 복제 · `--force` 와 함께 줌, 그 어느 것이든 종료 코드가 0 이 아니고 사본 레포와 대장의
+   `verify-copy.py` FAIL · 대장에 그 사본의 줄이 없음 · 얕은 복제 · `--force` 와 함께 줌 · 사본 레포가 원격 기본 가지보다 뒤 · 사본 자리에 커밋 안 된
+   것 · 사본 레포의 원격을 못 받음, 그 어느 것이든 종료 코드가 0 이 아니고 사본 레포와 대장의
    바이트가 그대로다. 충돌이면 세 재료와 충돌 표시 병합본이 든 사본 밖 임시 폴더를 찍는다.
 3. **물린다** — `./scripts/bite-gates.sh` 의 `sync-agents.sh` 절이 1 · 2 를 임시 원본 · 사본으로 본다. 그 절의 새 시험마다, 그 시험이 막는 자리를
    망가뜨린 `sync-agents.sh` 사본에서 떨어지는 것을 PR 본문에 보인다.
@@ -60,7 +61,8 @@
 5. **지금 길은 그대로다** — `--merge` 없이 · `--force` 의 동작은 바이트 하나 바뀌지 않는다 — 지금 `bite-gates.sh` 의 `sync-agents.sh` 시험이 다 지나가고,
    빈 자리에 심은 결과와 `--force` 로 덮은 결과가 `main` 의 스크립트로 심은 것과 `diff -r` 같다.
 6. **살아 있는 문서가 지금과 맞다** — `docs/architecture.md` 「심기」 · `README.md` 의 사본 레인 · `CHECKLIST.md` 「대장을 건드렸다면」 첫 줄 · 스크립트
-   머리의 쓰는 법이 `--merge` 를 든다. 손 병합이 남는 자리는 ADR 0038 의 3 과 `--merge` 가 멈춘 경우뿐이라고 적는다.
+   머리의 쓰는 법이 `--merge` 를 든다 — 다시 심기는 늘 `--merge`, `--force` 는 사본을 일부러 원본으로 되돌릴 때다. 손 병합이 남는 자리는 ADR 0038 의
+   3 과 `--merge` 가 멈춘 경우뿐이라고 적는다.
 7. `./scripts/gates.sh` 가 이 조각의 PR 마다 로컬과 CI gate 잡에서 통과하고, 검사 수는 스물넷 그대로다. 이 조각의 PR 은 수트 지문(`eval-key.py
    route --list` · `full --list`) 밖이다 — eval 잡이 건너뛴다.
 
@@ -87,6 +89,7 @@
   스크립트는 저장소에 싣지 않는다.
 - 클론: claude-kit 은 역사 전체 — 밑이 `synced_commit` 의 작업트리다.
 - CI: `scripts/sync-agents.sh` · `scripts/bite-gates.sh` · `docs/` · `README.md` · `CHECKLIST.md` 는 두 수트 지문 밖이다 — eval 잡이 건너뛴다.
+- 네트워크: `--merge` 는 사본 레포의 원격 기본 가지를 받는다(ADR 0038 의 8) — 오프라인이면 멈춘다.
 - 비용: 모델 호출이 없다.
 - 기간: 구현 PR 하나까지 **사흘**(2026-10-20 까지).
 - 리뷰: PR 본문에 설계 ② 를 적고, 착공 PR 도 구현 PR 도 스킬 `slice-review` 로 가른다. PR 마다 **3라운드**를 넘기면 소유자가 판정한다.
