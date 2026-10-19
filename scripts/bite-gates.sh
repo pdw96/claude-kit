@@ -354,7 +354,8 @@ mfix t1; mB; maccept "T1 깨끗한 병합"
 mfix t2; msubst "$S/scripts/sync-agents.sh" 'HDR="<!-- pdw96/claude-kit@$SHA 에서 옴.' 'HDR="<!-- pdw96/claude-kit@$SHA 에서 왔다.'; msrc H; mB
 maccept "T2 사이에 머리줄 꼴이 바뀜"
 mfix t7e; mB; mledger 'd["copies"] += [{"repo": r, "agents_path": f"~/x/{r}/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"} for r in ("base", "new")]; d["copies"].sort(key=lambda c: c["repo"])'
-maccept "T7e 대장에 base · new 줄이 있음"
+mg -C "$S" commit -qm "대장에 base · new" -- copies.json; git -C "$S" update-ref refs/remotes/origin/main HEAD   # 커밋에 들어야 작업트리의 스크립트가 걸린다
+maccept "T7e 커밋된 대장에 base · new 줄이 있음"
 mfix t12; mB; echo n > "$V/notes.txt"; msvc ahead; maccept "T12 사본 레포가 원격보다 한 커밋 앞섬"
 mfix t13; mB; git -C "$S" update-ref refs/remotes/origin/main "$MA"; maccept "T13 HEAD 가 origin/main 밖" 있음
 mfix t14; mB; mledger "for c in d['copies']: c['agents_path'] = '$F/svc/.claude/agents' if c['repo'] == 'svc' else c['agents_path']"
