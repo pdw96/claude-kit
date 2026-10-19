@@ -238,3 +238,11 @@
 | B 구현 | `scripts/sync-agents.sh` 의 `--merge` · `scripts/bite-gates.sh` 의 ② 「시험」 대응표 · `docs/architecture.md` · `README.md` · `CHECKLIST.md` | ② P · M · T · R · G1 · G3, 성공 기준 1 ~ 7 |
 
 조각을 닫는 기록(단계 6)은 따로 낸다 — 못 미친 기준이나 재현에서 난 다른 갈래를 조각 나눔의 줄로 올리는 것도 그 PR 이다.
+
+## 경계를 정했다 (2026-10-19, PR B 1회차)
+
+- **병합을 하는 원본 쪽 도구의 커밋 안 된 변경 — 보장.** P5 는 원본(`vibe-audit/` 의 감사자 · 커맨드 · 검사기)의 커밋 안 된 변경만 말했다. 대장에
+  HEAD 를 적는데 그 HEAD 로 병합을 다시 만들 수 없는 같은 갈래를 다 찾으면 둘이다 — 병합을 하는 `scripts/sync-agents.sh`(지금 도는 그 파일)와 M5 의
+  `scripts/verify-copy.py`. 밑 · 새 원본을 심는 스크립트는 작업트리(커밋)의 것이라 이 갈래가 아니고, `copies.json` 은 작업트리에서 고치는 것이
+  ADR 0038 의 9 다. `--merge` 는 그 두 파일에 커밋 안 된 변경이 있으면 멈춘다(`merge:tool-dirty`, 시험 T11g · T11h). 인자 없는 길 · `--force` 는
+  그대로다(요구사항 성공 기준 5).

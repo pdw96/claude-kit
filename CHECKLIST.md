@@ -41,5 +41,6 @@
 
 ## 대장을 건드렸다면
 
-- [ ] `copies.json` 은 `sync-agents.sh` 를 거쳤다
+- [ ] `copies.json` 은 `sync-agents.sh` 를 거쳤다 — 다시 심기는 `--merge`. 손 병합(원본의 파일 묶음이 바뀐 심기 · `--merge` 가
+      멈춘 심기)이면 `verify-copy.py` PASS 와 PR 본문의 병합 재현이 있다
 - [ ] `feedback.json` 의 판정은 저자가 했다 — 스크립트나 세션이 채운 판정이 아니다

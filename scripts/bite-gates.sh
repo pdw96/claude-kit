@@ -158,6 +158,321 @@ if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc2" >"$c/out" 2>&1 || [ -e "$
 fi
 rm "$c/src/vibe-audit/commands/local.md"
 
+# sync-agents.sh --merge — 조각 27 설계 ② 「시험」. 꼴마다 새 고정물 F 에서 돈다: src(이 저장소의 clone) · svc(src 의 커밋 A 로
+# 심은 사본 레포 — 감사자 하나의 특화 · README 를 다시 쓴 꼴 · 레포 고유 파일) · remote.git(svc 의 bare 원격, 기본 가지 main).
+# HOME=F 라 대장 줄은 `~/svc/.claude/agents` 다. 거절 꼴은 V1(0 아닌 종료 · 그 이유 코드 · 그대로), 성공 꼴은 V2 를 본다.
+# 떨어진 꼴은 모아 절 끝에 한 번에 떨어뜨린다 — 변조본 하나가 어느 꼴을 떨어뜨리는지 다 보이게(V4).
+M=$(mktemp -d)
+mg() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c push.negotiate=false "$@"; }
+mt="$M/tpl"; mkdir -p "$mt/svc"; git clone -q "$R" "$mt/src"
+HOME="$mt" "$mt/src/scripts/sync-agents.sh" "$mt/svc" >/dev/null 2>&1
+cp -a "$mt/svc/.claude" "$mt/base-snap"   # A 의 스크립트가 빈 자리에 심은 모양 — 기대본의 밑
+# 그 줄의 synced_at 을 옛 날로 — 성공 꼴이 「그날」로 바뀌었는지 볼 수 있게
+python3 - "$mt/src/copies.json" <<'L'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1]); d = json.loads(p.read_text(encoding="utf-8"))
+for c in d["copies"]:
+    if c["repo"] == "svc": c["synced_at"] = "2000-01-01"
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+L
+MA=$(git -C "$mt/src" rev-parse HEAD)
+git -C "$mt/src" update-ref refs/remotes/origin/main "$MA"
+# 감사자 하나의 체크 항목 표 첫 줄(공통 절 밖)에 꼬리를 단다 — 원본 커밋 B 와 충돌 꼴(T3)이 같은 자리를 쓴다
+mrow() { awk -v t="$2" '/^## 체크 항목/ { h = 1 } h && !d && /^\| [0-9]/ { $0 = $0 t; d = 1 } { print }' "$1" > "$1.t" && mv "$1.t" "$1"; }
+echo "- svc 특화: 이 레포의 마이그레이션은 Alembic 이다" >> "$mt/svc/.claude/agents/audit-data.md"
+sed -i '1s/.*/# 감사자 — svc/' "$mt/svc/.claude/agents/README.md"
+echo "레포 고유" > "$mt/svc/.claude/agents/svc-local.md"
+git -C "$mt/svc" init -q -b main; git -C "$mt/svc" add -A; mg -C "$mt/svc" commit -qm init
+git init -q --bare -b main "$mt/remote.git"
+git -C "$mt/svc" remote add origin "$mt/remote.git"; mg -C "$mt/svc" push -q origin main 2>/dev/null
+MNAMES=$(cd "$mt/base-snap" && for f in agents/*.md commands/*.md scripts/*.py; do echo "$f"; done | LC_ALL=C sort)
+MFAILS=""; mpass=0
+mfix() {  # $1=꼴 이름 — 앞 꼴의 고정물을 지우고(꼴마다 7MB 남짓이라 쌓으면 수백 MB) 새로 베껴 F · S · V 를 세운다
+  if [ -n "${MPREV:-}" ]; then rm -rf "$MPREV"; fi
+  F="$M/$1"; MPREV="$F"; cp -a "$mt" "$F"; S="$F/src"; V="$F/svc"; MSCRIPT="$S/scripts/sync-agents.sh"; MTMP="$F/tmp"
+  git -C "$V" remote set-url origin "$F/remote.git"
+}
+msrc() {  # 원본 커밋 — $1=메시지. origin/main 을 따라 옮겨 「기본 브랜치에 없다」 경고가 없게 둔다(경고 꼴은 T13)
+  git -C "$S" add -A vibe-audit scripts; mg -C "$S" commit -qm "$1" -- vibe-audit scripts
+  git -C "$S" update-ref refs/remotes/origin/main HEAD
+}
+mB() { mrow "$S/vibe-audit/agents/audit-data.md" " (B)"; msrc B; }
+msvc() { git -C "$V" add -A; mg -C "$V" commit -qm "${1:-svc}"; }
+mledger() {  # $1=d 를 고치는 파이썬 — 이 스크립트가 쓰는 꼴로 다시 쓴다
+  python3 - "$S/copies.json" "$1" <<'L'
+import json, pathlib, sys
+p = pathlib.Path(sys.argv[1]); d = json.loads(p.read_text(encoding="utf-8"))
+exec(sys.argv[2])
+p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+L
+}
+msubst() {  # $1=파일 $2=옛 글자 $3=새 글자 — 옛 글자가 정확히 한 자리
+  python3 - "$@" <<'P'
+import pathlib, sys
+p, old, new = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+s = p.read_text(encoding="utf-8")
+if s.count(old) != 1:
+    sys.exit(f"시험의 고정물을 못 세운다 — {p} 에 {old!r} 가 {s.count(old)} 자리다")
+p.write_text(s.replace(old, new), encoding="utf-8")
+P
+}
+mfail() { MFAILS="$MFAILS  $1"$'\n'; echo "::error::sync-agents.sh --merge $1"; if [ -f "$F/out" ]; then sed 's/^/    | /' "$F/out" | tail -8; fi; }
+msnap() {  # 「그대로」의 전 — 사본 레포의 .claude/ · 대장 · 사본 레포의 status · 사본 밖에서 링크가 가리키는 파일
+  rm -rf "$F/before"; mkdir -p "$F/before" "$MTMP"
+  if [ -e "$V/.claude" ]; then cp -a "$V/.claude" "$F/before/claude"; fi
+  cp -p "$S/copies.json" "$F/before/ledger"
+  git -C "$V" status --porcelain >"$F/before/status" 2>&1 || true
+  if [ -d "$F/outside" ]; then cp -a "$F/outside" "$F/before/outside"; fi
+}
+msame() {
+  if [ -e "$F/before/claude" ]; then diff -r --no-dereference "$F/before/claude" "$V/.claude" >/dev/null 2>&1 || return 1
+  elif [ -e "$V/.claude" ]; then return 1; fi
+  cmp -s "$F/before/ledger" "$S/copies.json" || return 1
+  [ "$(git -C "$V" status --porcelain 2>&1 || true)" = "$(cat "$F/before/status")" ] || return 1
+  if [ -d "$F/before/outside" ]; then diff -r "$F/before/outside" "$F/outside" >/dev/null 2>&1 || return 1; fi
+}
+mrun() {  # sync-agents.sh 를 V 에(V 가 비면 대상 없이) — 인자가 없으면 --merge. 결과는 $F/out · mrc
+  if [ $# -eq 0 ]; then set -- --merge; fi
+  mrc=0; HOME="$F" TMPDIR="$MTMP" "$MSCRIPT" ${V:+"$V"} "$@" >"$F/out" 2>&1 || mrc=$?
+}
+mtidy() {  # $1=꼴 $2=코드 — 작업트리 · 임시 폴더(M8). 충돌로 멈춘 것만 임시 폴더를 남긴다
+  if [ "$(git -C "$S" worktree list --porcelain | grep -c '^worktree ')" != 1 ]; then mfail "$1: src 에 임시 작업트리가 남았다"; return 1; fi
+  if [ "$2" != merge:conflict ] && [ -n "$(ls -A "$MTMP")" ]; then mfail "$1: TMPDIR 에 임시 폴더가 남았다"; return 1; fi
+}
+mcode() {  # $1=꼴 $2=코드 — 이유 코드 줄이 그것 하나
+  if [ "$(grep -c '^merge:' "$F/out")" != 1 ] || ! grep -qx "$2" "$F/out"; then mfail "$1: $2 로 멈추지 않았다"; return 1; fi
+}
+mrefuse() {  # $1=기대 코드 $2=꼴 [$3…=인자] — V1
+  local code=$1 name=$2; shift 2
+  msnap; mrun "$@"
+  if [ "$mrc" -eq 0 ]; then mfail "$name: 종료 0 — 멈춰야 한다"; return; fi
+  if [ "$code" = merge:force-and-merge ] && [ "$mrc" -ne 2 ]; then mfail "$name: 종료 $mrc — 2 여야 한다"; return; fi
+  mcode "$name" "$code" || return 0
+  msame || { mfail "$name: 사본 · 대장 · 사본 레포 상태가 그대로가 아니다"; return; }
+  mtidy "$name" "$code" || return 0
+  mpass=$((mpass + 1))
+}
+mkeep() {  # $1=기대 코드 $2=꼴 — 종료 0 인데 아무것도 안 쓰는 꼴(P4)
+  msnap; mrun
+  if [ "$mrc" -ne 0 ]; then mfail "$2: 종료 $mrc — 0 이어야 한다"; return; fi
+  mcode "$2" "$1" || return 0
+  msame || { mfail "$2: 아무것도 쓰지 않아야 한다"; return; }
+  mtidy "$2" "$1" || return 0
+  mpass=$((mpass + 1))
+}
+mexpect() {  # 기대본 — 밑은 A 로 심은 모양, 새 원본은 HEAD 의 스크립트가 빈 자리에 심은 모양(심은 뒤 대장을 되돌린다), 사본은 지금 V
+  rm -rf "$F/exp" "$F/newsnap"; mkdir -p "$F/newsnap"
+  cp -p "$S/copies.json" "$F/ledger.keep"
+  HOME="$F" "$S/scripts/sync-agents.sh" "$F/newsnap" >/dev/null 2>&1 || true
+  cp -p "$F/ledger.keep" "$S/copies.json"
+  local as hs n
+  as=$(git -C "$S" rev-parse --short "$MA"); hs=$(git -C "$S" rev-parse --short HEAD)
+  while IFS= read -r n; do
+    mkdir -p "$F/exp/$(dirname "$n")"
+    if [ "$n" = agents/README.md ]; then
+      sed "s|pdw96/claude-kit@$as|pdw96/claude-kit@$hs|" "$V/.claude/$n" > "$F/exp/$n"
+    else
+      git merge-file -p -L "사본" -L "밑 $as" -L "새 원본 $hs" \
+        "$V/.claude/$n" "$F/base-snap/$n" "$F/newsnap/.claude/$n" > "$F/exp/$n" || true
+    fi
+  done <<<"$MNAMES"
+}
+maccept() {  # $1=꼴 $2=경고(있음|없음) — V2: 종료 0 · 아홉이 기대본 · 대장 전체가 기대본 · 표 · 작업트리 없음 · 레포 고유 파일 그대로
+  local name=$1 warn=${2:-없음} n
+  mexpect; msnap
+  python3 - "$S/copies.json" "$(git -C "$S" rev-parse HEAD)" "$F/exp.ledger" "$F" <<'L'
+import datetime, json, pathlib, sys
+d = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+for c in d["copies"]:
+    if c["agents_path"] in ("~/svc/.claude/agents", sys.argv[4] + "/svc/.claude/agents"):
+        c["synced_commit"] = sys.argv[2]; c["synced_at"] = datetime.date.today().isoformat()
+pathlib.Path(sys.argv[3]).write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+L
+  mrun
+  if [ "$mrc" -ne 0 ]; then mfail "$name: 종료 $mrc — 0 이어야 한다"; return; fi
+  while IFS= read -r n; do
+    cmp -s "$F/exp/$n" "$V/.claude/$n" || { mfail "$name: $n 이 기대본(git merge-file · README 치환)과 다르다"; return; }
+  done <<<"$MNAMES"
+  cmp -s "$F/exp.ledger" "$S/copies.json" || { mfail "$name: 대장이 기대본(그 줄의 synced_commit · synced_at 만 바뀜)과 다르다"; return; }
+  # 표 — 머리줄이 한 줄씩 바뀌고(README 는 출처 한 자리), 원본 B 가 고친 audit-data.md 는 하나 더, 검사기는 바이트 그대로
+  local want got
+  want=$(while IFS= read -r n; do
+    case "$n" in agents/audit-data.md) echo "$n 0 2" ;; *.py) echo "$n 0 0" ;; *) echo "$n 0 1" ;; esac
+  done <<<"$MNAMES")
+  got=$(sed -nE 's/^\| ((agents|commands|scripts)\/[^ ]+) \| ([^ ]+) \| ([^ ]+) \|$/\1 \3 \4/p' "$F/out")
+  [ "$got" = "$want" ] || { mfail "$name: 파일별 표가 다르다 — 기대: $(echo $want)"; return; }
+  cmp -s "$F/before/claude/agents/svc-local.md" "$V/.claude/agents/svc-local.md" || { mfail "$name: 레포 고유 파일을 건드렸다"; return; }
+  if [ "$warn" = 있음 ] && ! grep -q '경고: HEAD(' "$F/out"; then mfail "$name: 「기본 브랜치에 없다」 경고가 없다"; return; fi
+  if [ "$warn" = 없음 ] && grep -q '경고: HEAD(' "$F/out"; then mfail "$name: 기본 브랜치의 HEAD 에 경고를 찍었다"; return; fi
+  mtidy "$name" ok || return 0
+  mpass=$((mpass + 1))
+}
+
+# P1 · 인자
+mfix t7a; mB; mrefuse merge:force-and-merge "T7a --force --merge" --force --merge
+mfix t0a; V=""; mrefuse merge:no-target "T0a 대상 없이 --merge"
+mfix t0b; V="$F/nope"; mrefuse merge:target-missing "T0b 없는 대상"
+# P2
+mfix t7b; mB; git clone -q --depth 1 "file://$S" "$F/shallow"; cp -p "$S/copies.json" "$F/shallow/copies.json"
+MSCRIPT="$F/shallow/scripts/sync-agents.sh"; S="$F/shallow"; mrefuse merge:shallow "T7b 얕은 복제"
+# P3
+mfix t7c; mB; mledger 'd["copies"] = [c for c in d["copies"] if c["repo"] != "svc"]'; mrefuse merge:no-ledger-row "T7c 대장에 줄 없음"
+mfix t7d; mB; mledger 'for c in d["copies"]: c["synced_commit"] = "0" * 40 if c["repo"] == "svc" else c["synced_commit"]'
+mrefuse merge:base-missing "T7d synced_commit 이 저장소에 없음"
+mfix t7f; mB; mledger 'd["copies"].append(dict(next(c for c in d["copies"] if c["repo"] == "svc"), repo="svc-twin"))'
+mrefuse merge:many-ledger-rows "T7f 대상 자리를 가리키는 줄이 둘"
+mfix t7i; mB; python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); open(p,"w").write(json.dumps(d, ensure_ascii=False, indent=4)+"\n")' "$S/copies.json"
+mrefuse merge:ledger-not-canonical "T7i 대장이 이 스크립트의 꼴이 아님"
+# P5 — 지금 스크립트의 앞 검사를 --merge 로
+mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-ops.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
+mfix t11b; mB; echo 'vibe-audit/commands/local.md' >> "$S/.git/info/exclude"; printf -- '---\ndescription: x\n---\n' > "$S/vibe-audit/commands/local.md"
+mrefuse merge:src-untracked "T11b HEAD 에 없는 원본 파일"
+mfix t11g; mB; echo '#' >> "$S/scripts/verify-copy.py"; mrefuse merge:tool-dirty "T11g 병합을 하는 원본 도구(verify-copy.py)에 커밋 안 된 변경"
+mfix t11h; mB; echo '#' >> "$S/scripts/sync-agents.sh"; mrefuse merge:tool-dirty "T11h 병합을 하는 원본 도구(sync-agents.sh)에 커밋 안 된 변경"
+mfix t11c; mB; mledger 'd["copies"].append({"repo": "svc", "agents_path": "~/elsewhere/svc/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"})'
+mrefuse merge:name-clash "T11c 대장의 같은 이름 다른 자리"
+mfix t11d; mB; git -C "$V" rm -rq .claude/scripts; : > "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-not-dir "T11d 폴더 자리에 파일"
+mfix t11e; mB; git -C "$V" rm -q .claude/agents/audit-ops.md; mkdir "$V/.claude/agents/audit-ops.md"; : > "$V/.claude/agents/audit-ops.md/x"; msvc
+mrefuse merge:file-slot-dir "T11e 파일 자리에 폴더"
+mfix t11f; mB; mkdir -p "$F/outside"; git -C "$V" rm -rq --cached .claude/scripts; mv "$V/.claude/scripts/verify-brief.py" "$F/outside/"
+rmdir "$V/.claude/scripts"; ln -s "$F/outside" "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-link "T11f 폴더 자리가 링크"
+# P6 — 사본 레포
+mfix t9a; mB; git clone -q "$F/remote.git" "$F/other"; echo x > "$F/other/x"; git -C "$F/other" add x; mg -C "$F/other" commit -qm ahead
+mg -C "$F/other" push -q origin main 2>/dev/null; mrefuse merge:copy-behind "T9a 원격이 앞섬"
+mfix t9b; mB; echo x >> "$V/.claude/agents/audit-ops.md"; mrefuse merge:copy-dirty "T9b 추적된 파일에 커밋 안 된 고침"
+mfix t9h; mB; echo x > "$V/.claude/commands/new.md"; mrefuse merge:copy-dirty "T9h 사본 자리에 추적 안 된 새 파일"
+mfix t9c; mB; git -C "$V" rm -q --cached .claude/agents/README.md; echo .claude/agents/README.md >> "$V/.git/info/exclude"; msvc
+mrefuse merge:copy-not-tracked "T9c 무시된 README"
+mfix t9i; mB; git -C "$V" rm -q --cached .claude/agents/audit-ops.md; echo .claude/agents/audit-ops.md >> "$V/.git/info/exclude"; msvc
+mrefuse merge:copy-not-tracked "T9i 무시된 감사자"
+mfix t9d; mB; git -C "$V" remote remove origin; mrefuse merge:remote-unknown "T9d 원격 없음"
+mfix t9g; mB; rm -f "$V/.git/FETCH_HEAD"; mkdir "$V/.git/FETCH_HEAD"; mrefuse merge:fetch-failed "T9g 기본 가지는 읽히는데 받기가 실패"
+mfix t9f; mB; rm -rf "$V/.git"; mrefuse merge:copy-not-git "T9f 대상이 git 저장소 밖"
+mfix t9e; git clone -q "$F/remote.git" "$F/other"; echo x > "$F/other/x"; git -C "$F/other" add x; mg -C "$F/other" commit -qm ahead
+mg -C "$F/other" push -q origin main 2>/dev/null; mrefuse merge:copy-behind "T9e 같은 커밋인데 원격이 앞섬"
+# P4
+mfix t10; mkeep merge:up-to-date "T10 같은 커밋 · 깨끗함"
+# 성공 꼴 — M1 · M6 · M7 · 받는 쪽 경계
+mfix t1; mB; maccept "T1 깨끗한 병합"
+mfix t2; msubst "$S/scripts/sync-agents.sh" 'HDR="<!-- pdw96/claude-kit@$SHA 에서 옴.' 'HDR="<!-- pdw96/claude-kit@$SHA 에서 왔다.'; msrc H; mB
+maccept "T2 사이에 머리줄 꼴이 바뀜"
+mfix t7e; mB; mledger 'd["copies"] += [{"repo": r, "agents_path": f"~/x/{r}/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"} for r in ("base", "new")]; d["copies"].sort(key=lambda c: c["repo"])'
+mg -C "$S" commit -qm "대장에 base · new" -- copies.json; git -C "$S" update-ref refs/remotes/origin/main HEAD   # 커밋에 들어야 작업트리의 스크립트가 걸린다
+maccept "T7e 커밋된 대장에 base · new 줄이 있음"
+mfix t12; mB; echo n > "$V/notes.txt"; msvc ahead; maccept "T12 사본 레포가 원격보다 한 커밋 앞섬"
+mfix t13; mB; git -C "$S" update-ref refs/remotes/origin/main "$MA"; maccept "T13 HEAD 가 origin/main 밖" 있음
+mfix t14; mB; mledger "for c in d['copies']: c['agents_path'] = '$F/svc/.claude/agents' if c['repo'] == 'svc' else c['agents_path']"
+maccept "T14 대장 줄이 절대 경로 — 그 바이트 그대로"
+# M1 — 그 커밋의 스크립트가 0 아닌 코드로 끝남
+mfix t7g; echo 'exit 3' >> "$S/scripts/sync-agents.sh"; msrc "A′"; h=$(git -C "$S" rev-parse HEAD)
+mledger "for c in d['copies']: c['synced_commit'] = '$h' if c['repo'] == 'svc' else c['synced_commit']"
+git -C "$S" show "$MA:scripts/sync-agents.sh" > "$S/scripts/sync-agents.sh"; mB; mrefuse merge:base-build-failed "T7g 밑의 스크립트가 실패"
+mfix t7h; echo 'exit 3' >> "$S/scripts/sync-agents.sh"; mB; mrefuse merge:new-build-failed "T7h 새 원본의 스크립트가 다 심은 뒤 실패"
+# M2 — 묶음
+mfix t5a; mB; printf -- '---\ndescription: x\n---\n' > "$S/vibe-audit/commands/extra.md"; msrc add; mrefuse merge:bundle-differs "T5a 원본에 파일을 더함"
+mfix t5b; mB; git -C "$S" rm -q vibe-audit/commands/audit-brief.md; msrc rm; mrefuse merge:bundle-differs "T5b 원본에서 파일을 뺌"
+while IFS= read -r n; do
+  k=${n//\//-}
+  mfix "t5c-$k"; mB; mkdir -p "$F/outside"; mv "$V/.claude/$n" "$F/outside/$k"; ln -s "$F/outside/$k" "$V/.claude/$n"; msvc
+  mrefuse merge:copy-not-file "T5c $n 이 사본 밖을 가리키는 링크"
+  mfix "t5d-$k"; mB; git -C "$V" rm -q ".claude/$n"; msvc; mrefuse merge:copy-not-file "T5d $n 이 없음"
+  mfix "t5e-$k"; mB; git -C "$V" rm -q ".claude/$n"; mkdir -p "$V/.claude/$n"; : > "$V/.claude/$n/x"; msvc
+  # README 는 지금 스크립트가 심는 파일 목록 밖이라 P5 의 파일 자리 검사가 아니라 M2 가 문다
+  if [ "$n" = agents/README.md ]; then mrefuse merge:copy-not-file "T5e $n 이 폴더"; else mrefuse merge:file-slot-dir "T5e $n 이 폴더"; fi
+done <<<"$MNAMES"
+# M3 · M8 — 충돌과 오류
+mfix t3; mB; mrow "$V/.claude/agents/audit-data.md" " (svc)"; msvc; mrefuse merge:conflict "T3 사본과 원본이 같은 줄을 고침"
+w=$(sed -n 's/^재료와 충돌 표시 병합본: \(.*\) (base .*/\1/p' "$F/out")
+mexpect
+as=$(git -C "$S" rev-parse --short "$MA"); hs=$(git -C "$S" rev-parse --short HEAD)
+git merge-file -p -L "사본" -L "밑 $as" -L "새 원본 $hs" "$V/.claude/agents/audit-data.md" "$F/base-snap/agents/audit-data.md" \
+  "$F/newsnap/.claude/agents/audit-data.md" > "$F/exp/agents/audit-data.md" || true
+if [ -z "$w" ] || [ "${w#"$V"}" != "$w" ] || ! diff -r "$w/base/.claude" "$F/base-snap" >/dev/null || ! diff -r "$w/new/.claude" "$F/newsnap/.claude" >/dev/null; then
+  mfail "T3 M8: 남긴 폴더($w)가 사본 밖이 아니거나 base · new 가 기대 바이트가 아니다"
+else
+  while IFS= read -r n; do
+    cmp -s "$w/copy/$n" "$V/.claude/$n" || mfail "T3 M8: 사본 베낌 $n 이 다르다"
+    [ "$n" = agents/README.md ] || cmp -s "$w/merged/$n" "$F/exp/$n" || mfail "T3 M8: 병합본 $n 이 기대(충돌 표시 포함)와 다르다"
+  done <<<"$MNAMES"
+  grep -q '^<<<<<<< 사본$' "$w/merged/agents/audit-data.md" || mfail "T3 M8: 병합본에 충돌 표시가 없다"
+  grep -qx '| agents/audit-data.md | 1 | .* |' "$F/out" || mfail "T3: 표에 충돌 1 이 없다"
+fi
+# M8 — 임시 폴더가 사본 레포 · 원본 저장소 안이면 멈춘다. 충돌 꼴 위에서 — 그대로 가면 재료를 그 안에 남긴다
+mfix t15a; mB; mrow "$V/.claude/agents/audit-data.md" " (svc)"; msvc; MTMP="$V/.tmp"; mrefuse merge:work-inside-repo "T15a TMPDIR 이 사본 레포 안"
+mfix t15b; mB; mrow "$V/.claude/agents/audit-data.md" " (svc)"; msvc; MTMP="$S/.tmp"; mrefuse merge:work-inside-repo "T15b TMPDIR 이 원본 저장소 안"
+mfix t3b; mB; python3 -c 'import pathlib,sys; p=pathlib.Path(sys.argv[1]); b=p.read_bytes(); i=b.index(b"\n")+1; p.write_bytes(b[:i]+b"\0\n"+b[i:])' "$V/.claude/agents/audit-data.md"; msvc
+mrefuse merge:conflict "T3b 사본 파일에 NUL — git merge-file 이 오류(255)"
+grep -qx '| agents/audit-data.md | 오류 | .* |' "$F/out" || mfail "T3b: 표에 오류가 없다"
+# M4 — 세 README 하나하나에
+TPL='\`pdw96/claude-kit@$SHA\` 의 \`vibe-audit\` 플러그인에서 온 사본이다.'
+m4src() {  # $1=README 틀을 바꾼 꼴 — 0 | 2 | hex
+  case "$1" in
+    0) msubst "$S/scripts/sync-agents.sh" "$TPL" '\`pdw96/claude-kit\` 의 \`vibe-audit\` 플러그인에서 온 사본이다.' ;;
+    2) msubst "$S/scripts/sync-agents.sh" "$TPL" "$TPL"$'\n''다시 적은 출처: \`pdw96/claude-kit@$SHA\`.' ;;
+    hex) msubst "$S/scripts/sync-agents.sh" "$TPL" '\`pdw96/claude-kit@${SHA}0\` 의 \`vibe-audit\` 플러그인에서 온 사본이다.' ;;
+  esac
+}
+for k in 0 2 hex; do
+  # 밑 — 그 틀로 심은 커밋 A2 에 사본을 --force 로 다시 심고, 사본 README 만 출처 한 자리로 고친 뒤 B 가 틀을 되돌린다
+  mfix "t4-base-$k"; m4src "$k"; msrc A2; a2=$(git -C "$S" rev-parse --short HEAD)
+  HOME="$F" "$S/scripts/sync-agents.sh" "$V" --force >/dev/null 2>&1
+  python3 - "$V/.claude/agents/README.md" "$a2" <<'P'
+import pathlib, re, sys
+p, a2 = pathlib.Path(sys.argv[1]), sys.argv[2]
+s = re.sub(r"\n다시 적은 출처: .*\n", "\n", p.read_text(encoding="utf-8"))
+s = re.sub(r"`pdw96/claude-kit[^`]*`", f"`pdw96/claude-kit@{a2}`", s)
+p.write_text(s, encoding="utf-8")
+P
+  msvc A2; git -C "$S" show "$MA:scripts/sync-agents.sh" > "$S/scripts/sync-agents.sh"; mB
+  if [ "$k" = hex ]; then c=merge:readme-source-mismatch; else c=merge:readme-source-count; fi
+  mrefuse "$c" "T4 밑 README 의 출처 꼴 $k"
+  mfix "t4-new-$k"; m4src "$k"; mB; mrefuse "$c" "T4 새 원본 README 의 출처 꼴 $k"
+done
+as=$(git -C "$mt/src" rev-parse --short "$MA")
+mfix t4-copy-0; mB; msubst "$V/.claude/agents/README.md" "pdw96/claude-kit@$as" "pdw96/claude-kit"; msvc
+mrefuse merge:readme-source-count "T4a 사본 README 에 출처 0"
+mfix t4-copy-2; mB; echo "또 적은 출처 pdw96/claude-kit@$as" >> "$V/.claude/agents/README.md"; msvc
+mrefuse merge:readme-source-count "T4b 사본 README 에 출처 둘"
+mfix t4-copy-hex; mB; msubst "$V/.claude/agents/README.md" "pdw96/claude-kit@$as" "pdw96/claude-kit@${as}0"; msvc
+mrefuse merge:readme-source-mismatch "T4d 사본 README 의 출처가 밑 SHA 로 시작하는 더 긴 16진"
+mfix t4-copy-other; mB; msubst "$V/.claude/agents/README.md" "pdw96/claude-kit@$as" "pdw96/claude-kit@1234567"; msvc
+mrefuse merge:readme-source-mismatch "T4h 사본 README 의 출처가 밑과 다름"
+# M5
+mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-ops.md"; msvc
+mrefuse merge:verify-copy-failed "T6 사본이 감사자 하나의 tools 를 바꿈"
+# T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 c56e571 의 스크립트와 이 스크립트가 같은
+# 자리에 심은 결과 · 출력 · 대장이 같다. 그 길을 일부러 바꾸면 이 핀을 그 커밋으로 옮긴다.
+mfix t8; git -C "$S" show c56e571:scripts/sync-agents.sh > "$S/scripts/sync-agents.pin.sh"; chmod +x "$S/scripts/sync-agents.pin.sh"
+cp -p "$S/copies.json" "$F/l0"
+for v in pin cur; do
+  if [ "$v" = pin ]; then sc="$S/scripts/sync-agents.pin.sh"; else sc="$S/scripts/sync-agents.sh"; fi
+  rm -rf "$F/t8"; mkdir "$F/t8"; cp -p "$F/l0" "$S/copies.json"; mkdir -p "$F/r.$v"
+  { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o1" 2>&1 || true
+  { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o2" 2>&1 || true   # 있으면 건너뛰는 길
+  cp -a "$F/t8/.claude" "$F/r.$v/plain"; cp -p "$S/copies.json" "$F/r.$v/l1"
+  echo "- 특화" >> "$F/t8/.claude/agents/audit-ops.md"
+  { HOME="$F" "$sc" "$F/t8" --force; echo "rc=$?"; } >"$F/r.$v/o3" 2>&1 || true
+  cp -a "$F/t8/.claude" "$F/r.$v/force"; cp -p "$S/copies.json" "$F/r.$v/l2"
+done
+cp -p "$F/l0" "$S/copies.json"
+if diff -r "$F/r.pin" "$F/r.cur" >"$F/out" 2>&1; then mpass=$((mpass + 1)); else mfail "T8 인자 없는 길 · --force 가 c56e571 과 다르다"; fi
+
+# V5 — `merge:` 이유 코드마다 그것을 기대하는 시험(mrefuse · mkeep)이 이 절에 있다. 변조본: 시험 하나를 지운 절은 떨어진다.
+mcodes() {  # $1=sync-agents.sh $2=시험 파일 — 시험이 없는 코드를 찍는다
+  comm -23 <(grep -oE 'merge:[a-z][a-z-]*' "$1" | sort -u) \
+           <(grep -vE '^[[:space:]]*#' "$2" | grep -oE '\bm(refuse|keep) merge:[a-z][a-z-]*' | grep -oE 'merge:[a-z-]+' | sort -u)
+}
+F="$M/v5"; mkdir -p "$F"
+gap=$(mcodes "$mt/src/scripts/sync-agents.sh" "$R/scripts/bite-gates.sh")
+if [ -n "$gap" ]; then mfail "V5 시험이 없는 이유 코드: $(echo $gap)"; else mpass=$((mpass + 1)); fi
+sed '/mrefuse merge:shallow /d' "$R/scripts/bite-gates.sh" > "$F/cut.sh"
+if [ "$(mcodes "$mt/src/scripts/sync-agents.sh" "$F/cut.sh")" != merge:shallow ]; then mfail "V5 변조본: 시험 하나를 지운 절이 떨어지지 않는다"; else mpass=$((mpass + 1)); fi
+
+if [ -n "$MFAILS" ]; then
+  echo "::error::sync-agents.sh --merge 의 꼴 $(printf '%s' "$MFAILS" | grep -c .) 이 떨어졌다 (지나간 꼴 $mpass):"; printf '%s' "$MFAILS"; exit 1
+fi
+echo "sync-agents.sh --merge: 꼴 $mpass 다 지나감 — 거절은 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
+
 # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 rm "$s"/vibe-audit/evals/*/graders/real-nc-found.md
