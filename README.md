@@ -43,9 +43,13 @@ claude plugin install vibe-slice@pdw96-kit
 `claude/...` 가지에서 도는 세션은 위 경로를 받지 못한다. 그 레포의 `.claude/agents/` 에 파일이 있어야 뜬다.
 
 ```bash
-./scripts/sync-agents.sh ~/src/ERP    # 감사자 · 브리핑 커맨드 · 검사기 → .claude/agents · commands · scripts
-./scripts/sync-slice.sh ~/src/ERP     # vibe-slice 의 스킬 → .claude/skills/slice-docs · slice-review
+./scripts/sync-agents.sh ~/src/ERP            # 처음 심기 — 감사자 · 브리핑 커맨드 · 검사기 → .claude/agents · commands · scripts
+./scripts/sync-agents.sh ~/src/ERP --merge    # 다시 심기 — 늘 이것. 사본의 특화를 지키며 세 쪽 병합, 걸리면 아무것도 안 쓴다
+./scripts/sync-slice.sh ~/src/ERP             # vibe-slice 의 스킬 → .claude/skills/slice-docs · slice-review
 ```
+
+`--force` 는 사본을 일부러 원본으로 되돌릴 때만 쓴다 — 특화가 사라진다. `--merge` 가 멈추면(충돌 · 원본의 파일 묶음이 바뀜 등)
+그 심기는 손으로 세 쪽 병합한다 — 충돌이면 스크립트가 찍은 임시 폴더에 재료와 충돌 표시 병합본이 있다.
 
 호출 이름은 스코프 없이 `@audit-secrets`. 사본은 그 레포에 맞게 갈려도 된다 — 어느 쪽으로 무엇을 되돌리는지는 [의도](INTENT.md).
 
