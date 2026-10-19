@@ -187,8 +187,9 @@ git init -q --bare -b main "$mt/remote.git"
 git -C "$mt/svc" remote add origin "$mt/remote.git"; mg -C "$mt/svc" push -q origin main 2>/dev/null
 MNAMES=$(cd "$mt/base-snap" && for f in agents/*.md commands/*.md scripts/*.py; do echo "$f"; done | LC_ALL=C sort)
 MFAILS=""; mpass=0
-mfix() {  # $1=꼴 이름 — 고정물을 새로 베껴 F · S · V 를 세운다
-  F="$M/$1"; cp -a "$mt" "$F"; S="$F/src"; V="$F/svc"; MSCRIPT="$S/scripts/sync-agents.sh"
+mfix() {  # $1=꼴 이름 — 앞 꼴의 고정물을 지우고(꼴마다 7MB 남짓이라 쌓으면 수백 MB) 새로 베껴 F · S · V 를 세운다
+  if [ -n "${MPREV:-}" ]; then rm -rf "$MPREV"; fi
+  F="$M/$1"; MPREV="$F"; cp -a "$mt" "$F"; S="$F/src"; V="$F/svc"; MSCRIPT="$S/scripts/sync-agents.sh"; MTMP="$F/tmp"
   git -C "$V" remote set-url origin "$F/remote.git"
 }
 msrc() {  # 원본 커밋 — $1=메시지. origin/main 을 따라 옮겨 「기본 브랜치에 없다」 경고가 없게 둔다(경고 꼴은 T13)
@@ -217,7 +218,7 @@ P
 }
 mfail() { MFAILS="$MFAILS  $1"$'\n'; echo "::error::sync-agents.sh --merge $1"; if [ -f "$F/out" ]; then sed 's/^/    | /' "$F/out" | tail -8; fi; }
 msnap() {  # 「그대로」의 전 — 사본 레포의 .claude/ · 대장 · 사본 레포의 status · 사본 밖에서 링크가 가리키는 파일
-  rm -rf "$F/before"; mkdir -p "$F/before" "$F/tmp"
+  rm -rf "$F/before"; mkdir -p "$F/before" "$MTMP"
   if [ -e "$V/.claude" ]; then cp -a "$V/.claude" "$F/before/claude"; fi
   cp -p "$S/copies.json" "$F/before/ledger"
   git -C "$V" status --porcelain >"$F/before/status" 2>&1 || true
@@ -232,11 +233,11 @@ msame() {
 }
 mrun() {  # sync-agents.sh 를 V 에(V 가 비면 대상 없이) — 인자가 없으면 --merge. 결과는 $F/out · mrc
   if [ $# -eq 0 ]; then set -- --merge; fi
-  mrc=0; HOME="$F" TMPDIR="$F/tmp" "$MSCRIPT" ${V:+"$V"} "$@" >"$F/out" 2>&1 || mrc=$?
+  mrc=0; HOME="$F" TMPDIR="$MTMP" "$MSCRIPT" ${V:+"$V"} "$@" >"$F/out" 2>&1 || mrc=$?
 }
 mtidy() {  # $1=꼴 $2=코드 — 작업트리 · 임시 폴더(M8). 충돌로 멈춘 것만 임시 폴더를 남긴다
   if [ "$(git -C "$S" worktree list --porcelain | grep -c '^worktree ')" != 1 ]; then mfail "$1: src 에 임시 작업트리가 남았다"; return 1; fi
-  if [ "$2" != merge:conflict ] && [ -n "$(ls -A "$F/tmp")" ]; then mfail "$1: TMPDIR 에 임시 폴더가 남았다"; return 1; fi
+  if [ "$2" != merge:conflict ] && [ -n "$(ls -A "$MTMP")" ]; then mfail "$1: TMPDIR 에 임시 폴더가 남았다"; return 1; fi
 }
 mcode() {  # $1=꼴 $2=코드 — 이유 코드 줄이 그것 하나
   if [ "$(grep -c '^merge:' "$F/out")" != 1 ] || ! grep -qx "$2" "$F/out"; then mfail "$1: $2 로 멈추지 않았다"; return 1; fi
@@ -326,6 +327,8 @@ mrefuse merge:ledger-not-canonical "T7i 대장이 이 스크립트의 꼴이 아
 mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-ops.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
 mfix t11b; mB; echo 'vibe-audit/commands/local.md' >> "$S/.git/info/exclude"; printf -- '---\ndescription: x\n---\n' > "$S/vibe-audit/commands/local.md"
 mrefuse merge:src-untracked "T11b HEAD 에 없는 원본 파일"
+mfix t11g; mB; echo '#' >> "$S/scripts/verify-copy.py"; mrefuse merge:tool-dirty "T11g 병합을 하는 원본 도구(verify-copy.py)에 커밋 안 된 변경"
+mfix t11h; mB; echo '#' >> "$S/scripts/sync-agents.sh"; mrefuse merge:tool-dirty "T11h 병합을 하는 원본 도구(sync-agents.sh)에 커밋 안 된 변경"
 mfix t11c; mB; mledger 'd["copies"].append({"repo": "svc", "agents_path": "~/elsewhere/svc/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"})'
 mrefuse merge:name-clash "T11c 대장의 같은 이름 다른 자리"
 mfix t11d; mB; git -C "$V" rm -rq .claude/scripts; : > "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-not-dir "T11d 폴더 자리에 파일"
@@ -394,6 +397,9 @@ else
   grep -q '^<<<<<<< 사본$' "$w/merged/agents/audit-data.md" || mfail "T3 M8: 병합본에 충돌 표시가 없다"
   grep -qx '| agents/audit-data.md | 1 | .* |' "$F/out" || mfail "T3: 표에 충돌 1 이 없다"
 fi
+# M8 — 임시 폴더가 사본 레포 · 원본 저장소 안이면 멈춘다. 충돌 꼴 위에서 — 그대로 가면 재료를 그 안에 남긴다
+mfix t15a; mB; mrow "$V/.claude/agents/audit-data.md" " (svc)"; msvc; MTMP="$V/.tmp"; mrefuse merge:work-inside-repo "T15a TMPDIR 이 사본 레포 안"
+mfix t15b; mB; mrow "$V/.claude/agents/audit-data.md" " (svc)"; msvc; MTMP="$S/.tmp"; mrefuse merge:work-inside-repo "T15b TMPDIR 이 원본 저장소 안"
 mfix t3b; mB; python3 -c 'import pathlib,sys; p=pathlib.Path(sys.argv[1]); b=p.read_bytes(); i=b.index(b"\n")+1; p.write_bytes(b[:i]+b"\0\n"+b[i:])' "$V/.claude/agents/audit-data.md"; msvc
 mrefuse merge:conflict "T3b 사본 파일에 NUL — git merge-file 이 오류(255)"
 grep -qx '| agents/audit-data.md | 오류 | .* |' "$F/out" || mfail "T3b: 표에 오류가 없다"

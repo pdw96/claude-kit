@@ -208,6 +208,16 @@ if [ "$MERGE" -eq 1 ]; then
   trap 'exit 130' INT
   trap 'exit 143' TERM
 
+  # P5 의 끝 — **병합을 하는 원본 쪽 도구도 커밋돼 있어야 한다.** 병합은 지금 이 스크립트가, M5 는 verify-copy.py 가
+  # 한다. 고치던 중인 것으로 병합하고 대장에 HEAD 를 적으면 그 커밋으로 병합을 다시 만들 수 없다(설계 끝 「경계를 정했다」).
+  tooling="$(git -C "$SRC" status --porcelain -- scripts/sync-agents.sh scripts/verify-copy.py 2>&1 || echo '상태를 못 읽었다')"
+  if [ -n "$tooling" ]; then
+    echo "병합을 하는 원본 쪽 도구에 커밋 안 된 변경이 있다 — 대장에 적을 HEAD 로 이 병합을 다시 만들 수 없어 병합하지 않는다:" >&2
+    echo "$tooling" >&2
+    why merge:tool-dirty
+    exit 1
+  fi
+
   # P3 — 대장에 대상 자리를 가리키는 줄이 정확히 하나. `~` 를 풀어 견준다. 줄을 바꿔 다시 쓸 때 다른 줄의 바이트가
   # 그대로이려면 대장이 이 스크립트가 쓰는 꼴이어야 한다(M6).
   if ! row="$(python3 - "$SRC/copies.json" "$DEST" <<'ROW'
@@ -277,6 +287,18 @@ ROW
   # M1 — 재료. 밑과 새 원본은 그 커밋의 작업트리에서 그 커밋의 이 스크립트를 빈 자리에 돌린 모양이다(ADR 0038 의 2).
   # 돌리기 전에 작업트리의 대장을 비운다 — 그 스크립트는 대장에 같은 이름(base · new)의 다른 자리가 있으면 멈춘다.
   WORK="$(mktemp -d "${TMPDIR:-/tmp}/sync-merge.XXXXXX")"
+  # M8 — 임시 폴더는 사본 레포 · 원본 저장소 밖이다. TMPDIR 이 그 안이면 충돌 때 남기는 재료와 작업트리가 그 레포를 더럽힌다
+  wreal="$(cd "$WORK" && pwd -P)"
+  for t in "$(git -C "$TARGET" rev-parse --show-toplevel)" "$SRC"; do
+    treal="$(cd "$t" && pwd -P)"
+    case "$wreal/" in
+      "$treal"/*)
+        rm -rf "$WORK"; WORK=""
+        echo "임시 폴더 자리(TMPDIR=${TMPDIR:-})가 $treal 안이다 — 재료를 그 레포 밖에 두려고 병합하지 않는다. TMPDIR 을 레포 밖으로 둔다." >&2
+        why merge:work-inside-repo
+        exit 1 ;;
+    esac
+  done
   merge_build() {  # $1=base|new  $2=커밋
     git -C "$SRC" worktree add --detach --quiet "$WORK/wt-$1" "$2" >/dev/null 2>&1 || return 1
     printf '{"copies": []}\n' > "$WORK/wt-$1/copies.json"
