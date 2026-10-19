@@ -114,7 +114,7 @@ CLASH
 # 가면 있는 파일은 건너뛰고 없는 파일만 심은 뒤, 건너뛴 것이 있어 대장에는 안
 # 적는다 — 섞인 사본이 **대장 밖에** 남아 verify-copies.py 가 영영 못 본다(Codex
 # 리뷰). 대장에 이미 있는 자리면 지금처럼 있는 것은 두고 출처를 옮기지 않는다.
-# --merge 는 이 둘 대신 아래 merge_copy 의 M2 가 묶음을 본다(설계 ② P5).
+# --merge 는 이 둘 대신 아래 --merge 블록의 M2 가 묶음을 본다(설계 ② P5).
 if [ "$FORCE" -eq 0 ] && [ "$MERGE" -eq 0 ]; then
   existing=""
   missing=""
