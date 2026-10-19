@@ -8,7 +8,7 @@
 |---|---|---|
 | `docs/master-plan.md` | A · 닫기 | 조각 나눔에 29 줄(`진행`), 닫기에서 `닫힘` |
 | `docs/slices/29-gate-quoted-paths/` · `docs/adr/0040-gate-quoted-paths.md` | A | 이 요구사항 · 설계 · ADR |
-| `vibe-slice/skills/slice-docs/scripts/verify-slice-gate.py` | B | 바꾼 파일을 받는 `changed()` 가 경로를 `-z` 로 받아 NUL 로 가른다 — 그 일을 도우미 하나(`names()`)가 맡는다. 판정 · 인자 · 출력의 모양은 그대로 |
+| `vibe-slice/skills/slice-docs/scripts/verify-slice-gate.py` | B | 바꾼 파일을 받는 `changed()` 가 경로를 `-z` 로 받아 NUL 로 가른다 — 그 일을 도우미 하나(`names()`)가 맡는다. 실패 줄이 경로를 찍을 때 제어 문자를 이스케이프하는 도우미 하나. 판정 · 인자는 그대로 |
 | `scripts/test-verify-slice-gate.py` | B | E3 의 꼴 · 시험 환경에 `core.quotepath=true` 를 박음 |
 | `scripts/bite-slice-gate.py` | B | E3 의 변조본 하나 · B3 변조본의 찾는 글자(`must` → `names`) |
 | `vibe-slice/.claude-plugin/plugin.json` | B | 0.4.4 (`CHECKLIST.md` 「플러그인의 파일을 고쳤다면」) |
@@ -23,7 +23,11 @@
 
 - E3 **바꾼 파일의 경로를 git 이 가진 글자 그대로 받는다.** `diff --name-only` · `ls-files --others --exclude-standard` 를 `-z` 로 불러 NUL 로
   가른다 — git 의 따옴표 · 이스케이프를 거치지 않으므로 사용자 · 레포의 git 설정(`core.quotepath`)에 기대지 않는다. ASCII 밖의 글자(한글) · 줄바꿈이
-  든 경로도 같다. 그 경로로 B3 · D1 · G1 · G2 를 조각 7 설계 ② 그대로 가르고, 실패 줄에 글자 그대로 찍는다.
+  든 경로도 같다. 그 경로로 B3 · D1 · G1 · G2 를 조각 7 설계 ② 그대로 가른다.
+  - **찍을 때는 제어 문자를 이스케이프한다** — 실패 줄의 경로에서 인쇄할 수 없는 글자(줄바꿈 · 탭 · ESC 같은 제어 문자, 줄 구분자)는 `\n` 처럼
+    역슬래시 꼴로 찍고, 한글을 비롯한 그 밖의 글자는 그대로 찍는다. 가르기는 이스케이프하지 않은 경로로 한다. 줄바꿈을 그대로 찍으면 실패가 한 줄이라는
+    R1 이 깨지고, 그 줄이 `::warning::` 같은 GitHub Actions 워크플로 명령으로 읽힐 수 있다 — 고치기 전에는 git 의 따옴표가 그 둘을 막고 있었다
+    (#107 Codex 1회차).
   - B3 의 두 길이 다 E3 를 지난다 — 머리가 커밋이면 `diff` 하나, 작업트리면 `diff` 와 `ls-files --others`.
   - 기준 쪽은 이미 맞다 — `git show <기준>:<경로>` · `git cat-file -e <기준>:<경로>` 는 경로를 인자로 받는다. 기준 마스터플랜의 한글 조각 폴더에서
     `design.md` 를 찾는다(G2). B 의 시험이 그것도 본다.
@@ -80,11 +84,13 @@
   ADR)을 쓰고, 관문 셋(결정 문서만인 착공 PASS · 구현이 섞인 착공 G1 · `진행` 조각이 없는 구현 G2)이 다 나온다. 기준 마스터플랜의 `진행` 조각
   폴더가 한글인 구현 PASS 도 하나.
 - V2 **성공 시험은 exit 0 과 G1 · G2 가 없음을, 떨어지는 시험은 exit 1 · 선 번호 · 서지 않아야 할 번호가 없음을 본다.** G1 꼴은 기준에 설계가 머지된
-  다른 `진행` 조각을 두어 G2 가 서지 않게 한다 — 고치기 전의 조용한 통과를 G1 만이 문다. 실패 줄이 경로를 글자 그대로 찍는지 하나가 본다.
+  다른 `진행` 조각을 두어 G2 가 서지 않게 한다 — 고치기 전의 조용한 통과를 G1 만이 문다. 실패 줄이 한글 경로를 글자 그대로 찍는지 하나가,
+  이름에 줄바꿈이 든 구현 파일의 실패 줄이 한 줄이고 `\n` 으로 찍히는지 하나가 본다.
 - V3 **시험 환경이 `core.quotepath=true` 다** — `GIT_CONFIG_COUNT` 로 박고 `GIT_CONFIG_PARAMETERS` 를 뺀다.
 - V4 **고침을 걷어 낸 검사에서 빨갛다** — `987df53` 의 검사에 자체 시험을 대어 E3 의 꼴이 떨어지는 것을 B 의 PR 본문에 싣는다. `-c core.quotepath=false`
   만 붙인 검사(ADR 0040 의 1 의 대안)에도 대어 줄바꿈 꼴이 떨어지는 것을 싣는다.
-- V5 **변조본** — E3 의 자리를 줄로 받기로 되돌린 사본이 자체 시험에서 떨어진다(`bite-slice-gate.py`). B3 변조본은 찾는 글자만 따라 고친다.
+- V5 **변조본** — E3 의 두 자리마다 하나 — 줄로 받기로 되돌린 사본, 실패 줄의 이스케이프를 지운 사본 — 가 자체 시험에서 떨어진다
+  (`bite-slice-gate.py`). B3 변조본은 찾는 글자만 따라 고친다.
 
 **그 밖**
 
