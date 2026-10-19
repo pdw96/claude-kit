@@ -22,6 +22,10 @@ CHECK = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "sc
 ENV = {k: v for k, v in os.environ.items() if k != "GITHUB_EVENT_PATH"}
 ENV.update({"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
             "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"})
+# E3 의 꼴이 서려면 git 이 한글 경로를 따옴표로 감싸 내야 한다 — 기본값 `core.quotepath=true` 를 박아, 부른 쪽의
+# 환경(`GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_COUNT`)이 끄더라도 시험이 무르지 않게 한다.
+ENV.pop("GIT_CONFIG_PARAMETERS", None)
+ENV.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.quotepath", "GIT_CONFIG_VALUE_0": "true"})
 
 MASTER = """# 마스터플랜
 
@@ -103,6 +107,7 @@ def run(cwd, *args, event=None, extra=None):
     return p.returncode, p.stdout + p.stderr
 
 
+LINES = ("기준", "[", "PASS", "FAIL", "사용법")
 bad = []
 
 
@@ -114,6 +119,9 @@ def expect(what, ok, out=""):
 def verdict(what, got, rc, gids=(), absent=()):
     code, out = got
     expect(f"{what} — exit {code}, 기대 {rc}", code == rc, out)
+    # E3 — 출력의 줄은 다 검사가 찍는 꼴이다. 경로의 줄바꿈이 새 줄(워크플로 명령)을 열면 여기서 떨어진다.
+    stray = [ln for ln in out.splitlines() if ln and not ln.startswith(LINES)]
+    expect(f"{what} — 검사가 찍는 꼴이 아닌 줄이 있다: {stray!r}", not stray, out)
     for g in gids:
         expect(f"{what} — [{g}] 가 없다", f"[{g}]" in out, out)
     for g in absent:
@@ -123,6 +131,12 @@ def verdict(what, got, rc, gids=(), absent=()):
 FOUND = {"docs/slices/3-three/requirements.md": "요구\n", "docs/slices/3-three/design.md": "설계\n",
          "docs/adr/0009-three.md": "결정\n", "INTENT.md": "의도 고침\n",
          "docs/master-plan.md": MASTER.format(extra=DOING + "| 3 | 셋 | 셋째 | 하나 | 진행 | `docs/slices/3-three/` |\n")}
+
+# E3 — 한글 이름의 조각 폴더와 ADR. git 은 이 경로를 `"docs/slices/3-\354\235\264..."` 로 낸다(pdw96/ERP#116).
+KO = "docs/slices/3-이동/"
+FOUND_KO = {KO + "requirements.md": "요구\n", KO + "design.md": "설계\n", "docs/adr/0025-재검사.md": "결정\n",
+            "docs/master-plan.md": MASTER.format(extra=DOING + f"| 3 | 이동 | 셋째 | 하나 | 진행 | `{KO}` |\n")}
+DOING_KO = f"| 2 | 이동 | 둘째 조각 | 하나 | 진행 | `{KO}` |\n"
 
 
 def main():
@@ -239,6 +253,53 @@ def main():
         verdict("이름 바꿈 scripts/a.py → docs/adr/0099-x.md", got, 1, ["G2"])
         expect("이름 바꿈 — 옛 경로를 찍지 않았다", "scripts/a.py" in got[1], got[1])
 
+        # E3 한글 경로 — 착공(결정 문서만)은 지나가고, 구현이 섞이면 G1, 기준에 `진행` 조각이 없는 구현은 G2.
+        committed("한글 착공 — 결정 문서만", base_files(doing=False), FOUND_KO, 0, absent=["G1", "G2"])
+        # 기준에 설계가 머지된 `진행` 조각이 있어 G2 는 서지 않는다 — G1 만이 이것을 문다(고치기 전에는 조용히 지나갔다).
+        committed("한글 착공 + scripts/x.py", base_files(), {**FOUND_KO, "scripts/x.py": "x\n"}, 1, ["G1"], ["G2"])
+        r = committed("기준에 `진행` 조각이 없을 때 한글 이름의 구현", base_files(doing=False),
+                      {"scripts/이동.py": "x\n"}, 1, ["G2"], ["G1"])
+        got = run(r)
+        expect("한글 이름의 구현 — 경로를 글자 그대로 찍지 않았다", "결정 문서 밖: scripts/이동.py" in got[1], got[1])
+        committed("기준에 한글 `진행` 조각과 설계 — 한글 이름의 구현 · 설계 끝 날짜 항목",
+                  {**base_files(doing=False), "docs/master-plan.md": MASTER.format(extra=DOING_KO),
+                   KO + "requirements.md": "요구\n", KO + "design.md": "설계\n"},
+                  {"scripts/이동.py": "x\n", KO + "design.md": "설계\n\n2026-10-19 정함\n"}, 0)
+        r = repo(tmp / f"r{next(n)}", base_files(doing=False))
+        put(r, {"docs/adr/0025-재검사.md": "결정\n"})
+        verdict("작업트리 — 무시되지 않은 새 한글 ADR", run(r), 0, absent=["G2"])
+        # `core.quotepath=false` 로도 따옴표가 남는 꼴 — 이름에 줄바꿈이 든 결정 문서.
+        committed("이름에 줄바꿈이 든 ADR", base_files(doing=False), {"docs/adr/0025-a\nb.md": "결정\n"}, 0)
+        # 실패 줄이 경로를 찍는 자리 넷마다 줄바꿈 꼴 — G1 의 두 목록 · G2 의 두 줄. 줄 모양은 verdict 가 본다.
+        forged = "::warning::forged"
+        committed("이름에 줄바꿈이 든 새 조각 문서와 구현 — G1 의 두 목록", base_files(),
+                  {f"docs/slices/3-x\n{forged}/design.md": "설계\n", f"scripts/y\n{forged}.py": "y\n"}, 1, ["G1"])
+        committed("표를 읽지 못하는 기준 마스터플랜과 이름에 줄바꿈이 든 구현",
+                  {**base_files(), "docs/master-plan.md": "# 마스터플랜\n\n## 조각 나눔\n\n없다\n"},
+                  {f"scripts/z\n{forged}.py": "z\n"}, 1, ["G2"])
+        # 끝에 줄바꿈이 붙은 이름은 `.md` 가 아니다 — 결정 문서가 아니고, 새 조각 문서도 아니다(D1 의 정규식 끝).
+        committed("끝에 줄바꿈이 붙은 ADR 이름의 구현", base_files(doing=False), {"docs/adr/0099-x.md\n": "x\n"}, 1, ["G2"])
+        # 기준에 설계가 머지된 `진행` 조각이 있는 구현 — 그 이름을 새 조각 문서로 읽으면 착공으로 보아 G1 이 선다.
+        committed("끝에 줄바꿈이 붙은 조각 문서 이름 — 착공이 아니다", base_files(),
+                  {"docs/slices/9-x/design.md\n": "x\n", "scripts/a.py": "print(2)\n"}, 0, absent=["G1", "G2"])
+        # 줄바꿈 밖의 제어 문자(탭 · ESC)도 역슬래시 꼴로 찍힌다.
+        r = committed("이름에 탭 · ESC 가 든 구현 파일", base_files(doing=False), {"scripts/t\tx\x1b[31m.py": "x\n"}, 1, ["G2"])
+        got = run(r)
+        expect("이름에 탭 · ESC 가 든 구현 파일 — 제어 문자를 그대로 찍었다",
+               "결정 문서 밖: scripts/t\\tx\\x1b[31m.py" in got[1], got[1])
+        # 기준에 있던 조각 문서를 고친 구현 — 이름이 기준과 같은 바이트로 읽혀야 새 조각 문서(착공)로 보지 않는다.
+        for what, folder in [("`\\r` 이 든", "3-a\r"), ("UTF-8 이 아닌 바이트가 든", "3-\udcff")]:
+            doc = f"docs/slices/{folder}/design.md"
+            committed(f"이름에 {what} 기준의 조각 문서를 고친 구현", {**base_files(), doc: "설계\n"},
+                      {doc: "설계 고침\n", "scripts/a.py": "print(2)\n"}, 0, absent=["G1", "G2"])
+        # 이름에 줄바꿈이 든 구현 파일 — 실패는 한 줄이고, 줄바꿈은 `\n` 으로 찍힌다(R1 · 워크플로 명령이 새 줄을 열지 못한다).
+        r = committed("이름에 줄바꿈이 든 구현 파일", base_files(doing=False),
+                      {"scripts/x\n::warning::forged.py": "x\n"}, 1, ["G2"])
+        got = run(r)
+        expect("이름에 줄바꿈이 든 구현 파일 — 실패 줄이 줄바꿈을 그대로 찍었다",
+               "결정 문서 밖: scripts/x\\n::warning::forged.py" in got[1]
+               and not any(ln.startswith("::warning::") for ln in got[1].splitlines()), got[1])
+
         # E1 · E2 UTF-8 이 아닌 로케일 · cp949 콘솔 — 한글 마스터플랜을 git 으로 읽고, 판정 줄을 예외 없이 찍는다.
         r = repo(tmp / f"r{next(n)}", base_files())
         commit(r, {"scripts/x.py": "x\n"})
@@ -261,7 +322,7 @@ def main():
         for b in bad:
             print(f"  {b}")
         return 1
-    print("PASS verify-slice-gate.py — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 로케일 · 잘못 부름")
+    print("PASS verify-slice-gate.py — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 한글 경로 · 로케일 · 잘못 부름")
     return 0
 
 
