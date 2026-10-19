@@ -55,7 +55,7 @@
   시험이 다 같이 놓치는 것)은 지금처럼 기준(틀 ⑤ 의 안내 · 요구사항의 성공 기준)에 비춰 가른다 — 밖이 아니다(ADR 0039 의 2). 착공이 꼴을 실었는데 그
   꼴이 틀렸으면(사실의 틀림) 지금 규칙대로 그 PR 이 들인 자리라 안이다.
 - **D5 판과 지도** (B) — `vibe-slice` 판 0.4.3. 두 스킬의 지도 링크가 B 에서 `docs/procedure.md` 를 고친 커밋을 박는다 — `verify-map-pin.py` 가 지나간다.
-  두 스킬에서 링크 말고 바뀐 바이트는 D3 · D4 뿐이다.
+  두 `SKILL.md` 에서 링크 말고 바뀐 바이트는 D3 · D4 뿐이다.
 - **D6 사례** (B) — `docs/procedure.md` 「사례」 끝에 claude-kit #101 절 — 단계마다 무엇을 건너뛰었나 · 무엇이 났나(그 절의 꼴), 회차마다 규칙 · 꼴 ·
   그 밖의 수(요구사항 「문제」의 표), 구현 #102 의 회차, 반대 사례 #52(③ 의 꼴), 이유 코드는 그 조각의 장치이고 절차의 규칙이 아니라는 것(ADR 0039 의 5).
 - **D7 예산** (B) — `slice-review` 호출 시 문자가 4,500 이하다. `budget.txt` 는 `slice-review` 줄과 `vibe-slice` 의 합계 줄만 바뀐다.
@@ -156,7 +156,7 @@ r4308036234 는 #101 이 대응표를 실었기에 난 지적이다 — 새 ⑤ 
 
 1. 칸 — `git diff main...HEAD -- docs/procedure.md` 에서 「…의 칸」 네 절 안의 바뀐 줄이 ⑤ 행 하나뿐이고 그 행의 제목 칸이 그대로다 · 다른 바뀐 줄은
    「사례」의 새 절뿐이다(D1 · D6). 틀은 ⑤ 의 안내 한 줄뿐이다(D2). `verify-docs.py` 통과.
-2. 스킬 — `git diff main...HEAD -- vibe-slice/skills/` 가 D3 · D4 의 두 자리와 링크 두 줄뿐이다.
+2. 스킬 — `git diff main...HEAD -- vibe-slice/skills/` 가 두 `SKILL.md` 의 D3 · D4 두 자리 · 링크 두 줄과 틀 `design.md` ⑤ 의 안내 한 줄(D2)뿐이다.
 3. 판과 지도 — `verify-map-pin.py` 가 새 박은 커밋으로 PASS · `verify-manifest.py` · `claude plugin validate ./vibe-slice` 통과 · `plugin.json` 판 0.4.3(D5).
 4. 예산 — `verify-budget.py` PASS, `slice-review` 의 호출 시 문자 · 여유를 PR 본문에(D7).
 5. 대어 보기 — ③ 의 스물하나와 #102 의 셋을 B 의 `slice-review` 로 다시 갈라 표(스레드 · 지금 갈래 · 새 갈래 · 근거 줄)를 PR 본문에. ③ 의 「새 갈래」와
@@ -168,7 +168,7 @@ r4308036234 는 #101 이 대응표를 실었기에 난 지적이다 — 새 ⑤ 
 **스스로 쓰기** — 각 PR 의 리뷰를 `slice-review` 로 가른다. PR 본문의 `## 리뷰 회차` 와 답글. A 의 리뷰는 지금의 `slice-review` 로 가른다 — B 의 문구는
 B 가 머지된 뒤의 PR 부터 기준이다.
 
-**단계 5(배포)** — B 의 머지가 배포다 — `vibe-slice` 0.4.3 이 장터에 선다. 대화형 세션은 `claude plugin update` 뒤에 새 문구와 B 가 박은 지도를 읽는다.
+**단계 5(배포)** — B 의 머지가 배포다 — `vibe-slice` 0.4.3 이 장터에 선다. 대화형 세션은 `claude plugin marketplace update pdw96-kit` 뒤 `claude plugin update vibe-slice@pdw96-kit` 을 돌리고 리로드해야 새 문구와 B 가 박은 지도를 읽는다 — 이 장터는 자동 갱신이 기본으로 꺼져 있다(`README.md` · ADR 0013).
 배포가 보이는 것은 B 머지 뒤 `main` 의 `plugin.json` 판과 `verify-map-pin.py` 의 박은 커밋이다. 되돌리는 길은 B 의 되돌림이다 — 되돌리면 판이 0.4.2 로
 내려가므로, 이미 0.4.3 을 받은 세션을 위해 되돌림 PR 이 판을 0.4.4 로 올린다(`CHECKLIST.md` 「플러그인의 파일을 고쳤다면」).
 
