@@ -9,12 +9,14 @@
 | `docs/master-plan.md` | A · 닫기 | 조각 나눔 30 줄을 `진행` 으로, 「범위 변경」에 한 줄. 닫기에서 `닫힘` |
 | `INTENT.md` | A | What 의 틀 목록에 `CLAUDE.md`(ADR 0041 의 9) |
 | `docs/slices/30-claude-md-template/` · `docs/adr/0041-claude-md-fifth-doc.md` | A | 이 요구사항 · 설계 · ADR |
-| `vibe-slice/skills/slice-docs/templates/claude-md.md` | B | 새 틀 — `#` 제목 하나와 `##` 셋(`앵커볼트 — 바꾸려면 먼저 물어볼 것` · `작업 방식` · `금지`, 이 순서). 머리 주석이 쓰는 법을 든다 — 사실은 쓰지 않는다 · 작업 방식에 의도와 마스터플랜의 경로를 백틱으로 · 이미 있으면 덮지 않는다 |
+| `vibe-slice/skills/slice-docs/templates/claude-md.md` | B | 새 틀 — `#` 제목 하나와 `##` 셋(`앵커볼트 — 바꾸려면 먼저 물어볼 것` · `작업 방식` · `금지`, 이 순서). 머리 주석이 쓰는 법을 든다 — 사실은 쓰지 않는다 · 작업 방식에 의도와 마스터플랜의 경로를 백틱으로, 그 레포에 `AGENTS.md` 가 있으면 그 경로도 · 이미 있으면 덮지 않는다 |
 | `docs/procedure.md` | B | 「문서의 모양」에 `### CLAUDE.md 의 칸` 절 — 다른 「…의 칸」 넷과 같은 표 서식(**앵커볼트**, ADR 0041 의 7). 「대상과 관계」 표에 작업 규칙 줄, 「틀」 줄의 「위 넷」. 단계 0 의 맡는 도구 칸. 「틀 넷」 두 자리(머리 · 「이 모양을 무는 것」) |
 | `vibe-slice/skills/slice-docs/scripts/verify-docs.py` | B | `KINDS` 에 다섯째(`CLAUDE.md 의 칸` → `claude-md.md`) — O1 · O2 · T1 · T2 · A1 · A2 가 다섯째에도 선다. C1 · C2 · C3(②). 머리 문서의 「틀 넷」 · 「네 절」 |
 | `scripts/test-verify-docs.py` | B | C1 · C2 · C3 의 꼴(⑤ V1 · V2) — 다른 레포 모드의 임시 레포에 `CLAUDE.md` 를 둔다 |
+| `scripts/test-sync-slice.py` | B | `docs_tree()` 가 대상 트리에 `CLAUDE.md` 를 둔다 — 의도 `PRD.md` 와 `docs/master-plan.md` 를 백틱 토막으로. 심은 `verify-docs.py --repo` 가 그 트리에서 0 이어야 하는 두 자리(Y2 · 다시 심은 사본)가 C1 로 떨어지지 않게(#110 Codex 1회차) |
+| `vibe-audit/evals/budget.txt` | B | `verify-budget.py --write` 로 다시 쓴다 — 이 검사는 천장만이 아니라 스킬마다의 길이를 이 스냅숏과 글자 그대로 견준다. 두 수트 지문 밖이다(#110 Codex 1회차) |
 | `scripts/bite-gates.sh` · `scripts/bite-verify-docs.py` | B | C1 · C2 · C3 의 자리마다 변조본 — 이 저장소 모드는 `bite-gates.sh`, 다른 레포 모드는 `bite-verify-docs.py`(⑤ V3) |
-| `vibe-slice/skills/slice-docs/SKILL.md` | B | 프론트매터 설명 · 「틀」 표에 한 줄 · 「어디서 시작하나」의 처음 쓰는 호출과 이미 있을 때 · 「이 스킬의 일이 아닌 것」(`CLAUDE.md` 를 빼고 `AGENTS.md` 를 든다) · 지도 링크 판 |
+| `vibe-slice/skills/slice-docs/SKILL.md` | B | 프론트매터 설명 · 「틀」 표에 한 줄 · 「어디서 시작하나」의 처음 쓰는 호출과 이미 있을 때 · 「이 스킬의 일이 아닌 것」(`CLAUDE.md` 를 빼고 `AGENTS.md` 를 든다) · `AGENTS.md` 가 있으면 가리키는 줄을 넣는 단계 · 지도 링크 판 |
 | `vibe-slice/skills/slice-review/SKILL.md` | B | 지도 링크 판만 |
 | `vibe-slice/.claude-plugin/plugin.json` · `.claude-plugin/marketplace.json` | B | 판 0.5.0 — 새 문서 종류라 둘째 자리를 올린다. 설명의 「문서 틀 넷(…)」을 다섯으로(`verify-manifest.py` 가 두 군데를 견준다) |
 | `CLAUDE.md` | B | 「앵커볼트」의 문서 모양 줄 — 문서 종류에 `CLAUDE.md`, 「네 절」을 「다섯 절」로(**앵커볼트**). 절 제목은 그대로(하지 않을 일 6) |
@@ -43,8 +45,9 @@
 - R1 · R2 가 그대로 선다 — `CLAUDE.md` 를 읽지 못하면 다른 문서와 같이 R1 로 찍고, 새 검사도 모델 · 네트워크 · git 을 부르지 않는다.
 - 자체 시험에 C1 · C2 · C3 의 꼴이 있고(⑤ V1 · V2), 변조본이 그 자리마다 하나씩 자체 시험에서 떨어진다(⑤ V3) — 조각 3 · 9 의 시험 틀 그대로다.
 - **스킬** — `slice-docs` 는 처음 쓰는 호출에서 의도 · 마스터플랜과 함께 `CLAUDE.md` 를 다룬다. 없으면 `/init` 을 먼저 부르라고 말하고, 그 뒤 틀의 세
-  절을 인터뷰로 받아 쓴다. 있으면 덮지 않고, 빠진 절과 가리키는 줄을 사용자에게 먼저 보인 뒤 받으면 더한다(ADR 0041 의 3 · 4). 스킬의 이 행동은 키
-  없는 검사가 없다 — 사람이 본다.
+  절을 인터뷰로 받아 쓴다. 있으면 덮지 않고, 빠진 절과 가리키는 줄을 사용자에게 먼저 보인 뒤 받으면 더한다(ADR 0041 의 3 · 4). 그 레포에
+  `AGENTS.md` 가 있으면 작업 방식에 그 경로를 가리키는 줄도 같은 길로 넣는다 — 쓰지는 않는다(ADR 0041 의 8). 스킬의 이 행동은 키 없는 검사가
+  없다 — 사람이 본다. `AGENTS.md` 를 가리키는 줄도 C1 ~ C3 가 묻지 않는다.
 - **사본** — C 뒤 ERP 의 두 사본 머리줄 출처가 B 의 머지 커밋이고, ERP 에서 `verify-docs.py --repo .` 가 0 이다.
 
 **보장하지 않는 것(알려진 한계)**
@@ -111,7 +114,8 @@
 
 **그 밖**
 
-- `verify-budget.py` — 스킬 `slice-docs` 의 호출 시 길이(B).
+- `verify-budget.py` — 스킬 `slice-docs` 의 호출 시 길이가 천장 안이고, 다시 쓴 스냅숏과 같다(B).
+- `test-sync-slice.py` — 심은 검사가 `CLAUDE.md` 를 둔 대상 트리에서 0 이다(B). `gates.sh` 가 늘 부른다.
 - `verify-map-pin.py` · `verify-manifest.py` — 지도 링크 판과 두 설명(B).
 - `./scripts/gates.sh` — B 의 로컬과 CI gate 잡. A 는 결정 문서만이라 관문을 지난다.
 - C — ERP 에서 `verify-docs.py --repo .` 를 돌린 결과를 그 PR 본문에 싣는다. 사본 파일 밖의 차이(머리줄 · 지도 링크 말고)가 없는지 원본과 견준다
