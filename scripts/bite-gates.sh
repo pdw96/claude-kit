@@ -723,6 +723,7 @@ done
 # test-verify-docs.py — 문서 대조 검사를 보장 묶음마다 한 군데씩 망가뜨리면 자체 시험이 떨어져야 한다
 # (조각 3 설계 ⑤ 「시험이 문다」). 원천 · 틀 · 의도 · 마스터플랜 경로 · 상태와 의존 · 폴더 대응 ·
 # 조각 문서 · 닫는 기록 · 펜스와 주석, 그리고 늘 1 을 내는 검사 — 그때는 대조가 떨어져야 한다.
+# 입구 `CLAUDE.md` 의 C1 · C2 · C3 와 다섯째 「…의 칸」, 묻지 않아야 할 C2, 백틱 토막만 받는 꼴(조각 30 설계 ⑤ V3).
 for m in 'if n != 1:|if n == 0:' \
          'if not need:|if False:' \
          'if name in schema and headings(lines(p)) != schema[name]:|if False:' \
@@ -742,7 +743,13 @@ for m in 'if n != 1:|if n == 0:' \
          'if ln.startswith("```"):|if False:' \
          'if ln.startswith("<!--"):|if False:' \
          'except (OSError, UnicodeDecodeError) as e:|except ZeroDivisionError as e:' \
-         'if r.bad:|if True:'; do
+         'if r.bad:|if True:' \
+         '    ("CLAUDE.md 의 칸", "claude-md.md"),|' \
+         'if why or not entry.is_file():|if False:' \
+         'if intent and intent not in toks:|if False:' \
+         'if MASTER not in toks:|if False:' \
+         'if not why and p.is_file():|if True:' \
+         'TICK = re.compile(r"`([^`]+)`")|TICK = re.compile(r"`?([^`\s]+)`?")'; do
   python3 - "${m%%|*}" "${m##*|}" "$cc/d.py" <<'PY'
 import pathlib, sys
 s = pathlib.Path("scripts/verify-docs.py").read_text(encoding="utf-8")

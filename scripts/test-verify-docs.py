@@ -18,10 +18,10 @@
 
 **다른 레포 모드의 꼴** (`docs/slices/9-repo-doc-check/design.md` ② A · ⑤)
 
-- 틀 넷으로 세운 임시 레포(지도도 `vibe-slice/` 도 없다)에 `--repo` 로 댄다. 의도 줄은 `PRD.md`, 조각은 닫힌 것 ·
-  진행 · 예정 하나씩이다.
+- 틀 다섯으로 세운 임시 레포(지도도 `vibe-slice/` 도 없다)에 `--repo` 로 댄다. 의도 줄은 `PRD.md`, 조각은 닫힌 것 ·
+  진행 · 예정 하나씩이고, 맨 위에 그 둘을 가리키는 입구 `CLAUDE.md` 가 있다(조각 30 설계 ② C1 ~ C3).
 - 받은 검사(인자로 받은 사본도)를 꼴마다 임시 스킬 폴더 `<임시>/slice-docs/scripts/` 에 베끼고 `templates/` 에 이
-  저장소의 틀 넷을 둔다(V2) — 검사가 제 옆의 틀을 찾으므로, 망가뜨린 사본이 틀을 못 찾아 엉뚱한 까닭으로 떨어지지 않는다.
+  저장소의 틀 다섯을 둔다(V2) — 검사가 제 옆의 틀을 찾으므로, 망가뜨린 사본이 틀을 못 찾아 엉뚱한 까닭으로 떨어지지 않는다.
 
 표준 라이브러리만 쓴다.
 """
@@ -109,6 +109,33 @@ def base(dst):
         shutil.copy(dst / TPL / f, dst / TEST / f)
 
 
+ENTRY = "CLAUDE.md"
+
+
+def retoken(t, tok, form, tail=""):
+    """입구의 백틱 토막 `tok` 을 모두 `form` 으로 바꾸고 끝에 `tail` 을 붙인다 — ③ 의 거절 꼴(조각 30 설계 ⑤ V1)."""
+    p = t / ENTRY
+    s = p.read_text(encoding="utf-8")
+    if f"`{tok}`" not in s:
+        raise Setup(f"{ENTRY} 에 `{tok}` 토막이 없다")
+    write(p, s.replace(f"`{tok}`", form) + tail)
+
+
+# ③ 의 거절 꼴 — (이름, 토막을 바꿀 꼴, 끝에 붙일 것). `{t}` 는 그 경로다.
+REFUSED = [
+    ("마크다운 링크", "[가리킴]({t})", ""),
+    ("맨 글자", "{t}", ""),
+    ("다른 글자가 섞인 토막", "`{t} 를 본다`", ""),
+    ("./ 이 붙은 토막", "`./{t}`", ""),
+    ("펜스 안의 토막", "{t}", "\n```\n`{t}`\n```\n"),
+    ("주석 안의 토막", "{t}", "\n<!--\n`{t}`\n-->\n"),
+]
+
+
+def refused(t, tok, form, tail):
+    retoken(t, tok, form.format(t=tok), tail.format(t=tok))
+
+
 def outside_link(t, rel):
     """`rel` 을 루트 밖 파일을 가리키는 링크로 바꾼다."""
     far = t.parent / f"outside-{rel.replace('/', '-')}"
@@ -128,19 +155,23 @@ CASES = [
         sub(t, PROC, f"| `## {h}` |", f"| ## {h} |")
         for h in ("① 바뀌는 것", "② 보장하는 것 / 보장하지 않는 것", "③ 받는 입력",
                   "④ 결정", "⑤ 검증 계획", "⑥ PR 나눔")]),
+    ("O1 「CLAUDE.md 의 칸」 절 이름이 바뀐다", "O1", PROC,
+     lambda t: sub(t, PROC, "### CLAUDE.md 의 칸\n", "### CLAUDE.md 칸\n")),
     ("O3 절차 지도가 없다", "O3", PROC, lambda t: (t / PROC).unlink()),
     ("O3 마스터플랜이 없다", "O3", MP, lambda t: (t / MP).unlink()),
     ("O3 빈 루트", "O3", PROC, lambda t: [
         shutil.rmtree(x) if x.is_dir() and not x.is_symlink() else x.unlink() for x in list(t.iterdir())]),
     *[(f"T1 틀 {f} 이 없다", "T1", f"{TPL}/{f}",
        (lambda f: lambda t: (t / TPL / f).unlink())(f))
-      for f in ("intent.md", "master-plan.md", "requirements.md", "design.md")],
+      for f in ("intent.md", "master-plan.md", "claude-md.md", "requirements.md", "design.md")],
     ("T2 틀 제목 한 글자", "T2", TPL + "/intent.md",
      lambda t: sub(t, TPL + "/intent.md", "\n## Why\n", "\n## Whi\n")),
     ("T2 틀에 제목 더함", "T2", TPL + "/design.md",
      lambda t: append(t, TPL + "/design.md", "\n## 덤\n")),
     ("T2 틀의 제목 순서", "T2", TPL + "/master-plan.md",
      lambda t: swap(t, TPL + "/master-plan.md", "\n## 조각 나눔\n", "\n## 범위 변경\n")),
+    ("T2 틀 claude-md.md 의 제목 한 글자", "T2", TPL + "/claude-md.md",
+     lambda t: sub(t, TPL + "/claude-md.md", "\n## 금지\n", "\n## 금기\n")),
     ("T2 원천 표에 제목 더함", "T2", TPL + "/design.md", lambda t: sub(
         t, PROC, "| `## ⑥ PR 나눔` |", "| `## ⑦ 덤` | x |\n| `## ⑥ PR 나눔` |")),
     ("I1 의도 줄이 없다", "I1", MP,
@@ -211,6 +242,24 @@ CASES = [
      lambda t: sub(t, "docs/slices/1-copy-comparison/requirements.md", "\n## 닫으며 (2026-10-06)\n", "\n## 닫으며\n")),
     ("F5 닫힌 조각의 요구사항이 없다", "F5", "docs/slices/1-copy-comparison/requirements.md",
      lambda t: (t / "docs/slices/1-copy-comparison/requirements.md").unlink()),
+    ("C1 입구가 없다", "C1", ENTRY, lambda t: (t / ENTRY).unlink()),
+    ("C1 입구가 폴더", "C1", ENTRY, lambda t: ((t / ENTRY).unlink(), (t / ENTRY).mkdir())),
+    ("C1 입구가 밖을 가리키는 링크", "C1", ENTRY, lambda t: outside_link(t, ENTRY)),
+    *[(f"C2 의도가 {name}", "C2", ENTRY, (lambda f, a: lambda t: refused(t, "INTENT.md", f, a))(form, tail))
+      for name, form, tail in REFUSED],
+    *[(f"C3 마스터플랜이 {name}", "C3", ENTRY, (lambda f, a: lambda t: refused(t, "docs/master-plan.md", f, a))(form, tail))
+      for name, form, tail in REFUSED],
+]
+
+# (이름, 변조, 있어야 할 줄 머리, 없어야 할 번호) — 묻지 않아야 할 자리(조각 30 설계 ⑤ V1).
+QUIET = [
+    ("의도 줄이 I2 로 떨어지면 C2 를 묻지 않는다", lambda t: sub(
+        t, MP, "| 의도 — 목표 · 범위 · 하지 않을 일 | `INTENT.md` |", "| 의도 — 목표 · 범위 · 하지 않을 일 | `NOPE.md` |"),
+     f"{MP}: [I2]", ["[C2]"]),
+    ("입구가 없으면 C2 · C3 를 묻지 않는다", lambda t: (t / ENTRY).unlink(), f"{ENTRY}: [C1]", ["[C2]", "[C3]"]),
+    ("의도 문서가 I3 로 떨어져도 C2 는 묻는다", lambda t: (
+        sub(t, "INTENT.md", "\n## Not\n", "\n## Non\n"), retoken(t, "INTENT.md", "INTENT.md")),
+     f"{ENTRY}: [C2]", []),
 ]
 
 # ── 다른 레포 모드(설계 ② A) ─────────────────────────────────────────
@@ -222,6 +271,7 @@ R_INTENT = "| 의도 — Why · What · Not | `PRD.md` |"
 GO_DIR = "docs/slices/2-go"
 DONE_DIR = "docs/slices/1-done"
 CLOSE = "\n## 닫으며 (2026-10-08)\n"
+R_ENTRY = "# 시험 레포 작업 규칙\n\n## 작업 방식\n\n- 의도는 `PRD.md`, 조각은 `docs/master-plan.md` 에서 꺼낸다.\n"
 
 
 def fill(text, old, new):
@@ -240,6 +290,7 @@ def repo_bed(box, checker):
     t = box / "repo"
     (t / "docs").mkdir(parents=True)
     write(t / "PRD.md", "# PRD\n\n## 문제\n\n## 범위\n")
+    write(t / ENTRY, R_ENTRY)
     mp = (ROOT / TPL / "master-plan.md").read_text(encoding="utf-8")
     intent = [ln for ln in mp.splitlines() if ln.startswith("| 의도")]
     if len(intent) != 1:
@@ -293,6 +344,16 @@ R_CASES = [
      lambda t, tpl: no_headings(tpl / "requirements.md")),
     ("A2 검사 옆 틀 intent.md 가 UTF-8 이 아니다", ["[A2] {tpl}/intent.md:"], lambda t, tpl: (
         (tpl / "intent.md").unlink(), (tpl / "intent.md").write_bytes(b"\xff\xfe## Why\n"))),
+    ("A2 검사 옆 틀 claude-md.md 가 없다", ["[A2] {tpl}/claude-md.md:"],
+     lambda t, tpl: (tpl / "claude-md.md").unlink()),
+    ("C1 입구가 없다", ["CLAUDE.md: [C1]"], lambda t, tpl: (t / ENTRY).unlink()),
+    ("C1 첫 마스터플랜이어도 입구가 없으면 떨어진다", ["CLAUDE.md: [C1]"],
+     lambda t, tpl: (first_plan(t), (t / ENTRY).unlink())),
+    *[(f"C2 의도가 {name}", ["CLAUDE.md: [C2]"], (lambda f, a: lambda t, tpl: refused(t, "PRD.md", f, a))(form, tail))
+      for name, form, tail in REFUSED],
+    *[(f"C3 마스터플랜이 {name}", ["CLAUDE.md: [C3]"],
+       (lambda f, a: lambda t, tpl: refused(t, "docs/master-plan.md", f, a))(form, tail))
+      for name, form, tail in REFUSED],
 ]
 
 # (이름, 변조(레포, 틀 폴더)) — 통과해야 한다.
@@ -386,9 +447,12 @@ def repo_mode(checker, tmp):
 
 # (이름, 변조) — 통과해야 한다. 다 떨어뜨리는 검사도 무는 것처럼 보이므로.
 CONTROLS = [
-    ("의도를 다른 문서가 든다(ADR 0010)", lambda t: (
+    ("의도를 다른 문서가 든다(ADR 0010) — 입구도 그 문서를 가리킨다", lambda t: (
         sub(t, MP, "| 의도 — 목표 · 범위 · 하지 않을 일 | `INTENT.md` |", "| 의도 — 목표 · 범위 · 하지 않을 일 | `PRD.md` |"),
-        write(t / "PRD.md", "# PRD\n\n## 문제\n\n## 범위\n"))),
+        write(t / "PRD.md", "# PRD\n\n## 문제\n\n## 범위\n"),
+        append(t, ENTRY, "\n- 의도는 `PRD.md` 가 든다.\n"))),
+    ("입구의 절 제목은 묻지 않는다(조각 30 설계 ② · 하지 않을 일 1)", lambda t: write(
+        t / ENTRY, "# 다른 모양\n\n## 아무 절\n\n의도는 `INTENT.md`, 조각은 `docs/master-plan.md`.\n")),
     ("요구사항 사이 · 뒤의 절과 설계 끝의 덧붙임", lambda t: (
         sub(t, f"{TEST}/requirements.md", "\n## 성공 기준\n", "\n## 덧붙인 절\n\n## 성공 기준\n"),
         append(t, f"{TEST}/requirements.md", "\n## 로드맵의 근거\n"),
@@ -471,6 +535,21 @@ def main():
         else:
             fails.append(f"원천 표에 제목을 더하면 진행 조각의 설계만 떨어져야 한다 — {out[-300:]}")
 
+        for name, mutate, need, never in QUIET:
+            t = fresh()
+            try:
+                mutate(t)
+            except Setup as e:
+                fails.append(f"{name}: 준비 실패 — {e}")
+                continue
+            rc, out = run(checker, t)
+            seen = [x for x in never if x in out]
+            if rc == 1 and "Traceback" not in out and need in out and not seen:
+                passes += 1
+            else:
+                fails.append(f"{name}: `{need}` 만 서고 {' · '.join(never) or '—'} 는 서지 않아야 한다 "
+                             f"(종료코드 {rc}, 선 것 {seen}) — {out[-300:]}")
+
         for name, mutate in CONTROLS:
             t = fresh()
             try:
@@ -513,7 +592,7 @@ def main():
         for f in fails:
             print(f"  - {f}")
         return 1
-    print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
+    print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
           f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, 모두 {passes}")
     return 0
 
