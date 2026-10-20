@@ -107,9 +107,12 @@ def target(at):
 
 
 def docs_tree(t, tpl):
-    """심은 틀로 세운 문서 — 의도 줄 `PRD.md`, `진행` 조각 하나와 그 폴더(조각 9 설계 ② Y2)."""
+    """심은 틀로 세운 문서 — 의도 줄 `PRD.md`, `진행` 조각 하나와 그 폴더(조각 9 설계 ② Y2), 그 둘을 가리키는
+    입구 `CLAUDE.md`(조각 30 설계 ② C1 ~ C3)."""
     (t / "docs/slices/1-first").mkdir(parents=True)
     (t / "PRD.md").write_text("# PRD\n\n## 문제\n", encoding="utf-8")
+    (t / "CLAUDE.md").write_text("# 대상 작업 규칙\n\n## 작업 방식\n\n- 의도는 `PRD.md`, 조각은 `docs/master-plan.md` 에서 꺼낸다.\n",
+                                 encoding="utf-8")
     mp = (tpl / "master-plan.md").read_text(encoding="utf-8")
     intent = [ln for ln in mp.splitlines() if ln.startswith("| 의도")]
     row = "| 1 | <이름> | <목표 한 줄> | — | 예정 | — |"
