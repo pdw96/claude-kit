@@ -15,7 +15,7 @@
 | `scripts/test-verify-docs.py` | B | P1 의 꼴(⑤ V1 · V2) — 이 저장소 모드는 베낀 트리, 다른 레포 모드는 임시 레포에 `Profile.md` · `CLAUDE.local.md` 를 둔다. 임시 레포의 틀이 여섯이 된다 |
 | `scripts/bite-gates.sh` · `scripts/bite-verify-docs.py` | B | P1 의 자리마다 변조본과 `KINDS` 의 여섯째를 지운 변조본 — 이 저장소 모드는 `bite-gates.sh`, 다른 레포 모드는 `bite-verify-docs.py`(⑤ V3) |
 | `vibe-audit/evals/budget.txt` | B | `verify-budget.py --write` 로 다시 쓴다 — 스킬마다의 길이를 이 스냅숏과 글자 그대로 견준다. 두 수트 지문 밖이다 |
-| `vibe-slice/skills/slice-docs/SKILL.md` | B | 프론트매터 설명 · 「틀」 표에 한 줄 · 「어디서 시작하나」의 프로필 단계(세울지 묻는다 · 혼자면 `CLAUDE.md`, 여럿이면 `CLAUDE.local.md` 와 `.gitignore` · 이미 올라간 파일은 색인에서 빼는 것을 먼저 보인다 · 이미 있으면 덮지 않는다) · 지도 링크 판 |
+| `vibe-slice/skills/slice-docs/SKILL.md` | B | 프론트매터 설명 · 「틀」 표에 한 줄 · 「어디서 시작하나」의 프로필 단계(세울지 묻는다 · 혼자면 `CLAUDE.md`, 여럿이면 `CLAUDE.local.md` 와 `.gitignore` · 이미 올라간 파일은 색인에서 빼는 것을 먼저 보인다 · 혼자 · 여럿을 바꾸면 가져오는 줄과 `.gitignore` 를 옮긴다 · 이미 있으면 덮지 않는다) · 지도 링크 판 |
 | `vibe-slice/skills/slice-review/SKILL.md` | B | 지도 링크 판만(하지 않을 일 4) |
 | `vibe-slice/.claude-plugin/plugin.json` · `.claude-plugin/marketplace.json` | B | 판 0.6.0 — 새 문서 종류라 둘째 자리를 올린다. 설명의 「문서 틀 다섯(…)」을 여섯으로(`verify-manifest.py` 가 두 군데를 견준다) |
 | `CLAUDE.md` | B | 「앵커볼트」의 문서 모양 줄 — 문서 종류에 프로필(`Profile.md`), 「다섯 절」을 「여섯 절」로(**앵커볼트**). 절 제목은 그대로 |
@@ -51,8 +51,11 @@
   `CLAUDE.local.md` 를 `.gitignore` 에 더하고 `CLAUDE.local.md` 에 가져오는 줄을 넣는다. 이미 있으면 덮지 않고 빠진 절과 가져오는
   줄을 먼저 보인 뒤 받으면 더한다(ADR 0042 의 3). **여럿이 쓰는 레포에서 두 파일 가운데 이미 git 이 추적하는 것이 있으면**
   (`git ls-files` 에 나오면) `.gitignore` 만으로는 빠지지 않는다 — 색인에서 빼는 명령(`git rm --cached <파일>`, 작업 트리의 파일은
-  남는다)을 먼저 보이고 받으면 뺀다. 빼기 전에는 「올라가지 않는다」고 말하지 않는다(#113 Codex 1회차). 스킬의 이 행동은 키
-  없는 검사가 없다 — 사람이 본다.
+  남는다)을 먼저 보이고 받으면 뺀다. 빼기 전에는 「올라가지 않는다」고 말하지 않는다(#113 Codex 1회차). **혼자 · 여럿을 바꿀
+  때** 가져오는 줄은 한 자리에만 둔다 — 여럿으로 바꾸면 `CLAUDE.md` 의 `@Profile.md` 줄을 빼고 `CLAUDE.local.md` 로 옮긴다(위의
+  색인 빼기와 함께). 혼자로 바꾸면 `CLAUDE.local.md` 의 그 줄을 빼고 `CLAUDE.md` 로 옮기며, `.gitignore` 의 `Profile.md` 줄을 뺀다 —
+  남기면 프로필을 올릴 수 없다. `CLAUDE.local.md` 줄은 `.gitignore` 에 둔다. 다 먼저 보이고 받으면 고친다(#113 Codex 2회차). 스킬의
+  이 행동은 키 없는 검사가 없다 — 사람이 본다.
 - **사본** — C 뒤 ERP 의 두 사본 머리줄 출처가 B 의 머지 커밋이고, ERP 에서 `verify-docs.py --repo .` 가 0 이다.
 
 **보장하지 않는 것(알려진 한계)**
