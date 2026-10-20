@@ -4,7 +4,7 @@
 
   python3 scripts/bite-verify-docs.py
 
-**왜 여기 있나.** 원본 모드의 변조 스무 자리는 `bite-gates.sh` 에 있다. 둘 다 수트 지문 밖이고 `gates.sh` 가
+**왜 여기 있나.** 원본 모드의 변조 자리는 `bite-gates.sh` 에 있다. 둘 다 수트 지문 밖이고 `gates.sh` 가
 부른다 — `eval.yml` 은 지문에 들어 고치면 route 수트가 돈다(ADR 0018 의 6, 조각 9 설계 ② V1).
 `bite-slice-gate.py` 와 같은 길이다.
 
@@ -54,6 +54,42 @@ MUTANTS = [
     ("C3 — 마스터플랜을 가리키는지 보지 않는다",
      "    if MASTER not in toks:\n",
      "    if False:\n"),
+    ("A2 — 여섯째 틀(profile.md)을 원천에서 뺀다",
+     '    ("Profile.md 의 칸", "profile.md"),\n',
+     ""),
+    ("P1 — 프로필을 묻지 않는다",
+     "        check_profile(r, root)\n",
+     ""),
+    ("P1 — 이름 검사를 걷는다",
+     "    if why or not prof.is_file():\n",
+     "    if False:\n"),
+    ("P1 — CLAUDE.local.md 를 읽지 않는다",
+     'IMPORTERS = ("CLAUDE.md", "CLAUDE.local.md")\n',
+     'IMPORTERS = ("CLAUDE.md",)\n'),
+    ("P1 — 백틱 토막을 빼지 않는다",
+     'IMPORT.search(SPAN.sub("\\0", ln))',
+     "IMPORT.search(ln)"),
+    ("P1 — 백틱 토막을 백틱 하나로만 뺀다",
+     'SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\\1(?!`)")\n',
+     'SPAN = re.compile(r"`[^`]+`")\n'),
+    ("P1 — 앞뒤 경계를 보지 않는다",
+     'if any(IMPORT.search(SPAN.sub("\\0", ln)) for ln in ls):\n',
+     'if any("@Profile.md" in SPAN.sub("\\0", ln) for ln in ls):\n'),
+    ("P1 — 가져오는 파일의 자리를 보지 않는다",
+     "        if inside(root, name)[1] or not f.is_file():\n",
+     "        if not f.is_file():\n"),
+    ("P1 — Profile.md 를 읽지 않는다",
+     "    lines(prof)  # 읽지 못하면 [R1] — 줄의 뜻은 보지 않는다\n",
+     "    pass\n"),
+    ("P1 — 읽지 못한 가져오는 파일을 없는 것으로 친다",
+     "            unread = True\n",
+     "            unread = False\n"),
+    ("P1 — lines() 가 ``` 줄 머리만 안다",
+     "        m = FENCE.match(ln)\n",
+     '        m = re.match(r"^(```)(.*)$", ln)\n'),
+    ("P1 — 백틱 펜스의 정보 문자열을 보지 않는다",
+     '        if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):\n',
+     "        if m:\n"),
     ("E1 — 출력을 UTF-8 로 고정하지 않는다",
      '        stream.reconfigure(encoding="utf-8")\n',
      "        pass\n"),
