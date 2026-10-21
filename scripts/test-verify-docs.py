@@ -320,6 +320,9 @@ NOT_IMPORTS = [
     ("백틱 하나가 든 백틱 둘", "\n- 프로필은 ``x` @Profile.md ``\n"),
     ("백틱 셋 — 줄 머리에서도 펜스가 아니다", "\n```@Profile.md```\n"),
     ("따옴표", '\n- 프로필은 "@Profile.md"\n'),
+    ("줄을 넘는 백틱 토막", "\n- 프로필은 `시작\n@Profile.md\n끝` 이다\n"),
+    ("공백을 둔 큰따옴표", '\n- 프로필은 " @Profile.md " 이다\n'),
+    ("공백을 둔 작은따옴표", "\n- 프로필은 ' @Profile.md ' 이다\n"),
     ("펜스 ```", "\n```\n@Profile.md\n```\n"),
     ("펜스 ~~~", "\n~~~\n@Profile.md\n~~~\n"),
     ("들여 쓴 펜스 ```", "\n   ```\n@Profile.md\n   ```\n"),
@@ -375,6 +378,9 @@ PROFILE_CONTROLS = [
         t, line="\n@Profile.md\n- `프로필` @Profile.md 를 따른다 `끝`\n")),
     ("정보 문자열에 백틱이 든 ``` 줄은 펜스를 열지 않는다", lambda t: profile(
         t, line="\n```설명 `x`\n- 프로필 — @Profile.md\n")),
+    ("백틱 토막은 빈 줄을 넘지 못한다", lambda t: profile(
+        t, line="\n- 짝 없는 ` 하나\n\n- @Profile.md 와 ` 하나\n")),
+    ("따옴표 구간 밖이면 가져온다", lambda t: profile(t, line='\n- "따옴표" 뒤의 @Profile.md\n')),
 ]
 
 ID = re.compile(r"\[([A-Z]\d+)\]")

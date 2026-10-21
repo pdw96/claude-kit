@@ -756,9 +756,12 @@ for m in 'if n != 1:|if n == 0:' \
          'if not os.path.lexists(root / PROFILE):|if False:' \
          'if why or not prof.is_file():|if False:' \
          'IMPORTERS = ("CLAUDE.md", "CLAUDE.local.md")|IMPORTERS = ("CLAUDE.md",)' \
-         'IMPORT.search(SPAN.sub("\0", ln))|IMPORT.search(ln)' \
-         'SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)")|SPAN = re.compile(r"`[^`]+`")' \
-         'if any(IMPORT.search(SPAN.sub("\0", ln)) for ln in ls):|if any("@Profile.md" in SPAN.sub("\0", ln) for ln in ls):' \
+         'IMPORT.search(QUOTE.sub("\0", SPAN.sub("\0", p)))|IMPORT.search(QUOTE.sub("\0", p))' \
+         'SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", re.S)|SPAN = re.compile(r"`[^`]+`")' \
+         'return any(IMPORT.search(QUOTE.sub("\0", SPAN.sub("\0", p))) for p in paras)|return any("@Profile.md" in QUOTE.sub("\0", SPAN.sub("\0", p)) for p in paras)' \
+         'QUOTE.sub("\0", SPAN.sub("\0", p))|SPAN.sub("\0", p)' \
+         ' for p in paras)| for p in ls)' \
+         'if ln.strip():|if True:' \
          'if inside(root, name)[1] or not f.is_file():|if not f.is_file():' \
          'lines(prof)  # 읽지 못하면 [R1] — 줄의 뜻은 보지 않는다|pass' \
          'unread = True|unread = False' \

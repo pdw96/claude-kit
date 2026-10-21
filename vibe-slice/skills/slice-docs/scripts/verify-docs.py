@@ -63,10 +63,12 @@ FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 # 프로필 — 저장소 맨 위의 그 이름 하나와, 그것을 가져올 수 있는 파일 둘(조각 31 설계 ③).
 PROFILE = "Profile.md"
 IMPORTERS = ("CLAUDE.md", "CLAUDE.local.md")
-# 백틱 토막 — 같은 수의 백틱으로 여닫는다. 짝이 없는 백틱은 글자로 남는다(CommonMark 의 코드 토막).
-SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)")
-# 가져오는 줄의 꼴 — 백틱 토막을 뺀 줄에서 앞이 줄 머리나 공백, 뒤가 줄 끝이나 공백인 `@Profile.md` 하나(ADR 0042 의 7).
-IMPORT = re.compile(r"(?:^|\s)@Profile\.md(?=\s|$)")
+# 백틱 토막 — 같은 수의 백틱으로 여닫는다. 짝이 없는 백틱은 글자로 남는다. 문단 안에서는 줄을 넘는다(CommonMark 의 코드 토막).
+SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", re.S)
+# 따옴표 구간 — 같은 줄의 큰따옴표 · 작은따옴표 짝 안. Claude Code 는 따옴표로 감싼 경로를 가져오지 않는다(ADR 0042 「맥락」).
+QUOTE = re.compile(r"\"[^\"\n]*\"|'[^'\n]*'")
+# 가져오는 줄의 꼴 — 백틱 토막과 따옴표 구간을 뺀 글에서 앞이 줄 머리나 공백, 뒤가 줄 끝이나 공백인 `@Profile.md` 하나(ADR 0042 의 7).
+IMPORT = re.compile(r"(?:^|\s)@Profile\.md(?=\s|$)", re.M)
 
 
 class Report:
@@ -342,6 +344,20 @@ def check_entry(r, root, intent):
         r.fail(entry, "C3", f"마스터플랜 `{MASTER}` 를 가리키지 않는다 — 그 경로를 백틱 토막 하나로 적는다")
 
 
+def imports(ls):
+    """`ls` 에 가져오는 줄이 있나 — 빈 줄로 나눈 문단마다 백틱 토막을 빼고(토막은 빈 줄을 넘지 못한다), 같은 줄의 따옴표
+    구간을 뺀 뒤 꼴을 찾는다(조각 31 설계 ③ · 끝의 「경계를 정했다」)."""
+    paras, cur = [], []
+    for ln in ls:
+        if ln.strip():
+            cur.append(ln)
+        else:
+            paras.append("\n".join(cur))
+            cur = []
+    paras.append("\n".join(cur))
+    return any(IMPORT.search(QUOTE.sub("\0", SPAN.sub("\0", p))) for p in paras)
+
+
 def check_profile(r, root):
     """P1 — 맨 위의 `Profile.md` 는 저장소 안의 파일이고 `CLAUDE.md` 나 `CLAUDE.local.md` 가 가져온다. 이름이 없으면 묻지
     않는다 — 고르는 문서다. 절 제목도 묻지 않는다(조각 31 설계 ② · ③, ADR 0042 의 6 · 7)."""
@@ -363,7 +379,7 @@ def check_profile(r, root):
             # 읽지 못한 파일은 가져오는지 모른다 — 다른 파일이 가져오지 않으면 P1 을 묻지 않고 [R1] 만 선다.
             unread = True
             continue
-        if any(IMPORT.search(SPAN.sub("\0", ln)) for ln in ls):
+        if imports(ls):
             return
     if not unread:
         r.fail(PROFILE, "P1", "`CLAUDE.md` 도 `CLAUDE.local.md` 도 가져오지 않는다 — 둘 중 하나에 `@Profile.md` 를 백틱 밖에, "
