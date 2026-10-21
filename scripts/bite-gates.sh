@@ -724,6 +724,7 @@ done
 # (조각 3 설계 ⑤ 「시험이 문다」). 원천 · 틀 · 의도 · 마스터플랜 경로 · 상태와 의존 · 폴더 대응 ·
 # 조각 문서 · 닫는 기록 · 펜스와 주석, 그리고 늘 1 을 내는 검사 — 그때는 대조가 떨어져야 한다.
 # 입구 `CLAUDE.md` 의 C1 · C2 · C3 와 다섯째 「…의 칸」, 묻지 않아야 할 C2, 백틱 토막만 받는 꼴(조각 30 설계 ⑤ V3).
+# 프로필의 P1 자리마다 하나와 여섯째 「…의 칸」, CommonMark 펜스의 여닫는 꼴(조각 31 설계 ⑤ V3).
 for m in 'if n != 1:|if n == 0:' \
          'if not need:|if False:' \
          'if name in schema and headings(lines(p)) != schema[name]:|if False:' \
@@ -740,7 +741,7 @@ for m in 'if n != 1:|if n == 0:' \
          'if kind in schema and (why := in_order(hs, schema[kind])):|if False:' \
          'if f is req and any(h.startswith("닫으며 (") for h in hs):|if False:' \
          'elif not any(CLOSING.match(h) for h in headings(lines(req))):|elif False:' \
-         'if ln.startswith("```"):|if False:' \
+         'if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):|if False:' \
          'if ln.startswith("<!--"):|if False:' \
          'except (OSError, UnicodeDecodeError) as e:|except ZeroDivisionError as e:' \
          'if r.bad:|if True:' \
@@ -749,7 +750,26 @@ for m in 'if n != 1:|if n == 0:' \
          'if intent and intent not in toks:|if False:' \
          'if MASTER not in toks:|if False:' \
          'if not why and p.is_file():|if True:' \
-         'TICK = re.compile(r"`([^`]+)`")|TICK = re.compile(r"`?([^`\s]+)`?")'; do
+         'TICK = re.compile(r"`([^`]+)`")|TICK = re.compile(r"`?([^`\s]+)`?")' \
+         '    ("Profile.md 의 칸", "profile.md"),|' \
+         '        check_profile(r, root)|' \
+         'if not os.path.lexists(root / PROFILE):|if False:' \
+         'if why or not prof.is_file():|if False:' \
+         'IMPORTERS = ("CLAUDE.md", "CLAUDE.local.md")|IMPORTERS = ("CLAUDE.md",)' \
+         'IMPORT.search(QUOTE.sub("\0", SPAN.sub("\0", p)))|IMPORT.search(QUOTE.sub("\0", p))' \
+         'SPAN = re.compile(r"(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", re.S)|SPAN = re.compile(r"`[^`]+`")' \
+         'return any(IMPORT.search(QUOTE.sub("\0", SPAN.sub("\0", p))) for p in paras)|return any("@Profile.md" in QUOTE.sub("\0", SPAN.sub("\0", p)) for p in paras)' \
+         'QUOTE.sub("\0", SPAN.sub("\0", p))|SPAN.sub("\0", p)' \
+         ' for p in paras)| for p in ls)' \
+         'if ln.strip():|if True:' \
+         'if inside(root, name)[1] or not f.is_file():|if not f.is_file():' \
+         'lines(prof)  # 읽지 못하면 [R1] — 줄의 뜻은 보지 않는다|pass' \
+         'unread = True|unread = False' \
+         'm = FENCE.match(ln)|m = re.match(r"^(```)(.*)$", ln)' \
+         'if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):|if m:' \
+         'm.group(1)[0] == fence[0] and |' \
+         'len(m.group(1)) >= len(fence) and |' \
+         ' and not m.group(2).strip():|:'; do
   python3 - "${m%%|*}" "${m##*|}" "$cc/d.py" <<'PY'
 import pathlib, sys
 s = pathlib.Path("scripts/verify-docs.py").read_text(encoding="utf-8")

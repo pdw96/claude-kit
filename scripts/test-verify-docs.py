@@ -18,10 +18,17 @@
 
 **다른 레포 모드의 꼴** (`docs/slices/9-repo-doc-check/design.md` ② A · ⑤)
 
-- 틀 다섯으로 세운 임시 레포(지도도 `vibe-slice/` 도 없다)에 `--repo` 로 댄다. 의도 줄은 `PRD.md`, 조각은 닫힌 것 ·
+- 틀 여섯으로 세운 임시 레포(지도도 `vibe-slice/` 도 없다)에 `--repo` 로 댄다. 의도 줄은 `PRD.md`, 조각은 닫힌 것 ·
   진행 · 예정 하나씩이고, 맨 위에 그 둘을 가리키는 입구 `CLAUDE.md` 가 있다(조각 30 설계 ② C1 ~ C3).
 - 받은 검사(인자로 받은 사본도)를 꼴마다 임시 스킬 폴더 `<임시>/slice-docs/scripts/` 에 베끼고 `templates/` 에 이
-  저장소의 틀 다섯을 둔다(V2) — 검사가 제 옆의 틀을 찾으므로, 망가뜨린 사본이 틀을 못 찾아 엉뚱한 까닭으로 떨어지지 않는다.
+  저장소의 틀 여섯을 둔다(V2) — 검사가 제 옆의 틀을 찾으므로, 망가뜨린 사본이 틀을 못 찾아 엉뚱한 까닭으로 떨어지지 않는다.
+
+**프로필의 꼴** (`docs/slices/31-profile/design.md` ② P1 · ⑤ V1 · V2)
+
+- 두 모드가 같은 꼴 목록(`PROFILE_CASES` · `PROFILE_CONTROLS`)을 쓴다 — 이 저장소 모드는 베낀 트리, 다른 레포 모드는 임시
+  레포에 `Profile.md` 를 두고 `CLAUDE.md` · `CLAUDE.local.md` 를 바꾼다.
+- 거절 꼴은 exit 1 · 기대한 줄이 다 있고 · 출력의 번호가 기대한 번호뿐임을 본다 — 서지 않아야 할 번호(읽지 못한 가져오는
+  파일의 P1 따위)가 서면 떨어진다. 성공 꼴은 exit 0 이다.
 
 표준 라이브러리만 쓴다.
 """
@@ -157,13 +164,17 @@ CASES = [
                   "④ 결정", "⑤ 검증 계획", "⑥ PR 나눔")]),
     ("O1 「CLAUDE.md 의 칸」 절 이름이 바뀐다", "O1", PROC,
      lambda t: sub(t, PROC, "### CLAUDE.md 의 칸\n", "### CLAUDE.md 칸\n")),
+    ("O1 「Profile.md 의 칸」 절이 없다", "O1", PROC,
+     lambda t: sub(t, PROC, "### Profile.md 의 칸\n", "### 프로필의 칸\n")),
+    ("O2 「Profile.md 의 칸」 표에 제목 줄이 없다", "O2", PROC, lambda t: [
+        sub(t, PROC, f"| `## {h}` |", f"| ## {h} |") for h in ("수준", "결정을 가르는 법", "설명하는 법")]),
     ("O3 절차 지도가 없다", "O3", PROC, lambda t: (t / PROC).unlink()),
     ("O3 마스터플랜이 없다", "O3", MP, lambda t: (t / MP).unlink()),
     ("O3 빈 루트", "O3", PROC, lambda t: [
         shutil.rmtree(x) if x.is_dir() and not x.is_symlink() else x.unlink() for x in list(t.iterdir())]),
     *[(f"T1 틀 {f} 이 없다", "T1", f"{TPL}/{f}",
        (lambda f: lambda t: (t / TPL / f).unlink())(f))
-      for f in ("intent.md", "master-plan.md", "claude-md.md", "requirements.md", "design.md")],
+      for f in ("intent.md", "master-plan.md", "claude-md.md", "profile.md", "requirements.md", "design.md")],
     ("T2 틀 제목 한 글자", "T2", TPL + "/intent.md",
      lambda t: sub(t, TPL + "/intent.md", "\n## Why\n", "\n## Whi\n")),
     ("T2 틀에 제목 더함", "T2", TPL + "/design.md",
@@ -172,6 +183,10 @@ CASES = [
      lambda t: swap(t, TPL + "/master-plan.md", "\n## 조각 나눔\n", "\n## 범위 변경\n")),
     ("T2 틀 claude-md.md 의 제목 한 글자", "T2", TPL + "/claude-md.md",
      lambda t: sub(t, TPL + "/claude-md.md", "\n## 금지\n", "\n## 금기\n")),
+    ("T2 틀 profile.md 의 제목 한 글자", "T2", TPL + "/profile.md",
+     lambda t: sub(t, TPL + "/profile.md", "\n## 수준\n", "\n## 수줌\n")),
+    ("M1 ~~~ 펜스 안의 제목은 제목이 아니다", "M1", MP,
+     lambda t: sub(t, MP, "\n## 조각 나눔\n", "\n~~~\n## 조각 나눔\n~~~\n")),
     ("T2 원천 표에 제목 더함", "T2", TPL + "/design.md", lambda t: sub(
         t, PROC, "| `## ⑥ PR 나눔` |", "| `## ⑦ 덤` | x |\n| `## ⑥ PR 나눔` |")),
     ("I1 의도 줄이 없다", "I1", MP,
@@ -262,6 +277,122 @@ QUIET = [
      f"{ENTRY}: [C2]", []),
 ]
 
+# ── 프로필(조각 31 설계 ② P1 · ③) — 두 모드가 같이 쓴다 ──────────────────────────
+
+PROFILE = "Profile.md"
+LOCAL = "CLAUDE.local.md"
+# 실물의 꼴 — pdw96/ERP#125(`fb160d9`) `CLAUDE.md` 「작업 방식」의 한 줄(조각 31 설계 ③).
+IMPORTS = "\n- **설명하고 결정을 묻는 법은 소유자 프로필을 따른다** — @Profile.md\n"
+
+
+def add(t, rel, text):
+    """`rel` 끝에 붙인다 — 없으면 새로 쓴다."""
+    p = t / rel
+    write(p, (p.read_text(encoding="utf-8") if p.is_file() else "") + text)
+
+
+def profile(t, where=ENTRY, line=IMPORTS):
+    """맨 위에 틀 모양의 프로필을 두고 `where` 에 `line` 을 붙인다(`where` 가 None 이면 붙이지 않는다)."""
+    write(t / PROFILE, (ROOT / TPL / "profile.md").read_text(encoding="utf-8"))
+    if where:
+        add(t, where, line)
+
+
+def outside(t, rel, text):
+    """`rel` 을 루트 밖의 `text` 파일을 가리키는 링크로 둔다."""
+    far = t.parent / f"outside-{rel.replace('/', '-')}"
+    write(far, text)
+    if os.path.lexists(t / rel):
+        (t / rel).unlink()
+    os.symlink(far, t / rel)
+
+
+def not_utf8(t, rel, head=b"## x\n"):
+    if os.path.lexists(t / rel):
+        (t / rel).unlink()
+    (t / rel).write_bytes(b"\xff\xfe" + head)
+
+
+# ③ 의 거절 꼴 — (이름, `CLAUDE.md` 끝에 붙일 것). 하나도 가져오는 줄로 읽히지 않아야 한다.
+NOT_IMPORTS = [
+    ("백틱 하나", "\n- 프로필은 `@Profile.md`\n"),
+    ("백틱 둘", "\n- 프로필은 ``@Profile.md``\n"),
+    ("백틱 하나가 든 백틱 둘", "\n- 프로필은 ``x` @Profile.md ``\n"),
+    ("백틱 셋 — 줄 머리에서도 펜스가 아니다", "\n```@Profile.md```\n"),
+    ("따옴표", '\n- 프로필은 "@Profile.md"\n'),
+    ("줄을 넘는 백틱 토막", "\n- 프로필은 `시작\n@Profile.md\n끝` 이다\n"),
+    ("공백을 둔 큰따옴표", '\n- 프로필은 " @Profile.md " 이다\n'),
+    ("공백을 둔 작은따옴표", "\n- 프로필은 ' @Profile.md ' 이다\n"),
+    ("펜스 ```", "\n```\n@Profile.md\n```\n"),
+    ("펜스 ~~~", "\n~~~\n@Profile.md\n~~~\n"),
+    ("들여 쓴 펜스 ```", "\n   ```\n@Profile.md\n   ```\n"),
+    ("```` 안의 ``` 줄", "\n````\n```\n@Profile.md\n```\n````\n"),
+    ("``` 안의 ~~~ 줄", "\n```\n~~~\n@Profile.md\n~~~\n```\n"),
+    ("정보 문자열이 붙은 ``` 줄로는 닫히지 않는 펜스", "\n```\n``` 덤\n@Profile.md\n```\n"),
+    ("주석", "\n<!--\n@Profile.md\n-->\n"),
+    ("마크다운 링크", "\n- 프로필은 [프로필](Profile.md)\n"),
+    ("경로 변형", "\n- 프로필은 @./Profile.md\n"),
+    ("붙은 마침표", "\n- 프로필은 @Profile.md.\n"),
+    ("괄호", "\n- 프로필은 (@Profile.md)\n"),
+    ("대소문자", "\n- 프로필은 @profile.md\n"),
+]
+
+P1 = f"{PROFILE}: [P1]"
+C1 = f"{ENTRY}: [C1]"
+# 이 저장소의 마스터플랜 「가리키는 문서」는 `CLAUDE.md` 를 든다 — 입구가 없거나 밖을 가리키면 그 줄도 [M2] 로 선다.
+# 임시 레포의 마스터플랜은 입구를 들지 않으므로 다른 레포 모드에서는 이 표시를 뺀다.
+ENTRY_ROW = "<이 저장소만: 마스터플랜의 입구 줄>"
+
+# (이름, 변조(트리), 출력에 다 있어야 할 줄 머리) — 출력의 번호는 이 줄들의 번호뿐이어야 한다(V2).
+PROFILE_CASES = [
+    *[(f"P1 가져오는 줄이 {name}", (lambda x: lambda t: profile(t, line=x))(text), [P1]) for name, text in NOT_IMPORTS],
+    ("P1 가져오는 줄이 없다", lambda t: profile(t, where=None), [P1]),
+    ("P1 프로필이 폴더", lambda t: (profile(t), (t / PROFILE).unlink(), (t / PROFILE).mkdir()), [P1]),
+    ("P1 프로필이 밖을 가리키는 링크", lambda t: (profile(t), outside_link(t, PROFILE)), [P1]),
+    ("P1 프로필이 고리 링크", lambda t: (add(t, ENTRY, IMPORTS), os.symlink(PROFILE, t / PROFILE)), [P1]),
+    ("P1 프로필이 끊긴 링크", lambda t: (add(t, ENTRY, IMPORTS), os.symlink("NOPE.md", t / PROFILE)), [P1]),
+    ("P1 CLAUDE.local.md 가 폴더", lambda t: (profile(t, where=None), (t / LOCAL).mkdir()), [P1]),
+    ("P1 CLAUDE.local.md 가 밖을 가리키는 링크 — 그 밖 파일이 가져온다", lambda t: (
+        profile(t, where=None), outside(t, LOCAL, IMPORTS)), [P1]),
+    ("P1 CLAUDE.local.md 가 끊긴 링크", lambda t: (profile(t, where=None), os.symlink("NOPE.md", t / LOCAL)), [P1]),
+    ("P1 CLAUDE.md 가 밖을 가리키는 링크 — 그 밖 파일이 가져온다", lambda t: (
+        profile(t, where=None), outside(t, ENTRY, (t / ENTRY).read_text(encoding="utf-8") + IMPORTS)), [C1, P1, ENTRY_ROW]),
+    ("P1 CLAUDE.md 가 폴더", lambda t: (profile(t, where=None), (t / ENTRY).unlink(), (t / ENTRY).mkdir()), [C1, P1]),
+    ("R1 프로필이 UTF-8 이 아니다", lambda t: (profile(t), not_utf8(t, PROFILE)), [f"{PROFILE}: [R1]"]),
+    ("R1 CLAUDE.local.md 가 UTF-8 이 아니면 P1 은 묻지 않는다", lambda t: (
+        profile(t, where=None), not_utf8(t, LOCAL, IMPORTS.encode())), [f"{LOCAL}: [R1]"]),
+    ("R1 CLAUDE.md 가 UTF-8 이 아니면 P1 은 묻지 않는다", lambda t: (
+        profile(t, where=None), not_utf8(t, ENTRY, IMPORTS.encode())),
+     [f"{ENTRY}: [R1]", f"{ENTRY}: [C2]", f"{ENTRY}: [C3]"]),
+    ("프로필이 없으면 P1 을 묻지 않는다", lambda t: (t / ENTRY).unlink(), [C1, ENTRY_ROW]),
+    ("마스터플랜이 없으면 P1 을 묻지 않는다", lambda t: (profile(t, where=None), (t / MP).unlink()), [f"{MP}: [O3]"]),
+    ("CLAUDE.md 가 C1 로 떨어져도 CLAUDE.local.md 가 가져오면 P1 은 서지 않는다", lambda t: (
+        profile(t, where=LOCAL), (t / ENTRY).unlink()), [C1, ENTRY_ROW]),
+]
+
+# (이름, 변조(트리)) — 통과해야 한다.
+PROFILE_CONTROLS = [
+    ("CLAUDE.md 가 가져온다 — 실물의 꼴", lambda t: profile(t)),
+    ("CLAUDE.local.md 가 가져온다", lambda t: profile(t, where=LOCAL)),
+    ("줄 머리 · 뒤에 글이 이어진다 · 앞뒤의 백틱 토막", lambda t: profile(
+        t, line="\n@Profile.md\n- `프로필` @Profile.md 를 따른다 `끝`\n")),
+    ("정보 문자열에 백틱이 든 ``` 줄은 펜스를 열지 않는다", lambda t: profile(
+        t, line="\n```설명 `x`\n- 프로필 — @Profile.md\n")),
+    ("백틱 토막은 빈 줄을 넘지 못한다", lambda t: profile(
+        t, line="\n- 짝 없는 ` 하나\n\n- @Profile.md 와 ` 하나\n")),
+    ("따옴표 구간 밖이면 가져온다", lambda t: profile(t, line='\n- "따옴표" 뒤의 @Profile.md\n')),
+]
+
+ID = re.compile(r"\[([A-Z]\d+)\]")
+
+
+def judged(rc, out, need):
+    """거절 꼴의 판정 — exit 1 · 예외 없음 · 기대한 줄이 다 있고 · 번호는 그 줄들의 번호뿐(조각 31 설계 ⑤ V2)."""
+    seen = {m for ln in out.splitlines() if ln.startswith("  - ") for m in ID.findall(ln)}
+    want = {m for w in need for m in ID.findall(w)}
+    return rc == 1 and "Traceback" not in out and all(w in out for w in need) and seen == want, seen
+
+
 # ── 다른 레포 모드(설계 ② A) ─────────────────────────────────────────
 
 R_DONE = "| 1 | 닫힌 조각 | 시험 | — | 닫힘 | `docs/slices/1-done/` |"
@@ -346,6 +477,8 @@ R_CASES = [
         (tpl / "intent.md").unlink(), (tpl / "intent.md").write_bytes(b"\xff\xfe## Why\n"))),
     ("A2 검사 옆 틀 claude-md.md 가 없다", ["[A2] {tpl}/claude-md.md:"],
      lambda t, tpl: (tpl / "claude-md.md").unlink()),
+    ("A2 검사 옆 틀 profile.md 가 없다", ["[A2] {tpl}/profile.md:"],
+     lambda t, tpl: (tpl / "profile.md").unlink()),
     ("C1 입구가 없다", ["CLAUDE.md: [C1]"], lambda t, tpl: (t / ENTRY).unlink()),
     ("C1 첫 마스터플랜이어도 입구가 없으면 떨어진다", ["CLAUDE.md: [C1]"],
      lambda t, tpl: (first_plan(t), (t / ENTRY).unlink())),
@@ -415,6 +548,34 @@ def repo_mode(checker, tmp):
             passes += 1
         else:
             fails.append(f"다른 레포 대조 {name}: 원천을 찍고 통과해야 하는데 아니다 (종료코드 {rc}) — {out[-300:]}")
+
+    for name, mutate, need in PROFILE_CASES:
+        try:
+            c, tpl, t = bed()
+            mutate(t)
+        except Setup as e:
+            fails.append(f"다른 레포 {name}: 준비 실패 — {e}")
+            continue
+        need = [w for w in need if w != ENTRY_ROW]
+        rc, out = run_repo(c, "--repo", t)
+        ok, seen = judged(rc, out, need)
+        if ok:
+            passes += 1
+        else:
+            fails.append(f"다른 레포 {name}: {' · '.join(need)} 만 서야 한다 (종료코드 {rc}, 선 번호 {sorted(seen)}) — {out[-300:]}")
+
+    for name, mutate in PROFILE_CONTROLS:
+        try:
+            c, tpl, t = bed()
+            mutate(t)
+        except Setup as e:
+            fails.append(f"다른 레포 대조 {name}: 준비 실패 — {e}")
+            continue
+        rc, out = run_repo(c, "--repo", t)
+        if rc == 0:
+            passes += 1
+        else:
+            fails.append(f"다른 레포 대조 {name}: 통과해야 하는데 떨어졌다 — {out[-300:]}")
 
     # E1 UTF-8 이 아닌 로케일 · cp949 콘솔 — 대조는 통과 줄을, 변조는 판정 줄을 예외 없이 찍는다.
     for name, mutate, want_rc, want in (
@@ -550,7 +711,22 @@ def main():
                 fails.append(f"{name}: `{need}` 만 서고 {' · '.join(never) or '—'} 는 서지 않아야 한다 "
                              f"(종료코드 {rc}, 선 것 {seen}) — {out[-300:]}")
 
-        for name, mutate in CONTROLS:
+        for name, mutate, need in PROFILE_CASES:
+            t = fresh()
+            try:
+                mutate(t)
+            except Setup as e:
+                fails.append(f"{name}: 준비 실패 — {e}")
+                continue
+            need = [f"{MP}: [M2]" if w == ENTRY_ROW else w for w in need]
+            rc, out = run(checker, t)
+            ok, seen = judged(rc, out, need)
+            if ok:
+                passes += 1
+            else:
+                fails.append(f"{name}: {' · '.join(need)} 만 서야 한다 (종료코드 {rc}, 선 번호 {sorted(seen)}) — {out[-300:]}")
+
+        for name, mutate in [*CONTROLS, *PROFILE_CONTROLS]:
             t = fresh()
             try:
                 mutate(t)
@@ -593,7 +769,8 @@ def main():
             print(f"  - {f}")
         return 1
     print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
-          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, 모두 {passes}")
+          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, "
+          f"프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)} 두 모드, 모두 {passes}")
     return 0
 
 
