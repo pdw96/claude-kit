@@ -56,14 +56,11 @@ claude plugin install vibe-slice@pdw96-kit
 ## 새 프로젝트를 열 때
 
 1. `scripts/sync-agents.sh <새 레포>` — 감사자 여섯을 심는다(클라우드 레인이면 `scripts/sync-slice.sh` 도)
-2. 계정 스킬 `project-kickoff` 으로 착공
-3. 스킬 `slice-docs` 로 마스터플랜을 세워 조각을 나눈다 — 의도는 착공의 `PRD.md` 를 가리킨다
-4. 첫 조각이 끝나면 `@audit-data` 부터
+2. 스킬 `slice-docs` 로 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`)을 세워 조각을 나눈다
+3. 첫 조각이 끝나면 `@audit-data` 부터
 
-계정에 붙어 있는 스킬 넷(`project-kickoff` · `build-gate` · `separate-audit` · `ai-native-build`)은 설치가 필요 없다.
-
-무엇을 언제 감사할지와 부적합을 닫힐 때까지 따라가는 일은 계정 스킬 `separate-audit` 이 맡는다 — 이 플러그인의 감사자
-여섯은 그 계획이 넘겨주는 개별 감사만 한다.
+감사자 여섯은 개별 감사만 한다. 무엇을 언제 감사할지와 부적합을 닫힐 때까지 따라가는 자리는
+[절차 지도](docs/procedure.md) 「빈자리」에 있다.
 
 ## 가리키는 곳
 
