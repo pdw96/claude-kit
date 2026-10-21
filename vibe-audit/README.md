@@ -76,7 +76,7 @@ claude --agent audit-ops
 
 ## 감사 계획과 부적합 대장
 
-무엇을 언제 돌릴지, 부적합을 어떻게 추적할지는 `separate-audit` 스킬이 맡습니다. 이 플러그인은 개별 감사만 합니다.
+무엇을 언제 돌릴지, 부적합을 어떻게 추적할지는 이 플러그인이 맡지 않습니다 — claude-kit [절차 지도](https://github.com/pdw96/claude-kit/blob/main/docs/procedure.md)의 「빈자리」입니다. 이 플러그인은 개별 감사만 합니다.
 
 대략의 주기:
 
