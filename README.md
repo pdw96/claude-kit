@@ -7,7 +7,7 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 | 플러그인 | 무엇 |
 |---|---|
 | `vibe-audit` | 목적별로 범위를 좁힌 읽기전용 감사자 6종 — 시크릿 · 데이터 · 검사장치 · 운영 · 계약 · 내부규칙 |
-| `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 여섯 — 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 조각 요구사항 · 설계(스킬 `slice-docs`), 리뷰 지적을 그 조각의 설계에 비춰 가르는 법(스킬 `slice-review`) |
+| `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 여섯 — 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 조각 요구사항 · 설계 — 과 부적합 대장의 틀(스킬 `slice-docs`), 리뷰 지적을 그 조각의 설계에 비춰 가르는 법(스킬 `slice-review`) |
 
 ## 설치 — 경로가 둘인 이유
 
@@ -59,7 +59,8 @@ claude plugin install vibe-slice@pdw96-kit
 2. 스킬 `slice-docs` 로 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`)을 세워 조각을 나눈다
 3. 첫 조각이 끝나면 `@audit-data` 부터
 
-감사자 여섯은 개별 감사만 한다. 무엇을 언제 감사할지와 부적합을 닫힐 때까지 따라가는 자리는
+감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀
+(`vibe-slice/skills/slice-docs/templates/nc-ledger.md` · `nc-ledger-history.md`)을 베껴 세운다. 무엇을 언제 감사할지는
 [절차 지도](docs/procedure.md) 「빈자리」에 있다.
 
 ## 가리키는 곳
