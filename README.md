@@ -57,10 +57,11 @@ claude plugin install vibe-slice@pdw96-kit
 
 1. `scripts/sync-agents.sh <새 레포>` — 감사자 여섯을 심는다(클라우드 레인이면 `scripts/sync-slice.sh` 도)
 2. 스킬 `slice-docs` 로 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`)을 세워 조각을 나눈다
-3. 첫 조각이 끝나면 `@audit-data` 부터
+3. 조각마다 요구사항 「제약」에 감사 회차를 적고 닫기 전에 돌린다
 
 감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을
-베껴 세운다(자리는 [시스템 구조](docs/architecture.md)). 무엇을 언제 감사할지는 [절차 지도](docs/procedure.md) 「빈자리」에 있다.
+베껴 세운다(자리는 [시스템 구조](docs/architecture.md)). 무엇을 언제 감사할지는 조각 요구사항의 감사 회차가 든다 — 고르는 법은 [절차 지도](docs/procedure.md) 「감사 회차」,
+바뀐 것에 맞는 감사자는 [`vibe-audit/README.md`](vibe-audit/README.md) 「대략의 주기」.
 
 ## 가리키는 곳
 

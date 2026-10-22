@@ -76,7 +76,7 @@ claude --agent audit-ops
 
 ## 감사 계획과 부적합 대장
 
-이 플러그인은 개별 감사만 합니다. 부적합을 재감사로 닫힐 때까지 따라가는 대장은 `vibe-slice` 플러그인의 틀(스킬 `slice-docs` 의 `templates/`)을 베껴 세웁니다 — 감사자는 그 대장을 `CLAUDE.md` 가 가리키면 지난 기록으로 읽습니다. 무엇을 언제 돌릴지는 맡지 않습니다 — claude-kit [절차 지도](https://github.com/pdw96/claude-kit/blob/main/docs/procedure.md)의 「빈자리」입니다.
+이 플러그인은 개별 감사만 합니다. 부적합을 재감사로 닫힐 때까지 따라가는 대장은 `vibe-slice` 플러그인의 틀(스킬 `slice-docs` 의 `templates/`)을 베껴 세웁니다 — 감사자는 그 대장을 `CLAUDE.md` 가 가리키면 지난 기록으로 읽습니다. 언제 돌릴지는 조각 요구사항 「제약」의 감사 회차가 정합니다 — 고르는 법은 claude-kit [절차 지도](https://github.com/pdw96/claude-kit/blob/main/docs/procedure.md)의 「감사 회차」입니다. 아래 표는 그 원천 가운데 하나(바뀐 것 → 감사자)입니다.
 
 대략의 주기:
 
