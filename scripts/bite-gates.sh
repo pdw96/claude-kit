@@ -1229,8 +1229,15 @@ echo x > "$gc/r/scripts/bite-new.py"; git -C "$gc/r" add scripts/bite-new.py
 if [ "$(python3 "$gc/r/scripts/gate-key.py")" = "$gb" ]; then
   echo "::error::gate-key.py 가 넣는 쪽의 새 파일(scripts/bite-new.py)을 지문에 넣지 않았다"; exit 1
 fi
+# 경로에 \r 이 든 파일도 그 내용으로 센다 — 글로 읽어 \r 이 \n 으로 바뀌면 「없음」으로 세어 내용이 바뀌어도 그대로였다(Codex 리뷰)
+gcr="$gc/r/scripts/bite-cr"$'\r'".py"; echo 'print(1)' > "$gcr"; git -C "$gc/r" add -A scripts
+gb=$(python3 "$gc/r/scripts/gate-key.py"); echo 'print(2)' > "$gcr"
+if [ "$(python3 "$gc/r/scripts/gate-key.py")" = "$gb" ]; then
+  echo "::error::gate-key.py 가 경로에 \\r 이 든 파일의 내용을 바꿔도 지문이 그대로다"; exit 1
+fi
 # 판 — 같은 트리라도 파이썬 · git 판이 바뀌면 지문이 바뀐다. 판을 못 읽는 꼴이면 지문 없이 종료 1, 모르는 인자는 종료 2(K1 · K4)
-gv=$(mktemp -d); gpy3=$(command -v python3); ggit3=$(command -v git)
+# 진짜 해석기는 sys.executable 로 찾는다 — pyenv 의 shim 은 PATH 앞에 제 판을 다시 얹어 가짜 python3 를 가린다(Codex 리뷰).
+gv=$(mktemp -d); gpy3=$(python3 -c 'import sys; print(sys.executable)'); ggit3=$(command -v git)
 mkdir -p "$gv/py" "$gv/git" "$gv/bad"
 printf '#!/bin/sh\necho "Python 0.0.1"\n' > "$gv/py/python3"
 printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "git version 0.0.1"; else exec "%s" "$@"; fi\n' "$ggit3" > "$gv/git/git"
@@ -1261,7 +1268,7 @@ fi
 if [ "$(git status --porcelain)" != "$gst0" ]; then
   echo "::error::지문 시험이 작업트리를 흔든 채로 남겼다"; git status --porcelain; exit 1
 fi
-echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · 두 판은 바뀐다"
+echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판은 바뀐다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
 # 실행이 변조 시험 아닌 검사까지 빼면 「열아홉 통과」가 거짓이 된다.

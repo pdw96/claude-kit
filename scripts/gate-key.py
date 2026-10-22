@@ -20,6 +20,7 @@
 표준 라이브러리만 쓴다.
 """
 import hashlib
+import os
 import pathlib
 import re
 import subprocess
@@ -52,9 +53,11 @@ VERSIONS = (
 
 
 def inputs():
+    # 바이트로 읽는다 — text=True 는 경로 안의 \r 을 \n 으로 바꿔, 그 파일 대신 「없음」을 세게 된다(Codex 리뷰).
     out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT,
-                         check=True, capture_output=True, text=True).stdout
-    return sorted({f for f in out.split("\0") if f and not SKIP.search(f)})
+                         check=True, capture_output=True).stdout
+    paths = (os.fsdecode(f) for f in out.split(b"\0") if f)
+    return sorted({f for f in paths if not SKIP.search(f)})
 
 
 def version(cmd, shape):
@@ -86,7 +89,7 @@ def main():
         body = p.read_bytes() if p.is_file() else b"\0(missing)"
         # 실행 비트도 입력이다 — 비트를 뺀 스크립트는 gates.sh 에서 안 돈다.
         xbit = b"x" if p.is_file() and p.stat().st_mode & 0o100 else b"-"
-        h.update(f.encode() + b"\0" + xbit + hashlib.sha256(body).digest())
+        h.update(os.fsencode(f) + b"\0" + xbit + hashlib.sha256(body).digest())
         if listing:
             print(f"  {hashlib.sha256(body).hexdigest()[:12]}  {f}", file=sys.stderr)
 
