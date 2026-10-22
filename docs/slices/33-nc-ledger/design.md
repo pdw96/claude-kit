@@ -7,18 +7,19 @@
 | 파일 | PR | 무엇 |
 |---|---|---|
 | `docs/master-plan.md` | A · 닫기 | 조각 나눔 — 33 「부적합 대장」을 `진행` 으로 · 조각 폴더, 순서 없는 「부적합 대장 검사」(`예정`, ADR 0044 의 1). 「범위 변경」에 한 줄. 닫기에서 33 을 `닫힘` |
-| `INTENT.md` | A | What 의 `vibe-audit` 줄에 「부적합 대장의 틀」을 더한다(ADR 0043 의 결과 4 · ② T7) |
+| `INTENT.md` | A | What 의 `vibe-slice` 줄에 「부적합 대장의 틀」을 더한다(ADR 0043 의 결과 4 · ADR 0044 의 3 · ② T7) |
 | `docs/slices/33-nc-ledger/` · `docs/adr/0044-nc-ledger.md` | A | 이 요구사항 · 설계 · ADR |
-| `vibe-audit/templates/` | B | 대장의 틀 — 파일 하나나 둘(④ 의 열어 둔 것 1). ② T1 ~ T3 |
-| `vibe-audit/.claude-plugin/plugin.json` | B | 판 0.4.1 → 0.5.0(ADR 0044 의 5) |
-| `vibe-audit/README.md` | B | 「감사 계획과 부적합 대장」 첫 문단 — 부적합 대장은 틀을, 감사 계획은 지도의 빈자리를 가리킨다(② T5). 「대략의 주기」 표는 그대로 |
+| `vibe-slice/skills/slice-docs/templates/``nc-ledger.md` · `nc-ledger-history.md` | B | 대장의 틀 둘 — 살아 있는 쪽 · 지나간 쪽(끝의 「열어 둔 것을 정했다」). ② T1 ~ T3 |
+| `vibe-slice/.claude-plugin/plugin.json` · `.claude-plugin/marketplace.json` | B | 판 0.6.0 → 0.7.0(ADR 0044 의 5) · `vibe-slice` 의 설명 두 자리에 대장의 틀을 더한다 — `verify-manifest.py` 가 둘을 견준다 |
+| `vibe-slice/skills/slice-docs/SKILL.md` · `vibe-slice/skills/slice-review/SKILL.md` | B | 절차 지도 링크의 커밋만 다시 박는다 — 지도를 고친 B 의 커밋으로(`verify-map-pin.py` M5, 조각 31 B 의 `7480eea` 와 같은 길). 본문은 그대로(② T4) |
+| `vibe-audit/README.md` | B | 「감사 계획과 부적합 대장」 첫 문단 — 부적합 대장은 `vibe-slice` 의 틀을, 감사 계획은 지도의 빈자리를 가리킨다(② T5). 「대략의 주기」 표는 그대로. 판은 올리지 않는다(ADR 0044 의 5) |
 | `docs/procedure.md` | B | 「일곱 단계」 4 의 맡는 도구 · 「빈자리」 표의 「부적합 대장」 줄 · 「살아 있는 문서와 기록」의 목록(② T5) |
 | `README.md` | B | 「새 프로젝트를 열 때」 끝 문단(62 · 63) — 부적합 대장은 틀, 감사 계획은 빈자리(② T5) |
 | `docs/architecture.md` | B | 부품 표에 틀 한 줄 — 부품이 는다(② T5) |
 
 앵커볼트를 건드리지 않는다 — 이름 · 감사자의 `tools` · 공통 절 · 대장 둘(`copies.json` · `feedback.json`)의 모양 · 「…의 칸」 여섯 절 · 고정
-영역이 그대로다. 새 틀은 이름이 아니라 파일이고 호출 이름을 늘리지 않는다. 틀의 절 제목은 문서 대조 검사가 읽지 않는다 — 그것을 무는 일은
-「부적합 대장 검사」 조각이 정한다. `feedback.json` 은 고치지 않는다 — 후보 대장은 사본 감사자 · 커맨드 · 검사기와 원본의 차이를 들고, ERP 대장의
+영역이 그대로다. 새 틀은 이름이 아니라 파일이고 호출 이름을 늘리지 않는다. 같은 폴더의 틀 여섯과 달리 「…의 칸」이 없고, 문서 대조 검사는 정해진 여섯(`KINDS`)만 읽어
+새 틀의 절 제목을 묻지 않는다 — 그것을 무는 일은 「부적합 대장 검사」 조각이 정한다. `feedback.json` 은 고치지 않는다 — 후보 대장은 사본 감사자 · 커맨드 · 검사기와 원본의 차이를 들고, ERP 대장의
 규칙은 그 파일들의 차이가 아니다. 앵커볼트 「의도 … 의 모양」은 절 제목이고, `INTENT.md` 는 절 제목이 그대로이고 What 의 한 줄이 넓어진다 —
 범위 변경이라 착공 PR 에 싣고 저자가 그 PR 에서 본다.
 
@@ -26,7 +27,8 @@
 
 **보장하는 것** — T1 ~ T6 은 B, T7 은 A 가 싣는다.
 
-- T1 **틀의 자리와 머리.** 틀은 `vibe-audit/templates/` 에 있고 플러그인이 싣는다. 틀 머리의 주석이 드는 것 —
+- T1 **틀의 자리와 머리.** 틀은 `vibe-slice/skills/slice-docs/templates/` 에 있다 — 대화형 세션은 플러그인으로, 클라우드 레인은 `sync-slice.sh` 가 스킬 폴더째 심는 사본으로 받는다.
+  틀에는 claude-kit 을 가리키는 링크를 두지 않는다 — 박을 링크가 늘지 않게(`verify-map-pin.py`). 틀 머리의 주석이 드는 것 —
   - 베끼는 법 — 레포가 정한 자리(예: `docs/audit/`)로 베끼고, 베낀 claude-kit 커밋을 대장 머리의 출처 줄에 적는다. 베낀 뒤는 그 레포의 문서이고
     원본 틀이 바뀌어도 저절로 따라가지 않는다(ADR 0044 의 2).
   - 대장을 가리키는 줄 — 그 레포의 `CLAUDE.md` 에 대장의 경로를 드는 줄을 더한다. 감사자가 대장을 「`CLAUDE.md` 등이 가리키는 곳」으로 찾는다(③ A1).
@@ -42,27 +44,31 @@
   - 확인불가(U)는 NC 표가 아닌 따로 선 표에 적고 닫는 조건이 「근거를 받아 판정한다」다. 멈춘 회차를 센다.
   - 관찰(OB)은 대장 표에 줄을 받지 않는다 — 회차의 기록에 남는다.
   - 다음 번호는 NC · U 둘 다 대장의 한 줄이 들고, 줄을 더할 때 그 줄을 올린다.
-- T4 **감사자 · 커맨드 · 검사기는 그대로다.** B 의 diff 에 `vibe-audit/agents/` · `vibe-audit/commands/` · `vibe-audit/scripts/` 가 없다. 틀은 세션이
-  매번 읽어 들이는 파일이 아니라 처음 한 번 베끼는 파일이라 주의 예산(`budget.txt`) 밖이다.
+- T4 **감사자 · 커맨드 · 검사기와 두 스킬의 본문은 그대로다.** B 의 diff 에 `vibe-audit/agents/` · `vibe-audit/commands/` · `vibe-audit/scripts/` 가 없고,
+  두 스킬의 `SKILL.md` 는 지도 링크의 커밋 40 자만 바뀐다. 틀은 세션이 매번 읽어 들이는 파일이 아니라 처음 한 번 베끼는 파일이라 주의 예산
+  (`budget.txt`) 밖이고, 스킬이 틀을 부르지 않는다.
 - T5 **지도와 입구가 같은 말을 한다.**
-  - `docs/procedure.md` 「일곱 단계」 4 의 맡는 도구 — 「… 스킬 `slice-review`(플러그인 `vibe-slice`). 부적합 대장은 `vibe-audit` 의 틀
-    (`vibe-audit/templates/`)을 레포가 베껴 세운다. 감사 계획은 빈자리」.
+  - `docs/procedure.md` 「일곱 단계」 4 의 맡는 도구 — 「… 스킬 `slice-review`(플러그인 `vibe-slice`). 부적합 대장은 `vibe-slice` 의 틀
+    (`slice-docs/templates/` 의 `nc-ledger.md` · `nc-ledger-history.md`)을 레포가 베껴 세운다. 감사 계획은 빈자리」.
   - 「빈자리」 표에서 「부적합 대장」 줄을 지운다 — 지도의 규칙대로 그 조각 나눔 줄이 닫히면 빈자리가 아니다. 그 줄을 지우는 B 가 닫기보다 앞서지만,
     맡는 도구가 그 PR 로 생기므로 B 의 머지가 그 자리를 채운다.
-  - 「살아 있는 문서와 기록」의 살아 있는 문서 목록에 `vibe-audit/templates/` 를 더한다 — 원본의 틀은 늘 지금과 맞아야 한다(ADR 0044 의 3).
-  - `README.md` 62 · 63 — 「감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-audit` 의 틀을 베껴 세운다. 무엇을 언제
+  - 「살아 있는 문서와 기록」의 살아 있는 문서 목록은 `vibe-slice/skills/slice-docs/templates/` 를 이미 든다 — 새 틀 둘이 그 안이라 목록을 늘리지 않는다. 그 목록을 설명하는 말이 틀
+    여섯만 가리키면 대장의 틀 둘을 함께 드는 말로 고친다.
+  - `README.md` 62 · 63 — 「감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을 베껴 세운다. 무엇을 언제
     감사할지는 절차 지도 「빈자리」에 있다」.
-  - `vibe-audit/README.md` 「감사 계획과 부적합 대장」 첫 문단 — 부적합 대장은 이 플러그인의 `templates/` 를 베껴 세우고, 감사 계획은 claude-kit 절차
-    지도의 「빈자리」다. 지도는 GitHub 링크로 가리킨다(플러그인 폴더라 상대 경로가 저장소 밖에서 깨진다 — 조각 32 설계 ② D4).
-  - `docs/architecture.md` 부품 표에 「대장의 틀 · `vibe-audit/templates/` · 레포가 처음 한 번 베껴 세우는 부적합 대장. 사본 대장에 적지 않고 견주지 않는다」.
+  - `vibe-audit/README.md` 「감사 계획과 부적합 대장」 첫 문단 — 부적합 대장은 `vibe-slice` 플러그인의 틀을 베껴 세우고, 감사 계획은 claude-kit 절차
+    지도의 「빈자리」다. 이 플러그인은 개별 감사만 한다는 문장은 그대로다. 지도는 GitHub 링크로 가리킨다(플러그인 폴더라 상대 경로가 저장소 밖에서 깨진다 — 조각 32 설계 ② D4).
+  - `docs/architecture.md` 부품 표에 「부적합 대장의 틀 · `vibe-slice/skills/slice-docs/templates/nc-ledger*.md` · 레포가 처음 한 번 베껴 세우는 부적합 대장. 사본 대장에
+    적지 않고 견주지 않는다」.
   - 다 살아 있는 문서라 「아직」 · 「다음 조각에서」를 쓰지 않는다.
-- T6 **판이 0.5.0 이다.** 이미 설치한 세션은 판을 받아야 틀이 생긴다. 조각 32 가 판을 올리지 않아 이미 설치한 플러그인 폴더에 남은 README 의 옛
-  문단도 이 판에서 간다(ADR 0043 의 결과 3).
-- T7 **`INTENT.md` What** — `vibe-audit` 줄이 「`vibe-audit` 플러그인 — 감사자 여섯 · `audit-brief` 커맨드 · `verify-brief.py` · 부적합 대장의 틀」이다.
-  A 가 싣는다.
+- T6 **`vibe-slice` 판이 0.7.0 이다.** 이미 설치한 세션은 판을 받아야 틀이 생긴다. `vibe-audit` 판은 그대로다 — 고치는 파일이 README 하나다.
+- T7 **`INTENT.md` What** — `vibe-slice` 줄이 「절차 지도와 의도 · 마스터플랜 · 요구사항 · 설계 · `CLAUDE.md` · 프로필(`Profile.md`) 틀 · 부적합 대장의
+  틀, 리뷰 지적을 가르는 법 — `vibe-slice` 플러그인(…)으로 간다」다. `vibe-audit` 줄은 그대로다. A 가 싣는다.
 
 **보장하지 않는 것(알려진 한계)**
 
+- **이미 설치한 `vibe-audit` 의 README** — 판을 올리지 않으므로 이미 받은 플러그인 폴더에는 옛 문단(조각 32 의 것)이 남는다. 그 파일은 세션이 읽어
+  들이지 않는다(ADR 0043 의 3).
 - **틀을 따랐는지** — 무는 검사가 없다(하지 않을 일 1). 상태 낱말이 틀 밖의 말이거나 다음 번호가 줄과 어긋나도 아무것도 떨어지지 않는다.
 - **감사 흐름이 틀을 부르는 것** — 감사자 · 커맨드는 틀을 모른다(T4). 세션은 README · 지도로 안다. 대장이 없는 레포의 기록은 지금처럼
   `.claude/audits/` 에 쌓인다.
@@ -123,9 +129,9 @@
 
 - 대장을 무는 검사를 이 조각에 넣지 않고 조각 나눔에 「부적합 대장 검사」 줄을 둔다. ADR 0044 의 1.
 - 틀은 레포가 처음 한 번 베끼고, 베낀 커밋을 대장 머리에 적는다 — `sync-agents.sh` 가 심지 않는다. ADR 0044 의 2.
-- 틀의 자리는 `vibe-audit/templates/` 이고 살아 있는 문서다. ADR 0044 의 3.
-- 감사자 · 커맨드 · 검사기를 고치지 않는다. ADR 0044 의 4.
-- `vibe-audit` 판을 0.5.0 으로 올린다. ADR 0044 의 5.
+- 틀의 자리는 `vibe-slice` 스킬 `slice-docs` 의 `templates/` 이고 살아 있는 문서다 — ADR 0043 의 4 의 「대장은 `vibe-audit` 에」를 대체한다. ADR 0044 의 3.
+- 감사자 · 커맨드 · 검사기와 두 스킬의 본문을 고치지 않는다. ADR 0044 의 4.
+- `vibe-slice` 판을 0.7.0 으로 올리고 `vibe-audit` 판은 그대로 둔다. ADR 0044 의 5.
 - ERP 의 규칙을 ③ 의 닫힌 목록과 네 가름으로 가른다. ADR 0044 의 6.
 
 **열어 둔 것**
@@ -137,7 +143,7 @@
 ## ⑤ 검증 계획
 
 - V1 **성공 기준 1** — B 의 작업트리에서 `claude plugin validate .` · `claude plugin validate vibe-audit` · `claude plugin validate vibe-slice` 의 출력과
-  `plugin.json` 의 판을 B 의 PR 본문에 싣는다.
+  두 `plugin.json` 의 판을 B 의 PR 본문에 싣는다. `sync-slice.sh` 로 빈 레포에 심어 틀 둘이 `.claude/skills/slice-docs/templates/` 에 오는 것도 싣는다.
 - V2 **성공 기준 2** — B 의 PR 본문에 ③ 의 줄마다 「틀의 어느 절」이나 「뺀 까닭」을 단 표를 싣는다. 틀의 규칙 문장마다 ③ 의 번호를 대어 목록 밖의
   것이 0 인지 센다.
 - V3 **성공 기준 3** — 빈 git 레포에 틀을 베끼고 `cycle-continuity` 의 두 회차를 차례로 등록한다. 1 회차는 픽스처의 지난 기록
@@ -145,15 +151,15 @@
   두 회차 사이의 저자 판정은 이 설계가 미리 박는다 — NC-1 등록 · NC-2 고침 · NC-3 고침. 그러면 틀의 규칙만으로 나와야 할 결과는 NC-1 등록(2 회차
   확인 덧붙임) · NC-2 닫힘(담당 `audit-secrets` 의 해소) · NC-3 고침(재감사 대기 그대로) · NC-4 「열림 — 저자 판정 대기」 · 다음 번호 NC-5 다.
   등록한 대장 전문과, 틀이 답하지 않아 세션이 판단한 자리의 수를 B 의 PR 본문에 싣는다.
-- V4 **성공 기준 4** — `git diff --stat origin/main...HEAD -- vibe-audit/agents vibe-audit/commands vibe-audit/scripts` 가 빈 출력이고,
-  `python3 scripts/verify-budget.py` 가 `--write` 없이 지나간다.
+- V4 **성공 기준 4** — `git diff --stat origin/main...HEAD -- vibe-audit/agents vibe-audit/commands vibe-audit/scripts` 가 빈 출력이고, 두 `SKILL.md` 의
+  diff 가 지도 링크의 커밋뿐이고, `python3 scripts/verify-budget.py` 가 `--write` 없이 지나간다.
 - V5 **성공 기준 5** — B 의 diff 를 ② T5 와 줄마다 대어 PR 본문에 싣는다. `docs/procedure.md` 「빈자리」 표에 「부적합 대장」 줄이 없음을 `grep` 으로 보인다.
-- V6 **성공 기준 6** — `./scripts/gates.sh` 스물넷을 A · B · 닫기의 로컬과 CI gate 잡에서. A 는 결정 문서만이라 설계 → 구현 관문을 지나고, A 의 머리에서
-  `eval-key.py route --list` · `full --list` 가 `main` 과 같다. B 는 `진행` 조각 33 의 설계가 머지된 위라 관문을 지나고, CI eval 잡의 route 수트가
-  문턱 1.0 을 지난다.
+- V6 **성공 기준 6** — `./scripts/gates.sh` 스물넷을 A · B · 닫기의 로컬과 CI gate 잡에서. A 는 결정 문서만이라 설계 → 구현 관문을 지난다. B 는 `진행` 조각 33 의 설계가
+  머지된 위라 관문을 지난다. 셋 다 두 수트 지문 밖이다 — 고치는 `vibe-audit/` 파일이 README 하나이고 `vibe-slice/` 는 지문에 들지 않는다. 머리마다
+  `eval-key.py route --list` · `full --list` 가 `main` 과 같고 eval 잡이 건너뛴다.
 - 새 검사를 세우지 않는다 — 변조본이 없다(하지 않을 일 1). 키 없이 도는 시험을 더하거나 고치지 않아 시험 규칙을 두지 않는다.
-- 단계 5 — 배포는 B 의 머지와 판 0.5.0 이다. 장터로 받은 세션은 플러그인을 갱신하면 틀이 생긴다. 보이는 것은 `main` 의 `vibe-audit/templates/` 와
-  판이다. 되돌리는 길은 B 를 되돌리는 것이다(판이 0.4.1 로 돌아간다) — 닫는 기록이 머지된 뒤라면 그것을 먼저 되돌린다. 이미 틀을 베낀 레포의
+- 단계 5 — 배포는 B 의 머지와 `vibe-slice` 판 0.7.0 이다. 장터로 받은 세션은 플러그인을 갱신하면, 클라우드 레인은 `sync-slice.sh` 로 다시 심으면 틀이
+  생긴다. 보이는 것은 `main` 의 틀 둘과 판이다. 되돌리는 길은 B 를 되돌리는 것이다(판이 0.6.0 으로 돌아간다) — 닫는 기록이 머지된 뒤라면 그것을 먼저 되돌린다. 이미 틀을 베낀 레포의
   대장은 그 레포의 문서라 되돌림이 닿지 않는다.
 
 ## ⑥ PR 나눔
@@ -161,7 +167,7 @@
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A | 착공 — 마스터플랜 · `INTENT.md` · 이 요구사항 · 설계 · ADR 0044 | 단계 0 ~ 2 · ② T7 |
-| B | `vibe-audit/templates/` · `plugin.json` · `vibe-audit/README.md` · `docs/procedure.md` · `README.md` · `docs/architecture.md`, ④ 의 열어 둔 것 1 을 정한 기록 | ② T1 ~ T6 · 성공 기준 1 ~ 6 |
+| B | 틀 둘 · 매니페스트 둘 · 두 `SKILL.md` 의 지도 링크 · `vibe-audit/README.md` · `docs/procedure.md` · `README.md` · `docs/architecture.md` | ② T1 ~ T6 · 성공 기준 1 ~ 6 |
 | 닫기 | 요구사항 끝의 `## 닫으며` · 마스터플랜 33 을 `닫힘` · 다음 조각 | 단계 6 |
 
 ## 열어 둔 것을 정했다 (2026-10-22, 착공 PR 안에서)
@@ -175,3 +181,9 @@
 | L20 갈래 추가 | 뺀다 — ERP 특화 | 틀에 그 예외가 없다 — 고친 것은 늘 재감사가 닫는다(L1) |
 
 이로써 ④ 의 열어 둔 것이 없다. B 는 착공 PR 이 머지된 뒤 연다.
+
+## 틀의 자리를 바꿨다 (2026-10-22, 착공 PR 안에서)
+
+착공 PR #119 가 열린 뒤 저자가 물었다 — 감사하는 장치와 감사 결과를 닫히게 하는 장치는 다른 것이 아닌가, 하나로 합치면 무거워지지 않나. 세션이
+세 길(그대로 `vibe-audit` · `vibe-slice` · 새 플러그인)을 들었고 저자가 `vibe-slice` 를 골랐다. ADR 0044 의 3 · 5 가 그 결정이고, 이 설계의 ① · ② ·
+④ · ⑤ · ⑥ 은 그에 맞춰 이 PR 안에서 고쳤다(머지 전이다). 틀의 파일 이름(`nc-ledger.md` · `nc-ledger-history.md`)은 세션이 정했다.
