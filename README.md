@@ -59,9 +59,8 @@ claude plugin install vibe-slice@pdw96-kit
 2. 스킬 `slice-docs` 로 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`)을 세워 조각을 나눈다
 3. 첫 조각이 끝나면 `@audit-data` 부터
 
-감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀
-(`vibe-slice/skills/slice-docs/templates/nc-ledger.md` · `nc-ledger-history.md`)을 베껴 세운다. 무엇을 언제 감사할지는
-[절차 지도](docs/procedure.md) 「빈자리」에 있다.
+감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을
+베껴 세운다(자리는 [시스템 구조](docs/architecture.md)). 무엇을 언제 감사할지는 [절차 지도](docs/procedure.md) 「빈자리」에 있다.
 
 ## 가리키는 곳
 
