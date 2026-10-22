@@ -16,7 +16,7 @@
 
 ## What
 
-- `vibe-audit` 플러그인 — 감사자 여섯 · `audit-brief` 커맨드 · `verify-brief.py`
+- `vibe-audit` 플러그인 — 감사자 여섯 · `audit-brief` 커맨드 · `verify-brief.py` · 부적합 대장의 틀
 - 배포 두 경로 — 마켓플레이스(대화형 세션)와 레포 사본(클라우드 레인)
 - 사본 대장 · 비교기 · 되먹임 대장
 - eval 수트와 키 없이 도는 게이트
