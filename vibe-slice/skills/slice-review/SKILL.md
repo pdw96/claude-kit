@@ -6,7 +6,7 @@ description: 조각으로 나눠 진행하는 레포에서 PR 리뷰 지적을 �
 # 리뷰 지적 가르기
 
 리뷰가 회차마다 설계의 빈 경계를 한 칸씩 채우지 않게, 지적을 기준에 비춰 가른다. 단계는 claude-kit 의 절차 지도
-(https://github.com/pdw96/claude-kit/blob/0d61fb3f7d45303cfe6b896118558682a95baf8d/docs/procedure.md) 4 단계다.
+(https://github.com/pdw96/claude-kit/blob/d022edd95e5035f968eadc46e36b334f79a405d5/docs/procedure.md) 4 단계다.
 
 ## 1. 기준
 
