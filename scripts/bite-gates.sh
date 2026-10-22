@@ -10,7 +10,10 @@
 # 백업에서 되돌리는 것(ADR 0020 의 3), 수트 모델 id 를 `run-evals.sh` 에서 읽는 것(ADR 0020 의 4), 끝의 「변조본
 # 파일이 수트 지문 밖인가」(ADR 0020 의 6).
 #
-# **제자리에서 흔드는 파일.** `copies.json` 과 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
+# 끝의 세 절은 조각 35 가 더했다 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
+# `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5).
+#
+# **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
 # 되돌리므로 커밋 안 한 수정이 남는다. SIGKILL 에는 trap 이 돌지 않는다 — 처음에 찍는 자리에 남은 파일을
 # 저장소 맨 위의 같은 경로로 손으로 되돌려 놓는다. 같은 작업트리에서 둘을 함께 돌리지 않는다 — 서로 흔든다.
@@ -1170,3 +1173,165 @@ for mode in route full; do
   fi
 done
 echo "변조본 파일: gates.sh · bite-gates.sh · bite-*.py 가 수트 지문(route · full) 밖이다"
+
+# gate-key.py — 변조 시험의 지문(조각 35 설계 ② K1 ~ K6 · ⑤ R1 · R2). 검사가 대조하는 문서와 기록(③ S1 ~ S12)은 지문을
+# 그대로 두고, 그 밖(S13 ~ S19)은 바꿔야 한다. 앞쪽이 깨지면 변조 시험이 괜히 돌 뿐이지만 뒤쪽이 깨지면 **검사를 고친 PR 이
+# 변조 시험 없이 초록으로 지나간다.** 수트 지문의 keyed 와 같은 모양 — 제자리에서 흔들고 그 파일만 백업에서 되돌린다.
+gst0=$(git status --porcelain)
+g0=$(python3 scripts/gate-key.py)
+gpy=$(python3 --version | sed -nE 's/^Python ([0-9][A-Za-z0-9_.+-]*)$/\1/p')
+ggit=$(git --version | sed -nE 's/^git version ([0-9][A-Za-z0-9_.+-]*)( \(.*\))?$/\1/p')
+if [ -z "$gpy" ] || [ -z "$ggit" ] || [[ "$g0" != "gate-bite-py$gpy-git$ggit-"* ]] || ! [[ "${g0#"gate-bite-py$gpy-git$ggit-"}" =~ ^[0-9a-f]{24}$ ]]; then
+  echo "::error::gate-key.py 의 지문이 gate-bite-py<파이썬 판>-git<git 판>-<24 자리> 가 아니다 — '$g0' (python3 $gpy · git $ggit)"; exit 1
+fi
+gkeyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
+  hold "$2"
+  eval "$3"
+  k=$(python3 scripts/gate-key.py); undo "$2"
+  if [ "$1" = same ] && [ "$k" != "$g0" ]; then
+    echo "::error::gate-key.py 가 검사가 대조하는 기록 $2 로 지문을 바꿨다 — 변조 시험이 괜히 돈다"; exit 1
+  fi
+  if [ "$1" = diff ] && [ "$k" = "$g0" ]; then
+    echo "::error::gate-key.py 가 $2 를 바꿔도 지문이 그대로다 — 변조 시험 없이 지나간다"; exit 1
+  fi
+}
+# 빼는 쪽 — S1 ~ S11 마다 하나. S12(docs/audit/)는 아래 사본에서 본다
+gkeyed same "$(git ls-files docs/slices/ | head -1)"    'echo x >> "$2"'
+gkeyed same "$(git ls-files docs/adr/ | head -1)"       'echo x >> "$2"'
+gkeyed same "$(git ls-files docs/eval-log/ | head -1)"  'echo x >> "$2"'
+gkeyed same docs/master-plan.md                         'echo x >> "$2"'
+gkeyed same docs/architecture.md                        'echo x >> "$2"'
+gkeyed same docs/schema.md                              'echo x >> "$2"'
+gkeyed same INTENT.md                                   'echo x >> "$2"'
+gkeyed same CLAUDE.md                                   'echo x >> "$2"'
+gkeyed same AGENTS.md                                   'echo x >> "$2"'
+gkeyed same CHECKLIST.md                                'echo x >> "$2"'
+gkeyed same vibe-audit/evals/README.md                  'echo x >> "$2"'
+# 넣는 쪽 — S13 ~ S19 마다 하나, 그리고 실행 비트 · 지운 파일
+gkeyed diff scripts/verify-graders.py                   "echo '#' >> \"\$2\""
+gkeyed diff vibe-slice/skills/slice-docs/SKILL.md       'echo x >> "$2"'
+gkeyed diff vibe-audit/evals/route-quiet/prompt.md      'echo x >> "$2"'
+gkeyed diff vibe-audit/agents/audit-data.md             'echo x >> "$2"'
+gkeyed diff docs/procedure.md                           'echo x >> "$2"'
+gkeyed diff feedback.json                               'echo x >> "$2"'
+gkeyed diff .gitignore                                  'echo x >> "$2"'
+gkeyed diff scripts/gates.sh                            'chmod -x "$2"'
+gkeyed diff scripts/verify-budget.py                    'rm "$2"'
+# S12 는 지금 git 이 아는 파일이 없다 — 사본 저장소에 새 파일로 더해 본다. 같은 자리에서 새 파일이 넣는 쪽이면 저절로
+# 지문에 드는지도 본다(K2). 커밋 안 한 gate-key.py 도 보도록 작업트리의 것을 베껴 쓴다.
+gc=$(mktemp -d); git clone -q "$R" "$gc/r"; cp -p scripts/gate-key.py "$gc/r/scripts/gate-key.py"
+gb=$(python3 "$gc/r/scripts/gate-key.py")
+mkdir -p "$gc/r/docs/audit"; echo x > "$gc/r/docs/audit/bite.md"; git -C "$gc/r" add docs/audit/bite.md
+if [ "$(python3 "$gc/r/scripts/gate-key.py")" != "$gb" ]; then
+  echo "::error::gate-key.py 가 docs/audit/ 의 새 기록으로 지문을 바꿨다"; exit 1
+fi
+echo x > "$gc/r/scripts/bite-new.py"; git -C "$gc/r" add scripts/bite-new.py
+if [ "$(python3 "$gc/r/scripts/gate-key.py")" = "$gb" ]; then
+  echo "::error::gate-key.py 가 넣는 쪽의 새 파일(scripts/bite-new.py)을 지문에 넣지 않았다"; exit 1
+fi
+# 판 — 같은 트리라도 파이썬 · git 판이 바뀌면 지문이 바뀐다. 판을 못 읽는 꼴이면 지문 없이 종료 1, 모르는 인자는 종료 2(K1 · K4)
+gv=$(mktemp -d); gpy3=$(command -v python3); ggit3=$(command -v git)
+mkdir -p "$gv/py" "$gv/git" "$gv/bad"
+printf '#!/bin/sh\necho "Python 0.0.1"\n' > "$gv/py/python3"
+printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "git version 0.0.1"; else exec "%s" "$@"; fi\n' "$ggit3" > "$gv/git/git"
+printf '#!/bin/sh\necho "뜻밖의 판"\n' > "$gv/bad/python3"
+chmod +x "$gv/py/python3" "$gv/git/git" "$gv/bad/python3"
+for w in py git; do
+  k=$(PATH="$gv/$w:$PATH" "$gpy3" scripts/gate-key.py)
+  case "$k" in
+    *"$w"0.0.1-*) ;;
+    *) echo "::error::gate-key.py 의 지문에 $w 판이 안 들었다 — '$k'"; exit 1 ;;
+  esac
+  if [ "${k##*-}" != "${g0##*-}" ] || [ "$k" = "$g0" ]; then
+    echo "::error::gate-key.py 가 $w 판만 바꾼 지문을 '$g0' 와 가르지 못했다 — '$k'"; exit 1
+  fi
+done
+set +e
+k=$(PATH="$gv/bad:$PATH" "$gpy3" scripts/gate-key.py 2>/dev/null); st=$?
+set -e
+if [ "$st" != 1 ] || [ -n "$k" ]; then
+  echo "::error::gate-key.py 가 뜻밖의 python3 --version 에 지문을 냈거나 종료 1 이 아니다 (exit $st, '$k')"; exit 1
+fi
+set +e
+k=$(python3 scripts/gate-key.py --nope 2>/dev/null); st=$?
+set -e
+if [ "$st" != 2 ] || [ -n "$k" ]; then
+  echo "::error::gate-key.py 가 모르는 인자에 종료 2 가 아니다 (exit $st, '$k')"; exit 1
+fi
+if [ "$(git status --porcelain)" != "$gst0" ]; then
+  echo "::error::지문 시험이 작업트리를 흔든 채로 남겼다"; git status --porcelain; exit 1
+fi
+echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · 두 판은 바뀐다"
+
+# gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
+# 실행이 변조 시험 아닌 검사까지 빼면 「열아홉 통과」가 거짓이 된다.
+bunch() {  # $1=gates.sh — 모양이 맞으면 0, 아니면 까닭을 찍고 1
+  python3 - "$1" <<'PY'
+import pathlib, re, sys
+ls = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").split("\n")
+FIVE = ("scripts/bite-verify-docs.py", "scripts/bite-slice-gate.py", "scripts/bite-map-pin.py",
+        "scripts/bite-eval-merged-pass.py", "scripts/bite-gates.sh")
+CALL = re.compile(r"(?:python3 scripts/bite-[\w.-]+\.py|\./scripts/bite-[\w.-]+\.sh)")
+if ls.count("bites() {") != 1 or "}" not in ls[ls.index("bites() {"):]:
+    sys.exit("bites() { … } 묶음이 하나가 아니다")
+a = ls.index("bites() {"); b = ls.index("}", a)
+cmds = lambda part: [l.strip() for l in part if l.strip() and not l.strip().startswith("#")]
+inside, outside = cmds(ls[a + 1:b]), cmds(ls[:a] + ls[b + 1:])
+bad = [l for l in inside if not CALL.fullmatch(l)]
+if bad:
+    sys.exit(f"bites 묶음에 변조 시험이 아닌 명령이 있다: {bad}")
+for f in FIVE:
+    if sum(f in l for l in inside) != 1:
+        sys.exit(f"{f} 가 bites 묶음에 한 번이 아니다")
+    if any(f in l for l in outside):
+        sys.exit(f"{f} 가 bites 묶음 밖에서 불린다")
+PY
+}
+if ! bunch scripts/gates.sh; then
+  echo "::error::gates.sh 의 bites 묶음이 변조 시험 다섯만 든 모양이 아니다"; exit 1
+fi
+gm=$(mktemp -d)
+for mv in 'python3 scripts/verify-docs.py|bites' './scripts/bite-gates.sh|checks'; do
+  python3 - "${mv%%|*}" "${mv##*|}" scripts/gates.sh "$gm/gates.sh" <<'PY'
+import pathlib, sys
+line, to, src, out = sys.argv[1:]
+ls = pathlib.Path(src).read_text(encoding="utf-8").split("\n")
+if ls.count("  " + line) != 1:
+    sys.exit(f"옮길 줄 {line!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본을 gates.sh 에 맞춰 고쳐라")
+ls.remove("  " + line)
+ls.insert(ls.index(f"{to}() {{") + 1, "  " + line)
+pathlib.Path(out).write_text("\n".join(ls), encoding="utf-8")
+PY
+  if bunch "$gm/gates.sh" >/dev/null 2>&1; then
+    echo "::error::묶음 시험이 '${mv%%|*}' 를 ${mv##*|} 로 옮긴 gates.sh 를 통과시켰다"; exit 1
+  fi
+done
+
+# gates.sh 의 인자 — 거절하는 꼴은 아무 검사도 돌리기 전에 종료 2(조각 35 설계 ② G3 · G5 의 나 · ③ A3 ~ A5 · ⑤ R3). 첫
+# 검사가 claude 라 가짜 claude 를 앞에 둔다 — 거절하지 않고 검사로 들어가면 PASS 를 찍고 97 로 끝나 바로 드러나고, 변조
+# 시험까지 가서 이 파일을 다시 부르는 일이 없다. 받는 꼴(A2)도 하나 — 근거를 찍고 첫 검사에 닿는다.
+ga=$(mktemp -d); printf '#!/bin/sh\necho "PASS 가짜 claude"\nexit 97\n' > "$ga/claude"; chmod +x "$ga/claude"
+gargs() {  # $1=기대 종료  $2=이름  $3…=env 인자와 gates.sh 인자
+  local want=$1 name=$2; shift 2
+  set +e
+  PATH="$ga:$PATH" env "$@" >"$ga/out" 2>&1; st=$?
+  set -e
+  if [ "$st" != "$want" ]; then
+    echo "::error::gates.sh $name — 종료 $st, $want 이어야 한다"; cat "$ga/out"; exit 1
+  fi
+  if [ "$want" = 2 ] && grep -q PASS "$ga/out"; then
+    echo "::error::gates.sh $name — 거절했는데 검사가 돌았다"; cat "$ga/out"; exit 1
+  fi
+}
+gargs 2 "A3 CI 밖의 --skip-bite"           -u GITHUB_ACTIONS     "$R/scripts/gates.sh" --skip-bite 근거
+gargs 2 "A3 GITHUB_ACTIONS=false"          GITHUB_ACTIONS=false  "$R/scripts/gates.sh" --skip-bite 근거
+gargs 2 "A4 --skip-bite 만"                 GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite
+gargs 2 "A4 빈 근거"                        GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite ""
+gargs 2 "A5 모르는 인자"                    GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --nope
+gargs 2 "A5 모르는 인자 둘"                 GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --nope 근거
+gargs 2 "A5 인자 셋"                        GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite 근거 더
+gargs 97 "A2 CI 의 --skip-bite"             GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite 근거
+if ! grep -q '^변조 시험 다섯을 건너뛴다 — 근거$' "$ga/out"; then
+  echo "::error::gates.sh --skip-bite 가 근거를 먼저 찍지 않았다"; cat "$ga/out"; exit 1
+fi
+echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 둘이 떨어짐), 거절 일곱은 검사 전에 종료 2, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
