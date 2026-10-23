@@ -95,7 +95,7 @@ B #126(머지 `8256cfa`), C #127(머지 `ddaae39`), D #128(머지 `a99a533`, 설
 
 | 성공 기준 | 무엇에 대어 봤나 |
 |---|---|
-| 1. 같은 지문이면 건너뛴다 | 지문이 `main` 과 같은 실행 셋 — C 의 머지 `main` 푸시 [run 39893617515](https://github.com/pdw96/claude-kit/actions/runs/39893617515) · D 의 머지 `main` 푸시 [run 39906105058](https://github.com/pdw96/claude-kit/actions/runs/39906105058) 의 「키 없이 도는 게이트」 스텝이 둘 다 **39초**(지금 17분 9초)이고, 근거의 notice 와 끝 줄 「열아홉 통과 · 변조 시험 다섯은 건너뛰었다 — 같은 지문(`gate-bite-…`)이 이미 물었다 — PR #127 의 refs/pull/127/merge 캐시(…) — 그것을 읽은 main 실행 …」을 찍었다(D 뒤로는 「스물 통과」). 이 닫는 PR(지문 밖 파일만 고친다)의 실행은 그 PR 본문이 든다 |
+| 1. 같은 지문이면 건너뛴다 | 지문이 `main` 과 같은 실행 셋 — C 의 머지 `main` 푸시 [run 39893617515](https://github.com/pdw96/claude-kit/actions/runs/39893617515) · D 의 머지 `main` 푸시 [run 39906105058](https://github.com/pdw96/claude-kit/actions/runs/39906105058) 의 「키 없이 도는 게이트」 스텝이 둘 다 **39초**(지금 17분 9초)이고, 근거의 notice 와 끝 줄 「열아홉 통과 · 변조 시험 다섯은 건너뛰었다 — 같은 지문(`gate-bite-…`)이 이미 물었다 — PR #127 의 refs/pull/127/merge 캐시(…) — 그것을 읽은 main 실행 …」을 찍었다(D 뒤로는 「스물 통과」). 이 닫는 PR #129(지문 밖 파일만 고친다)의 첫 머리 `1221b83` [run 39911376901](https://github.com/pdw96/claude-kit/actions/runs/39911376901) — `main` 범위에서 같은 키(`gate-bite-…eaa7b07b…`)를 찾아 스텝 **30초**(잡 44초), notice 와 끝 줄 「스물 통과 · 변조 시험 다섯은 건너뛰었다 — 같은 지문(…)이 이미 물었다 — PR #128 의 refs/pull/128/merge 캐시(…) — 그것을 읽은 main 실행 …/39906105058 (a99a533…)」 |
 | 2. 건너뛰는 것은 변조 시험뿐이다 | 1 의 실행에서 `claude plugin validate` 둘과 검사 · 자체 시험(C 뒤 열아홉, D 뒤 스물)이 다 PASS. `bites` 에 `verify-docs.py` 를 옮긴 `gates.sh` 사본이 `bite-gates.sh` 의 묶음 시험에서 떨어진다(#126 본문 · R4). D 뒤로는 늘 도는 `test-gates.py` 가 `--skip-bite` 에서 다섯 말고 다 돌았는지도 본다 |
 | 3. 지문이 바뀌면 다 돈다 | C 첫 머리 `d938f09` 의 [run 39883977211](https://github.com/pdw96/claude-kit/actions/runs/39883977211) — 지문 `gate-bite-py3.12.3-git2.55.0-9f5e1310…` 가 캐시에 없어 스물넷을 다 돌아 통과하고 `Cache saved with key: gate-bite-…` (약 21분 46초). D 첫 머리 [run 39903090279](https://github.com/pdw96/claude-kit/actions/runs/39903090279) 도 같다(스물다섯, `…eaa7b07b…`). 지문 시험은 빼는 쪽 열두 꼴마다 「그대로」, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · `\r` 경로 · 두 판에 「바뀐다」를 본다(#126 본문 V2, 두 run 의 로그 「변조 시험 지문: …」) |
 | 4. `main` 푸시가 머지된 PR 의 통과를 읽는다 | C 의 머지 `main` 푸시 run 39893617515 — `gseen` 은 못 찾고 「머지된 PR 의 변조 시험이 물었는가」가 PR #127 의 merge ref 에서 같은 키를 찾아 `main` 범위에 적고, 근거에 「PR #127 … 캐시(2026-10-23T01:48:08Z 에 적힘)」를 찍었다. D 의 머지 푸시 run 39906105058 도 PR #128 로 같다 |
@@ -116,7 +116,7 @@ B #126(머지 `8256cfa`), C #127(머지 `ddaae39`), D #128(머지 `a99a533`, 설
 - **회차 2**(기준 `ddaae39` → 대상 `4c8b33e`, D 와 이 PR 의 첫 커밋) — NC-1 해소, 잔여 **NC-2**(보통): `test-gates.py` 가 CI 의 인자 없는 꼴
   (`GITHUB_ACTIONS=true`)과 변조 시험 실패의 전파(`|| true`)를 무지 않는다 → NC-1 **부분 닫힘**. U-4(D 의 시험이 통과하는지)는 D 의 로그로
   닫았다. 저자 판정 — NC-2 **등록**, 기한은 조각 「변조 시험 빠르게」의 `audit-quality` 회차(조각 나눔의 그 줄에 적었다).
-- U-3 은 W2 · W4 근거를 받았고 W1(이 닫는 PR 의 `main` 범위 적중)을 기다린다 — 이 PR 본문이 그 실행을 든다.
+- U-3 은 W2 · W4 근거에 이어 W1 — 이 닫는 PR 의 run 39911376901 이 `main` 범위에서 적중했다 — 을 받아 닫았다. W3 · W5 · W6 · W7 은 실물로 시험하지 않았다(관찰 OB-1 의 자리).
 - 관찰 — `eval.yml` 의 적기는 분기를 믿는다(두 회차) · `test-gates.py` 는 부르는 것을 시험 대상에서 읽는다 · 지문 밖 입력이 바뀐 뒤 다시
   보는 시점이 시간에 묶여 있지 않다(예약 실행 없음) · `.claude/` 규칙은 글뿐이다(두 회차 — 한 번 더 나오면 `.gitignore` 를 정하자는 제안).
 
