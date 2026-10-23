@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""`main` 푸시가 머지된 PR 의 통과를 읽는다 — 이 푸시를 머지 커밋으로 가진 PR 하나의 merge ref 에 같은 수트 지문의 캐시가
+"""`main` 푸시가 머지된 PR 의 통과를 읽는다 — 이 푸시를 머지 커밋으로 가진 PR 하나의 merge ref 에 같은 지문의 캐시가
 있는지 캐시 목록 API 로 본다. 모델은 안 쓰고 GitHub REST API 를 읽기만 한다.
 
-  python3 scripts/eval-merged-pass.py <키>     # main 푸시의 gate 잡 — 키는 `eval-key.py route` 의 값
+  python3 scripts/eval-merged-pass.py <키>     # main 푸시의 gate 잡 — 키는 `eval-key.py route` 나 `gate-key.py` 의 값
   python3 scripts/eval-merged-pass.py --probe  # PR 실행의 gate 잡 — 같은 API 두 곳을 읽어 꼴만 찍는다
 
 **왜 있나.** 통과한 지문은 실행의 ref 범위에 캐시로 적힌다. PR 실행은 `refs/pull/<N>/merge` 에 적고, `main` 푸시는 `main`
 범위만 읽어 PR 에서 같은 지문이 통과했어도 머지 뒤에 route 수트를 한 번 더 돌렸다(조각 12 요구사항 「문제」 · ADR 0021).
+변조 시험의 지문(`gate-key.py`)도 같은 판정을 쓴다 — 판정은 키를 가리지 않는다(조각 35 · ADR 0046 의 6).
 
 **무엇을 보장하나.** `docs/slices/12-main-reads-pr-pass/design.md` ② 가 든다 — 출력과 아래 주석의 `P1` 같은 번호가 그 보장의
 번호다. 받는 입력(환경 · API 의 꼴)의 닫힌 목록은 같은 설계 ③.
@@ -139,7 +140,7 @@ def main_push(key):
     try:
         hit, facts = judge(key)
     except Unknown as e:
-        print(f"::warning::머지된 PR 의 통과를 읽지 못해 수트가 돈다 — {e}")
+        print(f"::warning::머지된 PR 의 통과를 읽지 못해 돈다 — {e}")
         hit, facts = False, {"reason": f"읽지 못했다 — {e}"}
     if hit:
         print(f"건너뛴다 — PR #{facts['pr']} 의 refs/pull/{facts['pr']}/merge 에 같은 키({key})가 있다({facts['created']} 에 적힘)")

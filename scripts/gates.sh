@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # 키 없이 도는 게이트를 전부 돌린다. 모델도 API 도 안 쓴다.
 #
-#   ./scripts/gates.sh
+#   ./scripts/gates.sh                       # 스물넷 — 로컬은 늘 이것
+#   ./scripts/gates.sh --skip-bite <근거>    # CI 만 — 열아홉만 돌리고 변조 시험 다섯은 건너뛴다
 #
 # **한 군데에만 적는 이유.** 이 목록이 CI 워크플로와 문서에 각각 있으면
 # 갈린다 — 한쪽만 고쳐도 아무도 안 알려 준다. 그 결함을 매니페스트에서
@@ -15,12 +16,18 @@
 # 아니므로 둘 다 있다. 변조본은 다 이 파일이 부르는 다섯에 있다 — 열세 검사의 `bite-gates.sh`, 설계 → 구현 관문의 `bite-slice-gate.py`, 문서 대조 검사의 다른 레포 모드의
 # `bite-verify-docs.py`, 절차 지도 판의 `bite-map-pin.py`, `main` 푸시가 머지된 PR 의 통과를 읽는 판정의 `bite-eval-merged-pass.py`.
 # 다 수트 지문 밖이라 고쳐도 수트가 다시 돌지 않는다(ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5 · ADR 0020 의 1 · ADR 0021 의 3).
+#
+# **두 묶음.** 검사와 자체 시험 열아홉(과 `claude plugin validate` 둘)은 `checks`, 변조 시험 다섯은 `bites` 에 둔다.
+# 인자 없이는 `checks` 를 다 돌린 뒤 `bites` 를 돌린다 — 변조 시험은 자체 시험의 결과를 읽지 않고 제 사본에서 따로 돈다.
+# `--skip-bite <근거>` 는 `checks` 만 돌린다. 변조 시험이 보는 것 — 검사 코드가 무는지 — 은 검사 코드와 그것이 규칙으로
+# 읽는 파일의 지문(`gate-key.py`)이 같으면 같으므로, CI 가 같은 지문이 이미 물었던 근거를 찾았을 때만 이것으로 부른다.
+# 무엇을 근거로 줄지는 `eval.yml` 이 들고, 여기서는 근거의 뜻을 보지 않고 찍기만 한다. CI 밖(`GITHUB_ACTIONS` 가 `true` 가
+# 아님)에서는 받지 않는다 — 로컬은 늘 다 돈다(ADR 0046 의 3 · 4 · 7). `bites` 에는 `scripts/bite-` 로 시작하는 파일을 부르는
+# 줄 말고 아무 명령도 두지 않는다 — 건너뛰는 것이 변조 시험뿐인지 `bite-gates.sh` 가 그 모양으로 문다(조각 35 설계 ② G4 · G5).
 set -euo pipefail
 
-main() {
-  R="$(git rev-parse --show-toplevel)"
-  cd "$R"
-
+# 늘 도는 것 — 검사와 자체 시험 열아홉, `claude plugin validate` 둘. 건너뛰는 실행에서도 다 돈다(ADR 0046 의 4).
+checks() {
   claude plugin validate ./vibe-audit
   claude plugin validate ./vibe-slice
 
@@ -53,9 +60,6 @@ main() {
   # 문서 대조 검사가 무는지 — 베낀 트리에 변조본을 하나씩 만들어 돌린다. 다른 레포 모드(--repo)는 틀로 세운 임시 레포에서.
   python3 scripts/test-verify-docs.py
 
-  # 그 자체 시험이 다른 레포 모드에서 무는지 — 검사의 다른 레포 모드를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
-  python3 scripts/bite-verify-docs.py
-
   # 조각 문서 스킬의 사본 길 — 임시 원본 · 대상으로 조각 5 설계 ② C1 ~ C5, 심은 두 검사가 대상에서 도는지(조각 9 설계 ② Y).
   python3 scripts/test-sync-slice.py
 
@@ -65,26 +69,74 @@ main() {
   # 관문 검사가 무는지 — 임시 git 레포에 착공 · 구현 · 쌓은 PR · 작업트리 꼴을 만들어 돌린다.
   python3 scripts/test-verify-slice-gate.py
 
-  # 그 자체 시험이 무는지 — 관문 검사를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
-  python3 scripts/bite-slice-gate.py
-
   # 플러그인의 절차 지도 판 — 원본 스킬이 지도를 커밋으로 박았고, 그 지도가 vibe-slice/ 를 마지막으로 고친 커밋의 것이다(조각 10 설계 ②).
   python3 scripts/verify-map-pin.py
 
   # 판 검사가 무는지 — 임시 git 레포에 박기 · 지도만 고침 · 머지 · 작업트리 · 틀린 꼴을 만들어 돌린다.
   python3 scripts/test-verify-map-pin.py
 
-  # 그 자체 시험이 무는지 — 판 검사를 한 자리씩 망가뜨린 사본에 자체 시험을 댄다.
-  python3 scripts/bite-map-pin.py
-
   # main 푸시가 머지된 PR 의 통과를 읽는 판정 — 로컬 가짜 API 에 꼴 열둘과 읽어 보기(--probe)를 세워 돌린다(조각 12 설계 ② T1).
   python3 scripts/test-eval-merged-pass.py
+}
 
-  # 그 자체 시험이 무는지 — 판정을 한 자리씩 망가뜨린 사본에 자체 시험을 댄다(T2).
+# 건너뛸 수 있는 것 — 변조 시험 다섯. `scripts/bite-` 로 시작하는 파일을 부르는 줄만 둔다(조각 35 설계 ② G4).
+bites() {
+  # 문서 대조 검사의 자체 시험이 다른 레포 모드에서 무는지 — 검사의 다른 레포 모드를 한 자리씩 망가뜨린 사본에 test-verify-docs.py 를 댄다.
+  python3 scripts/bite-verify-docs.py
+
+  # 관문 검사의 자체 시험이 무는지 — 관문 검사를 한 자리씩 망가뜨린 사본에 test-verify-slice-gate.py 를 댄다.
+  python3 scripts/bite-slice-gate.py
+
+  # 판 검사의 자체 시험이 무는지 — 판 검사를 한 자리씩 망가뜨린 사본에 test-verify-map-pin.py 를 댄다.
+  python3 scripts/bite-map-pin.py
+
+  # main 푸시 판정의 자체 시험이 무는지 — 판정을 한 자리씩 망가뜨린 사본에 test-eval-merged-pass.py 를 댄다(조각 12 설계 ② T2).
   python3 scripts/bite-eval-merged-pass.py
 
-  # 위 검사들이 무는지 — 검사마다 변조본을 만들어 떨어뜨린다. 제자리에서 흔드는 파일은 백업에서 되돌린다(ADR 0020).
+  # 검사들이 무는지 — 검사마다 변조본을 만들어 떨어뜨린다. 두 지문 · 이 파일의 묶음과 인자도 본다. 제자리에서 흔드는 파일은
+  # 백업에서 되돌린다(ADR 0020). 맨 끝이라 다른 검사가 다 통과한 뒤에 돈다.
   ./scripts/bite-gates.sh
+}
+
+usage() {  # $1=까닭 — 아무 검사도 돌리기 전에 찍고 종료 2(조각 35 설계 ② G3)
+  echo "사용법: $0 [--skip-bite <근거>]" >&2
+  echo "  거절: $1" >&2
+  exit 2
+}
+
+main() {
+  skip=""
+  case $# in
+    0) ;;
+    2)
+      [ "$1" = --skip-bite ] || usage "모르는 인자 — $1"
+      [ "${GITHUB_ACTIONS:-}" = true ] || usage "--skip-bite 는 CI(GITHUB_ACTIONS=true)에서만 받는다 — 로컬은 늘 다 돈다"
+      [ -n "${2//[[:space:]]/}" ] || usage "--skip-bite 의 근거가 비었다"
+      skip=$2 ;;
+    1)
+      if [ "$1" = --skip-bite ]; then usage "--skip-bite 의 근거가 없다"; fi
+      usage "모르는 인자 — $1" ;;
+    *) usage "인자가 $# 개다 — 없거나 --skip-bite <근거> 둘이어야 한다" ;;
+  esac
+
+  R="$(git rev-parse --show-toplevel)"
+  cd "$R"
+
+  if [ -n "$skip" ]; then
+    echo "변조 시험 다섯을 건너뛴다 — $skip"
+    echo
+  fi
+
+  checks
+
+  if [ -n "$skip" ]; then
+    echo
+    echo "열아홉 통과 · 변조 시험 다섯은 건너뛰었다 — $skip"
+    echo "변조 시험까지 보려면 로컬에서 인자 없이 부르거나 CI 의 workflow_dispatch 를 부른다."
+    return 0
+  fi
+
+  bites
 
   echo
   echo "스물넷 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
