@@ -41,10 +41,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 키 없이 도는 것. 언제나 물어야 한다.
+  # 키 없이 도는 것. 언제나 물어야 한다 — 변조 시험은 같은 지문이 이미 물었을 때만 건너뛴다(아래 「변조 시험 지문」).
   gate:
     runs-on: ubuntu-24.04
-    # 머지된 PR 의 통과를 읽는 API 두 곳(아래 「머지된 PR 이 통과했는가」)이 actions · pull-requests 를 읽는다.
+    # 머지된 PR 의 통과를 읽는 API 두 곳(아래 「머지된 PR 이 통과했는가」 · 「머지된 PR 의 변조 시험이 물었는가」)이
+    # actions · pull-requests 를 읽는다.
     # 캐시 액션은 이 토큰이 아니라 러너의 캐시 토큰을 쓴다. 다른 잡은 저장소 기본값 그대로다.
     permissions:
       contents: read
@@ -71,8 +72,98 @@ jobs:
           package-manager-cache: false
       - run: npm install -g @anthropic-ai/claude-code
 
+      # **같은 지문이 이미 물었으면 변조 시험 다섯을 건너뛴다(조각 35 · ADR 0046).** gate 잡의 거의 전부가
+      # 변조 시험인데, 그것이 보는 것 — 검사 코드가 무는지 — 은 검사 코드와 그것이 규칙으로 읽는 파일이
+      # 그대로면 같다. 지문은 scripts/gate-key.py 가 낸다(무엇이 드는지는 그 파일 머리에). 검사와 자체 시험
+      # 열아홉은 건너뛰는 실행에서도 늘 돈다 — 건너뛰는 몫은 gates.sh 의 `bites` 묶음이 든다.
+      #
+      # 수트 캐시(.eval-pass · `eval-route-`)와 같은 모양이고, 폴더와 키의 머리가 달라 서로를 찾지 않는다.
+      # 인자 없이 돈 gates.sh 가 통과한 실행만 적는다 — 건너뛴 실행 · 떨어진 실행은 적지 않는다. 사람이 부른
+      # workflow_dispatch 는 찾아보지 않고 늘 다 돌고, 통과하면 적는다.
+      #
+      # 그래도 다시 돌리려면 Actions → Caches 에서 `gate-bite-` 로 시작하는 항목을 지우고 재실행한다. main 은
+      # 머지된 PR 의 merge ref 에 적힌 항목도 읽으므로 `refs/heads/main` 과 그 PR 의 항목을 둘 다 지우거나
+      # workflow_dispatch 를 부른다.
+      #
+      # 지문을 못 내면 경고하고 찾지도 적지도 않고 다 돈다 — 모르면 돈다(설계 ② E5).
+      - name: 변조 시험 지문
+        id: gfp
+        run: |
+          if key=$(python3 scripts/gate-key.py) && [[ $key =~ ^gate-bite-py[^[:space:]]+-git[^[:space:]]+-[0-9a-f]{24}$ ]]; then
+            echo "key=$key" >> "$GITHUB_OUTPUT"
+            echo "변조 시험 지문: $key"
+          else
+            echo "::warning::변조 시험의 지문을 내지 못했다 — 찾지도 적지도 않고 변조 시험까지 다 돈다"
+          fi
+
+      - name: 같은 지문이 이미 물었는가
+        id: gseen
+        if: steps.gfp.outputs.key != '' && github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with:
+          path: .gate-pass
+          key: ${{ steps.gfp.outputs.key }}
+
+      # main 푸시는 머지된 PR 의 통과도 읽는다 — 판정은 수트의 「머지된 PR 이 통과했는가」(아래)와 같은
+      # scripts/eval-merged-pass.py 다. 판정은 키를 가리지 않는다(ADR 0021 의 1 ~ 3 · ADR 0046 의 6).
+      # 못 읽으면 경고하고 다 돈다.
+      - name: 머지된 PR 의 변조 시험이 물었는가
+        id: gmerged
+        if: github.event_name == 'push' && steps.gfp.outputs.key != '' && steps.gseen.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          KEY: ${{ steps.gfp.outputs.key }}
+        run: python3 scripts/eval-merged-pass.py "$KEY"
+
+      # 찾았으면 같은 키를 main 범위에도 적는다 — 다음 PR 들은 main 범위에서 읽는다.
+      - name: 변조 시험 지문을 main 에도 적는다
+        if: steps.gmerged.outputs.hit == 'true'
+        env:
+          PR: ${{ steps.gmerged.outputs.pr }}
+          CREATED: ${{ steps.gmerged.outputs.created }}
+        run: |
+          mkdir -p .gate-pass
+          echo "PR #$PR 의 refs/pull/$PR/merge 캐시($CREATED 에 적힘) — 그것을 읽은 main 실행 $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" > .gate-pass/run.txt
+
+      - uses: actions/cache/save@v6
+        if: steps.gmerged.outputs.hit == 'true'
+        with:
+          path: .gate-pass
+          key: ${{ steps.gfp.outputs.key }}
+
+      # 찾았으면 근거(통과한 실행의 URL · 커밋과 지문)를 notice 와 gates.sh 의 끝 줄에 남기고 열아홉만 돌린다.
+      # 찾았는데 근거 파일이 비었으면 경고하고 다 돈다. `full` 은 아래 적기가 「인자 없이 돌았다」를 아는 길이다.
       - name: 키 없이 도는 게이트
-        run: ./scripts/gates.sh
+        id: gates
+        env:
+          KEY: ${{ steps.gfp.outputs.key }}
+          HIT: ${{ steps.gseen.outputs.cache-hit == 'true' || steps.gmerged.outputs.hit == 'true' }}
+        run: |
+          if [ "$HIT" = true ] && [ -s .gate-pass/run.txt ]; then
+            why="같은 지문($KEY)이 이미 물었다 — $(head -n 1 .gate-pass/run.txt)"
+            echo "::notice::변조 시험 다섯을 건너뛴다 — $why"
+            ./scripts/gates.sh --skip-bite "$why"
+          else
+            if [ "$HIT" = true ]; then
+              echo "::warning::같은 지문을 찾았는데 .gate-pass/run.txt 가 비었다 — 근거 없이 건너뛰지 않고 다 돈다"
+            fi
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            ./scripts/gates.sh
+          fi
+
+      # 변조 시험까지 다 돌아 통과한 지문만 적는다 — 건너뛴 실행은 적지 않는다(설계 ② E4).
+      - name: 변조 시험까지 통과한 지문을 적는다
+        id: gpass
+        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''
+        run: |
+          mkdir -p .gate-pass
+          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID ($GITHUB_SHA)" > .gate-pass/run.txt
+
+      - uses: actions/cache/save@v6
+        if: steps.gpass.outcome == 'success'
+        with:
+          path: .gate-pass
+          key: ${{ steps.gfp.outputs.key }}
 
       # 자격은 둘 중 하나다 — 구독 토큰(`claude setup-token` 이 만든
       # CLAUDE_CODE_OAUTH_TOKEN) 또는 API 키(ANTHROPIC_API_KEY). 저자는 구독을 쓴다.
