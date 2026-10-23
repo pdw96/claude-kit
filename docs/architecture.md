@@ -17,7 +17,7 @@
 | 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |
 | 키 없는 게이트 | `scripts/gates.sh` 가 부르는 것 | 모델 없이 도는 검사 전부. 목록은 그 파일 한 군데에만 있다 — 늘 도는 검사와 자체 시험 열아홉(`checks`)과 건너뛸 수 있는 변조 시험 다섯(`bites`) 두 묶음이다. `--skip-bite <근거>` 는 `checks` 만 돌리고 CI(`GITHUB_ACTIONS=true`)에서만 받는다. 변조 시험의 지문은 `scripts/gate-key.py` 가 낸다 — 검사가 대조하는 문서와 기록을 뺀 파일 전부와 파이썬 · git 판(ADR 0046). 조각 문서 스킬의 검사 둘은 `scripts/` 의 같은 이름 링크로 부른다(ADR 0018 의 3). `scripts/verify-map-pin.py` 는 원본 스킬의 절차 지도 링크가 커밋으로 박혔고 그 지도가 `vibe-slice/` 를 마지막으로 고친 커밋의 것인지 본다 — claude-kit 의 역사를 읽으므로 플러그인에 싣지 않는다(ADR 0019 의 5) |
-| CI | `.github/workflows/eval.yml` | 키 없는 게이트(`gates.sh` 하나 — 변조본도 거기서 돈다), 수트, 그리고 판정. 잡의 이름과 설정은 그 파일이 들고, 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이 든다 |
+| CI | `.github/workflows/eval.yml` | 키 없는 게이트(`gates.sh` 하나 — 변조본도 거기서 돈다. 변조 시험의 지문이 이미 물었으면 `--skip-bite` 로 부른다), 수트, 그리고 판정. 잡의 이름과 설정은 그 파일이 들고, 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이 든다 |
 
 대장 둘의 모양은 앵커볼트다(`CLAUDE.md`). 스크립트는 다 파일 머리에 쓰는 법과 까닭을 적는다.
 
@@ -102,6 +102,14 @@ ref 범위에 캐시로 적혀, PR 은 제 merge ref 와 `main` 범위를 읽는
 README · 부적합 대장)만 빼고, 파이썬 · git 판을 키 머리에 넣는다(ADR 0046 의 2). 빼는 쪽만 적어 새 파일은 저절로 든다.
 `bite-gates.sh` 는 빼는 꼴마다 지문이 그대로이고 넣는 꼴마다 바뀌는지, `bites` 묶음에 변조 시험 말고 아무것도 없는지, 거절하는
 인자가 검사 전에 종료 2 인지를 문다. `gate-key.py` 도 수트 지문 밖이다.
+
+CI 의 gate 잡이 이것을 잇는다 — `gates.sh` 앞에서 `gate-key.py` 로 지문을 내고 Actions 캐시(`.gate-pass`, 키 머리 `gate-bite-`)에서
+같은 키를 찾는다. PR 은 제 범위와 `main` 범위를, `main` 푸시는 `main` 범위를 읽고, `main` 푸시가 못 찾으면 수트와 같은 판정
+(`scripts/eval-merged-pass.py`)으로 그 푸시를 머지 커밋으로 가진 PR 하나의 merge ref 를 보고 찾으면 `main` 범위에도 적는다.
+찾았으면 근거(통과한 실행의 URL · 커밋과 지문)를 notice 로 찍고 `gates.sh --skip-bite "<근거>"` 를 부른다. 못 찾았으면 인자 없이
+스물넷을 돌리고, 그 실행이 통과했을 때만 키를 적는다 — 건너뛴 실행은 적지 않는다. 사람이 부른 `workflow_dispatch` 는 찾지 않고
+다 돈다. 지문을 못 내거나 근거 파일이 비었으면 경고하고 다 돈다(ADR 0046 · 조각 35 설계 ② E). 수트 캐시(`.eval-pass` ·
+`eval-route-`)와는 폴더와 키 머리가 달라 서로를 찾지 않는다. 다시 돌리려면 `gate-bite-` 항목을 지우거나 `workflow_dispatch` 를 부른다.
 
 ## 문서
 
