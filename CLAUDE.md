@@ -35,6 +35,9 @@
 - **새 검사를 세우면 `gates.sh` 가 부르는 변조본으로 떨어지는 것을 함께 넣는다.** 물지 않는
   검사는 게이트가 아니다. 키 없이 도는 검사의 목록은 `gates.sh` 한 군데에만 둔다.
 - 대안이 있던 결정은 `docs/adr/` 에 남긴다. 고치지 않고 새 ADR 로 대체한다.
+- **감사 기록은 `docs/audit/` 에 둔다** — 부적합 대장 `docs/audit/nc-ledger.md`(살아 있는 쪽) · `nc-ledger-history.md`(지나간 쪽), 회차의
+  기록 `records/` · 브리핑 `briefs/`. 감사자는 이 대장을 지난 기록으로 읽고, `/audit-brief` 는 이 폴더를 diff 에서 뺀다. `.claude/` 아래에는
+  커밋하지 않는다 — 변조 시험 지문에 든다.
 - **프로젝트의 의도는 `INTENT.md` 가 든다. 조각은 `docs/master-plan.md` 의 조각 나눔에서 꺼내 `docs/procedure.md` 대로 간다.** 살아 있는 문서와 기록의
   규칙도 거기.
 
