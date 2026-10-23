@@ -10,8 +10,9 @@
 # 백업에서 되돌리는 것(ADR 0020 의 3), 수트 모델 id 를 `run-evals.sh` 에서 읽는 것(ADR 0020 의 4), 끝의 「변조본
 # 파일이 수트 지문 밖인가」(ADR 0020 의 6).
 #
-# 끝의 세 절은 조각 35 가 더했다 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
-# `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5).
+# 끝의 네 절은 조각 35 가 더했다 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
+# `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5),
+# `gates.sh` 가 무엇을 실제로 부르는지 보는 자체 시험(`test-gates.py`)이 무는지(설계 끝 「닫기 전 감사 회차에서 찾은 것」).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -1271,7 +1272,7 @@ fi
 echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판은 바뀐다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
-# 실행이 변조 시험 아닌 검사까지 빼면 「열아홉 통과」가 거짓이 된다.
+# 실행이 변조 시험 아닌 검사까지 빼면 「스물 통과」가 거짓이 된다.
 bunch() {  # $1=gates.sh — 모양이 맞으면 0, 아니면 까닭을 찍고 1
   python3 - "$1" <<'PY'
 import pathlib, re, sys
@@ -1342,3 +1343,31 @@ if ! grep -q '^변조 시험 다섯을 건너뛴다 — 근거$' "$ga/out"; then
   echo "::error::gates.sh --skip-bite 가 근거를 먼저 찍지 않았다"; cat "$ga/out"; exit 1
 fi
 echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 둘이 떨어짐), 거절 일곱은 검사 전에 종료 2, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
+
+# gates.sh 가 무엇을 실제로 부르는지 — test-gates.py 가 무는지(조각 35 닫기 전 감사 회차 NC-1 · 설계 끝 「닫기 전 감사 회차에서
+# 찾은 것」 T4). 감사가 든 셋(변조 시험 줄 지우기 · bites 호출 지우기 · 건너뛰는 분기 뒤집기)과 묶음을 넘나드는 둘을 gates.sh
+# 사본에 만들어 test-gates.py 가 떨어지는지 본다. 바른 gates.sh 는 checks 에서 이미 지나갔다.
+gt=$(mktemp -d)
+gmut() {  # $1=이름  $2=바꿀 글  $3=바꿀 것 — \n 은 줄바꿈. $4…=더 바꿀 쌍(앞의 바꿈 뒤에 차례로)
+  local name=$1; shift
+  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
+import pathlib, sys
+src, out, *pairs = sys.argv[1:]
+t = pathlib.Path(src).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본을 gates.sh 에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(out).write_text(t, encoding="utf-8")
+PY
+  if python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; then
+    echo "::error::test-gates.py 가 「$name」 gates.sh 를 통과시켰다"; cat "$gt/out"; exit 1
+  fi
+}
+gmut "변조 시험 줄 지우기"           '  ./scripts/bite-gates.sh\n' ''
+gmut "bites 호출 지우기"             '\n  bites\n' '\n'
+gmut "건너뛰는 분기 뒤집기"         '  checks\n\n  if [ -n "$skip" ]' '  checks\n\n  if [ -z "$skip" ]'
+gmut "검사를 bites 로 옮기기"        '  python3 scripts/verify-docs.py\n' '' 'bites() {\n' 'bites() {\n  python3 scripts/verify-docs.py\n'
+gmut "변조 시험을 checks 로 옮기기"  '  ./scripts/bite-gates.sh\n' '' 'checks() {\n' 'checks() {\n  ./scripts/bite-gates.sh\n'
+echo "test-gates.py: 변조본 다섯(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로)이 다 떨어짐"
