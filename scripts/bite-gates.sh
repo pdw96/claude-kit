@@ -729,6 +729,12 @@ done
 # 조각 문서 · 닫는 기록 · 펜스와 주석, 그리고 늘 1 을 내는 검사 — 그때는 대조가 떨어져야 한다.
 # 입구 `CLAUDE.md` 의 C1 · C2 · C3 와 다섯째 「…의 칸」, 묻지 않아야 할 C2, 백틱 토막만 받는 꼴(조각 30 설계 ⑤ V3).
 # 프로필의 P1 자리마다 하나와 여섯째 「…의 칸」, CommonMark 펜스의 여닫는 꼴(조각 31 설계 ⑤ V3).
+# 빠르게(조각 36 설계 ② P2 ~ P5 · ADR 0047) — 변조본을 먼저 다 만들고, 자체 시험을 `--first`(첫 어긋난 꼴에서 멈춘다)로
+# CPU 수만큼 함께 돌린다. 변조본은 제 사본만 읽어 서로 기대지 않는다. 먼저 대조군 — 바꾸지 않은 검사 — 을 같은 길로 돌려
+# 지나가고 「물지 않았다」로 세는지 본다. 물지 않은 변조본은 다 모아 찍고 떨어진다.
+dv="$cc/docs"; mkdir -p "$dv"
+cp scripts/verify-docs.py "$dv/m0.py"
+dnames=("대조군 — 바꾸지 않은 검사")
 for m in 'if n != 1:|if n == 0:' \
          'if not need:|if False:' \
          'if name in schema and headings(lines(p)) != schema[name]:|if False:' \
@@ -774,7 +780,7 @@ for m in 'if n != 1:|if n == 0:' \
          'm.group(1)[0] == fence[0] and |' \
          'len(m.group(1)) >= len(fence) and |' \
          ' and not m.group(2).strip():|:'; do
-  python3 - "${m%%|*}" "${m##*|}" "$cc/d.py" <<'PY'
+  python3 - "${m%%|*}" "${m##*|}" "$dv/m${#dnames[@]}.py" <<'PY'
 import pathlib, sys
 s = pathlib.Path("scripts/verify-docs.py").read_text(encoding="utf-8")
 a, b, out = sys.argv[1:]
@@ -782,10 +788,32 @@ if s.count(a) != 1:
     sys.exit(f"변조할 자리 {a!r} 가 문서 대조 검사에 {s.count(a)} 번 있다 — 이 단계를 검사에 맞춰 고쳐라")
 pathlib.Path(out).write_text(s.replace(a, b), encoding="utf-8")
 PY
-  if python3 scripts/test-verify-docs.py "$cc/d.py" >/dev/null 2>&1; then
-    echo "::error::test-verify-docs.py 가 '${m%%|*}' 를 망가뜨린 문서 대조 검사를 통과시켰다"; exit 1
+  dnames+=("${m%%|*}")
+done
+dk=$((${#dnames[@]} - 1))
+djobs=$(nproc)
+drun() {  # $@=변조본 번호 — 자체 시험을 --first 로 djobs 개씩 함께. 결과는 $dv/m<번호>.rc · .out
+  printf '%s\n' "$@" | xargs -P "$djobs" -I{} sh -c \
+    'python3 scripts/test-verify-docs.py --first "$1/m$2.py" >"$1/m$2.out" 2>&1; echo $? >"$1/m$2.rc"' _ "$dv" {}
+  for i in "$@"; do
+    if [ ! -s "$dv/m$i.rc" ]; then echo "::error::test-verify-docs.py 를 '${dnames[$i]}' 에 돌린 결과가 없다"; exit 1; fi
+  done
+}
+dbit() { [ "$(cat "$dv/m$1.rc")" != 0 ]; }  # 자체 시험이 지나가지 않았으면 물었다 — 판정은 앞과 같다
+drun 0
+if dbit 0 || ! grep -q '^PASS ' "$dv/m0.out"; then
+  echo "::error::test-verify-docs.py --first 가 바꾸지 않은 문서 대조 검사(대조군)를 지나가게 하지 않았다 — 깃발이나 함께 돌리는 길이 망가졌다"
+  tail -5 "$dv/m0.out"; exit 1
+fi
+drun $(seq 1 "$dk")
+dmiss=0
+for i in $(seq 1 "$dk"); do
+  if ! dbit "$i"; then
+    echo "::error::test-verify-docs.py 가 '${dnames[$i]}' 를 망가뜨린 문서 대조 검사를 통과시켰다"; dmiss=1
   fi
 done
+[ "$dmiss" = 0 ] || exit 1
+echo "test-verify-docs.py: 대조군은 지나가고 변조본 $dk 이 다 떨어짐(--first · 동시 $djobs)"
 
 # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
 # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.

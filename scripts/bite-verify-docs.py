@@ -8,11 +8,18 @@
 부른다 — `eval.yml` 은 지문에 들어 고치면 route 수트가 돈다(ADR 0018 의 6, 조각 9 설계 ② V1).
 `bite-slice-gate.py` 와 같은 길이다.
 
-떨어지는 것 둘 — 자체 시험이 망가진 사본 하나라도 지나가면(시험을 비우거나 무르게 했다), 망가뜨릴 자리가
-검사에 꼭 한 번 있지 않으면(검사를 고치며 여기를 따라 고치지 않았다).
+떨어지는 것 셋 — 자체 시험이 망가진 사본 하나라도 지나가면(시험을 비우거나 무르게 했다), 망가뜨릴 자리가
+검사에 꼭 한 번 있지 않으면(검사를 고치며 여기를 따라 고치지 않았다), 대조군이 어긋나면.
+
+**빠르게** (`docs/slices/36-bite-speedup/design.md` ② P1 · P3 · P4 · ADR 0047) — 변조본은 다른 레포 모드만 망가뜨리므로
+자체 시험을 `--repo-only --first` 로 불러 그 모드만, 첫 어긋난 꼴까지만 돌린다. 변조본은 제 사본만 읽어 서로 기대지 않으므로
+CPU 수만큼 함께 돌리고, 결과는 변조본의 차례대로 찍는다. 먼저 **대조군** — 바꾸지 않은 검사 — 을 같은 길로 돌려 자체 시험이
+`PASS` 로 끝나고 「물지 않았다」로 세는지 본다. 늘 1 을 내는 깃발이나 결과를 잃는 길이면 모든 변조본이 「물었다」가 되기 때문이다.
 
 표준 라이브러리만 쓴다.
 """
+import concurrent.futures
+import os
 import pathlib
 import subprocess
 import sys
@@ -105,23 +112,42 @@ MUTANTS = [
 ]
 
 
+def run(copy):
+    """자체 시험을 사본에 — (물었나, 종료 코드, 출력)."""
+    p = subprocess.run([sys.executable, str(TEST), "--repo-only", "--first", str(copy)], capture_output=True, text=True)
+    # 준비 실패 같은 다른 까닭의 exit 1 을 「물었다」로 세지 않는다 — 다른 레포 모드의 꼴이 판정으로 떨어졌어야 한다.
+    judged = [ln for ln in p.stdout.splitlines() if ln.startswith("  - 다른 레포 ") and "준비 실패" not in ln]
+    return p.returncode == 1 and "준비 실패" not in p.stdout and bool(judged), p.returncode, p.stdout
+
+
 def main():
     text = CHECK.read_text(encoding="utf-8")
     bad = []
-    with tempfile.TemporaryDirectory() as t:
+    with tempfile.TemporaryDirectory() as t, concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 1) as pool:
+        # 대조군 — 바꾸지 않은 검사를 변조본과 같은 길로. 끝까지 돌아 PASS 이고 「물지 않았다」로 세야 한다(② P4).
+        same = pathlib.Path(t) / "control.py"
+        same.write_text(text, encoding="utf-8")
+        bit, rc, out = pool.submit(run, same).result()
+        if bit or rc != 0 or "PASS" not in out:
+            print(f"FAIL bite-verify-docs.py — 대조군(바꾸지 않은 검사)이 어긋났다: 물었다 {bit} · exit {rc} — 깃발이나 함께 돌리는 길이 망가졌다")
+            print(out[-600:])
+            return 1
+        print("  대조군: 바꾸지 않은 검사는 PASS · 물지 않았다")
+
+        jobs = []
         for i, (what, old, new) in enumerate(MUTANTS):
             if (n := text.count(old)) != 1:
                 bad.append(f"{what} — 망가뜨릴 자리가 검사에 {n} 번 있다(꼭 한 번이어야 한다): {old.strip()}")
                 continue
             copy = pathlib.Path(t) / f"mutant-{i}.py"
             copy.write_text(text.replace(old, new), encoding="utf-8")
-            p = subprocess.run([sys.executable, str(TEST), str(copy)], capture_output=True, text=True)
-            # 준비 실패 같은 다른 까닭의 exit 1 을 「물었다」로 세지 않는다 — 다른 레포 모드의 꼴이 판정으로 떨어졌어야 한다.
-            judged = [ln for ln in p.stdout.splitlines() if ln.startswith("  - 다른 레포 ") and "준비 실패" not in ln]
-            if p.returncode != 1 or "준비 실패" in p.stdout or not judged:
-                bad.append(f"{what} — 자체 시험이 망가진 검사를 다른 레포 모드의 판정으로 떨어뜨리지 않았다(exit {p.returncode})")
-            else:
+            jobs.append((what, pool.submit(run, copy)))
+        for what, job in jobs:
+            bit, rc, _ = job.result()
+            if bit:
                 print(f"  물었다: {what}")
+            else:
+                bad.append(f"{what} — 자체 시험이 망가진 검사를 다른 레포 모드의 판정으로 떨어뜨리지 않았다(exit {rc})")
     if bad:
         print(f"FAIL bite-verify-docs.py — {len(bad)}")
         for b in bad:
