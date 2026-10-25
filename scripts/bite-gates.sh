@@ -799,7 +799,13 @@ drun() {  # $@=변조본 번호 — 자체 시험을 --first 로 djobs 개씩 �
     if [ ! -s "$dv/m$i.rc" ]; then echo "::error::test-verify-docs.py 를 '${dnames[$i]}' 에 돌린 결과가 없다"; exit 1; fi
   done
 }
-dbit() { [ "$(cat "$dv/m$1.rc")" != 0 ]; }  # 자체 시험이 지나가지 않았으면 물었다 — 판정은 앞과 같다
+# 물었다 = 자체 시험이 종료 1 로 끝나고 `FAIL — ` 줄을 찍었다. 함께 돌다 자원으로 죽은 실행(137 따위)을 「물었다」로 세지 않는다
+# (조각 36 닫기 전 감사 회차 OB-4 · 설계 끝 「닫기 전 감사 회차에서 찾은 것」).
+dbit() { [ "$(cat "$dv/m$1.rc")" = 1 ] && grep -q '^FAIL — ' "$dv/m$1.out"; }
+printf '137\n' > "$dv/mx.rc"; : > "$dv/mx.out"
+if dbit x; then echo "::error::자원으로 죽은 실행(종료 137 · 출력 없음)을 「물었다」로 센다"; exit 1; fi
+printf '1\n' > "$dv/mx.rc"; printf 'Traceback (most recent call last):\n' > "$dv/mx.out"
+if dbit x; then echo "::error::FAIL 줄 없이 1 로 끝난 실행을 「물었다」로 센다"; exit 1; fi
 drun 0
 if dbit 0 || ! grep -q '^PASS ' "$dv/m0.out"; then
   echo "::error::test-verify-docs.py --first 가 바꾸지 않은 문서 대조 검사(대조군)를 지나가게 하지 않았다 — 깃발이나 함께 돌리는 길이 망가졌다"
@@ -813,7 +819,7 @@ for i in $(seq 1 "$dk"); do
   fi
 done
 [ "$dmiss" = 0 ] || exit 1
-echo "test-verify-docs.py: 대조군은 지나가고 변조본 $dk 이 다 떨어짐(--first · 동시 $djobs)"
+echo "test-verify-docs.py: 대조군은 지나가고 변조본 $dk 이 다 떨어짐(--first · 동시 $djobs · 종료 1 과 FAIL 줄만 물었다로 센다)"
 
 # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
 # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
