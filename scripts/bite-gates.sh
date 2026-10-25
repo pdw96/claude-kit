@@ -13,6 +13,7 @@
 # 끝의 네 절은 조각 35 가 더했다 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
 # `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5),
 # `gates.sh` 가 무엇을 실제로 부르는지 보는 자체 시험(`test-gates.py`)이 무는지(설계 끝 「닫기 전 감사 회차에서 찾은 것」).
+# 맨 끝 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -1306,7 +1307,7 @@ fi
 echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판은 바뀐다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
-# 실행이 변조 시험 아닌 검사까지 빼면 「스물 통과」가 거짓이 된다.
+# 실행이 변조 시험 아닌 검사까지 빼면 「스물하나 통과」가 거짓이 된다.
 bunch() {  # $1=gates.sh — 모양이 맞으면 0, 아니면 까닭을 찍고 1
   python3 - "$1" <<'PY'
 import pathlib, re, sys
@@ -1410,3 +1411,92 @@ gmut "CI 에서 bites 를 부르지 않기"    '\n  bites\n' '\n  [ "${GITHUB_AC
 gmut "bites 의 실패 삼키기"            '\n  bites\n' '\n  bites || true\n'
 gmut "bite-gates.sh 의 실패 삼키기"    '  ./scripts/bite-gates.sh\n' '  ./scripts/bite-gates.sh || true\n'
 echo "test-gates.py: 변조본 아홉(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로 · CI 에서 분기 · CI 에서 bites · bites 삼키기 · bite-gates.sh 삼키기)이 다 떨어짐"
+
+# eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지(종료 1 이고
+# `FAIL [` 줄 — 0 이 아닌 종료를 다 세지 않는다, 조각 36 OB-4), 자유로운 칸만 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지
+# 않고 종료 2 인지 본다. 바꿀 글은 eval.yml 에 꼭 한 번이어야 한다 — 아니면 변조본을 eval.yml 에 맞춰 고친다(R3). 바른 eval.yml 은 checks 에서 이미 지나갔다.
+ge=$(mktemp -d); en=0; ec=0
+emut() {  # $1=bite|pass  $2=이름  $3…=바꿀 글 · 바꿀 것 쌍(앞의 바꿈 뒤에 차례로) — \n 은 줄바꿈, \t 는 탭
+  local want=$1 name=$2; shift 2
+  python3 - .github/workflows/eval.yml "$ge/eval.yml" "$@" <<'PY'
+import pathlib, sys
+src, out, *pairs = sys.argv[1:]
+t = pathlib.Path(src).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = (s.replace("\\n", "\n").replace("\\t", "\t") for s in (a, b))
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 eval.yml 에 한 번이 아니다 — 이 변조본을 eval.yml 에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(out).write_text(t, encoding="utf-8")
+PY
+  set +e
+  python3 scripts/verify-eval-gate.py "$ge/eval.yml" >"$ge/out" 2>&1; st=$?
+  set -e
+  if [ "$want" = bite ]; then
+    if [ "$st" != 1 ] || ! grep -q '^FAIL \[' "$ge/out"; then
+      echo "::error::verify-eval-gate.py 가 「$name」 eval.yml 을 물지 않았다 (exit $st)"; cat "$ge/out"; exit 1
+    fi
+    en=$((en + 1))
+  else
+    if [ "$st" != 0 ] || ! grep -q '^PASS ' "$ge/out"; then
+      echo "::error::verify-eval-gate.py 가 자유로운 칸만 바꾼 「$name」 eval.yml 을 떨어뜨렸다 (exit $st)"; cat "$ge/out"; exit 1
+    fi
+    ec=$((ec + 1))
+  fi
+}
+# 감사가 든 둘(OB-1)
+emut bite "gates.sh 의 실패 삼키기"          '            ./scripts/gates.sh\n          fi\n' '            ./scripts/gates.sh || true\n          fi\n'
+emut bite "건너뛰는 갈래의 full=true"        '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "full=true" >> "$GITHUB_OUTPUT"\n            ./scripts/gates.sh --skip-bite "$why"\n'
+# Y — 읽는 꼴 밖(③ Y6 의 꼴마다)
+emut bite "Y 탭"                              '        id: gates\n' '        id:\tgates\n'
+emut bite "Y 앵커"                            '        id: gfp\n' '        id: &g gfp\n'
+emut bite "Y 별칭"                            '        id: gpass\n' '        id: *g\n'
+emut bite "Y 태그"                            '        id: gates\n' '        id: !!str gates\n'
+emut bite "Y 병합 키"                         '        id: gseen\n' '        id: gseen\n        <<: x\n'
+emut bite "Y 흐름 꼴"                         '          fetch-depth: 0\n' '          fetch-depth: [0]\n'
+emut bite "Y 같은 키 둘"                      '        id: gpass\n' '        id: gpass\n        id: gpass\n'
+emut bite "Y | 밖의 블록 꼴"                  "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |\n" "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |-\n"
+emut bite "Y 따옴표 키"                       '        id: gates\n' '        "id": gates\n'
+emut bite "Y 값 뒤의 주석"                    '        id: gmerged\n' '        id: gmerged # 주석\n'
+emut bite "Y 알 수 없는 들여쓰기"             '        id: gfp\n' '         id: gfp\n'
+# H — 머리의 키
+emut bite "H1 워크플로의 defaults"            '\njobs:\n' '\ndefaults:\n  run:\n    shell: bash {0}\n\njobs:\n'
+emut bite "H2 gate 잡의 continue-on-error"    '  gate:\n    runs-on: ubuntu-24.04\n' '  gate:\n    runs-on: ubuntu-24.04\n    continue-on-error: true\n'
+# T1 — 차례(끼기 · 빠지기 · 바꾸기)
+emut bite "T1 스텝 끼기"                      '      - name: 키 없이 도는 게이트\n' '      - run: echo hi\n      - name: 키 없이 도는 게이트\n'
+emut bite "T1 스텝 빠지기"                    "      - uses: actions/cache/save@v6\n        if: steps.gmerged.outputs.hit == 'true'\n        with:\n          path: .gate-pass\n          key: \${{ steps.gfp.outputs.key }}\n" ''
+emut bite "T1 차례 바꾸기"                    '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n' '      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n'
+# T2 — 다른 칸
+emut bite "T2 gate 스텝의 continue-on-error"  '        id: gates\n' '        id: gates\n        continue-on-error: true\n'
+emut bite "T2 gate 스텝의 shell"              '        id: gates\n' '        id: gates\n        shell: bash {0}\n'
+# T3 — 칸 갈래마다(id · if · env · with · uses · run)
+emut bite "T3 id"                             '        id: gpass\n' '        id: gpass2\n'
+emut bite "T3 적는 스텝의 if 에 always()"     "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n" "        if: always() && steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n"
+emut bite "T3 캐시 저장의 if"                 "        if: steps.gpass.outcome == 'success'\n" "        if: always()\n"
+emut bite "T3 HIT 를 늘 참으로"               "          HIT: \${{ steps.gseen.outputs.cache-hit == 'true' || steps.gmerged.outputs.hit == 'true' }}\n" "          HIT: \${{ true }}\n"
+emut bite "T3 찾아보기의 restore-keys"        '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n          restore-keys: gate-bite-\n'
+emut bite "T3 uses 의 이름"                   '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache@v6\n        with:\n          path: .gate-pass\n'
+emut bite "T3 uses 의 판"                     '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n' '      - uses: actions/checkout@main\n        with:\n          fetch-depth: 0\n'
+emut bite "T3 run 의 set +e"                  '            ./scripts/gates.sh\n          fi\n' '            set +e\n            ./scripts/gates.sh\n          fi\n'
+emut bite "T3 run 의 지문 박기"               '            echo "key=$key" >> "$GITHUB_OUTPUT"\n' '            echo "key=gate-bite-x" >> "$GITHUB_OUTPUT"\n'
+# F2 의 경계 — 알림 줄처럼 보이는 명령 줄
+emut bite "F2 > 가 붙은 echo"                 '            ./scripts/gates.sh\n          fi\n' '            echo "x" > .gate-pass/run.txt\n            ./scripts/gates.sh\n          fi\n'
+emut bite "F2 \$( 가 든 echo"                 'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::$(./scripts/gates.sh --skip-bite x) $why"'
+# G — 열한 스텝 밖의 근거 파일 · 지문
+emut bite "G 다른 잡의 .gate-pass"            '          mkdir -p .eval-pass\n          echo "$GITHUB_SERVER_URL' '          mkdir -p .eval-pass .gate-pass\n          echo "$GITHUB_SERVER_URL'
+emut bite "G 열한 뒤 스텝의 gfp"              '          KEY: ${{ steps.fp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"' '          KEY: ${{ steps.gfp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"'
+# 대조군 — F 의 칸마다 하나(R2)
+emut pass "F1 이름 · 주석 · 빈 줄"            '      - name: 키 없이 도는 게이트\n' '\n      # 주석\n      - name: 게이트\n' '      - name: 변조 시험 지문\n        id: gfp\n' '      - id: gfp\n' '            ./scripts/gates.sh\n          fi\n' '            # 셸 주석\n\n            ./scripts/gates.sh\n          fi\n'
+emut pass "F2 알림 줄"                        'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::건너뛴다 — ${why}"' '            ./scripts/gates.sh\n          fi\n' '            echo "다 돈다 — $KEY"\n            ./scripts/gates.sh\n          fi\n'
+emut pass "F3 액션의 판"                      "      - uses: actions/cache/save@v6\n        if: steps.gpass.outcome == 'success'\n" "      - uses: actions/cache/save@v7\n        if: steps.gpass.outcome == 'success'\n" '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n' '      - uses: actions/checkout@v12\n        with:\n          fetch-depth: 0\n'
+# 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2(R4)
+for args in "a b" "-x" "--help"; do
+  set +e
+  # shellcheck disable=SC2086
+  python3 scripts/verify-eval-gate.py $args >"$ge/out" 2>&1; st=$?
+  set -e
+  if [ "$st" != 2 ] || grep -qE '^(PASS|FAIL)' "$ge/out"; then
+    echo "::error::verify-eval-gate.py 가 거절할 인자 '$args' 에 종료 2 가 아니거나 견주었다 (exit $st)"; cat "$ge/out"; exit 1
+  fi
+done
+echo "verify-eval-gate.py: eval.yml 변조본 $en 이 다 떨어지고(감사가 든 둘 · 읽는 꼴 · 머리 · 차례 · 칸 · 글 · 알림 줄의 경계 · 갇힘) 자유로운 칸의 대조군 $ec 이 지나감, 거절 인자 셋은 종료 2"
