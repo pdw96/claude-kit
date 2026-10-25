@@ -3,6 +3,12 @@
 
   python3 scripts/test-verify-docs.py                 # 저장소의 검사
   python3 scripts/test-verify-docs.py <검사 경로>       # 다른 판 — CI 가 망가뜨린 사본으로 쓴다
+  python3 scripts/test-verify-docs.py --first [--repo-only] <검사 경로>   # 변조 시험이 부르는 꼴
+
+**두 깃발** (`docs/slices/36-bite-speedup/design.md` ② F · ADR 0047 의 2 · 4) — 변조 시험은 망가뜨린 사본이 「떨어지는가」만
+보므로, 첫 어긋난 꼴에서 멈춰도 종료 코드가 같다. `--first` 는 처음 어긋난 꼴의 한 줄을 찍고 종료 1 로 멈추고, 어긋남이 없으면
+끝까지 돌아 깃발이 없을 때와 같은 `PASS` 줄을 찍는다. `--repo-only` 는 다른 레포 모드의 꼴만 돈다 — `bite-verify-docs.py` 의
+변조본은 그 모드만 망가뜨린다. 꼴 · 차례 · 판정은 두 깃발에 상관없이 같다. 바른 검사는 깃발 없이 늘 끝까지 본다(`gates.sh`).
 
 **시험의 틀** (`docs/slices/3-doc-check/design.md` ⑤)
 
@@ -49,6 +55,29 @@ PLAN = "| — | 시험 예정 조각 | 시험 | — | 예정 | — |"
 TEST = "docs/slices/99-test"
 SLICE1 = "| 1 | 사본 비교 · 되먹임 |"
 SLICE2 = "| 2 | 절차 지도 |"
+
+
+USAGE = "사용법: test-verify-docs.py [--first] [--repo-only] [<검사 경로>]"
+
+
+class Stop(Exception):
+    """`--first` — 처음 어긋난 꼴에서 멈춘다. 그 줄을 든다."""
+
+
+class Fails(list):
+    """실패 줄의 목록. `first` 면 줄이 하나 들어오는 자리에서 `Stop` 을 던진다 — 꼴의 판정은 그대로다."""
+
+    first = False
+
+    def append(self, x):
+        super().append(x)
+        if self.first:
+            raise Stop(x)
+
+    def __iadd__(self, other):
+        for x in other:
+            self.append(x)
+        return self
 
 
 class Setup(Exception):
@@ -515,7 +544,7 @@ def run_repo(checker, *args, env=None):
 
 def repo_mode(checker, tmp):
     """다른 레포 모드의 꼴 — (통과 수, 실패 줄)."""
-    fails, passes, n = [], 0, 0
+    fails, passes, n = Fails(), 0, 0
 
     def bed():
         nonlocal n
@@ -596,7 +625,8 @@ def repo_mode(checker, tmp):
     try:
         c, tpl, t = bed()
     except Setup as e:
-        return passes, fails + [f"다른 레포 사용법: 준비 실패 — {e}"]
+        fails.append(f"다른 레포 사용법: 준비 실패 — {e}")
+        return passes, fails
     for args in R_USAGE:
         rc, out = run_repo(c, *(a.format(root=t) for a in args))
         if rc == 2 and "사용법" in out:
@@ -643,9 +673,55 @@ def run(checker, root):
     return p.returncode, p.stdout + p.stderr
 
 
+def parse(argv):
+    """(검사 경로, --first, --repo-only) — 받지 않는 꼴이면 None(설계 ③ A)."""
+    flags, paths = [], []
+    for a in argv:
+        if a in ("--first", "--repo-only"):
+            if a in flags:
+                return None
+            flags.append(a)
+        elif a.startswith("-"):
+            return None
+        else:
+            paths.append(a)
+    if len(paths) > 1:
+        return None
+    checker = pathlib.Path(paths[0]).resolve() if paths else ROOT / "scripts" / "verify-docs.py"
+    return checker, "--first" in flags, "--repo-only" in flags
+
+
 def main():
-    checker = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "scripts" / "verify-docs.py"
-    fails, passes = [], 0
+    got = parse(sys.argv[1:])
+    if got is None:
+        print(USAGE, file=sys.stderr)
+        return 2
+    checker, first, repo_only = got
+    Fails.first = first
+    try:
+        return (only_repo if repo_only else both)(checker)
+    except Stop as e:
+        print("FAIL — 문서 대조 검사의 자체 시험이 어긋났다(--first — 첫 어긋난 꼴에서 멈췄다)")
+        print(f"  - {e}")
+        return 1
+
+
+def only_repo(checker):
+    """`--repo-only` — 다른 레포 모드의 꼴만. 이 저장소 모드의 바탕을 베끼지 않는다."""
+    with tempfile.TemporaryDirectory() as tmp:
+        passes, fails = repo_mode(checker, pathlib.Path(tmp))
+    if fails:
+        print(f"FAIL — 문서 대조 검사의 자체 시험(다른 레포 모드) {len(fails)} 개가 어긋났다")
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    print(f"PASS 문서 대조 검사가 문다(다른 레포 모드만) — 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · "
+          f"로케일 2 · 프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)}, 모두 {passes}")
+    return 0
+
+
+def both(checker):
+    fails, passes = Fails(), 0
 
     rc, out = run(checker, ROOT)
     if rc == 0:
