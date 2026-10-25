@@ -1398,4 +1398,9 @@ gmut "bites 호출 지우기"             '\n  bites\n' '\n'
 gmut "건너뛰는 분기 뒤집기"         '  checks\n\n  if [ -n "$skip" ]' '  checks\n\n  if [ -z "$skip" ]'
 gmut "검사를 bites 로 옮기기"        '  python3 scripts/verify-docs.py\n' '' 'bites() {\n' 'bites() {\n  python3 scripts/verify-docs.py\n'
 gmut "변조 시험을 checks 로 옮기기"  '  ./scripts/bite-gates.sh\n' '' 'checks() {\n' 'checks() {\n  ./scripts/bite-gates.sh\n'
-echo "test-gates.py: 변조본 다섯(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로)이 다 떨어짐"
+# 감사 회차 2 의 NC-2 — CI 의 꼴에서만 건너뛰기(T1′ 이 문다)와 변조 시험의 실패 삼키기(T5 가 문다). 조각 36 설계 ② N3.
+gmut "CI 에서 분기를 건너뛰는 쪽으로"  '  checks\n\n  if [ -n "$skip" ]; then' '  checks\n\n  if [ -n "$skip" ] || [ "${GITHUB_ACTIONS:-}" = true ]; then'
+gmut "CI 에서 bites 를 부르지 않기"    '\n  bites\n' '\n  [ "${GITHUB_ACTIONS:-}" = true ] || bites\n'
+gmut "bites 의 실패 삼키기"            '\n  bites\n' '\n  bites || true\n'
+gmut "bite-gates.sh 의 실패 삼키기"    '  ./scripts/bite-gates.sh\n' '  ./scripts/bite-gates.sh || true\n'
+echo "test-gates.py: 변조본 아홉(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로 · CI 에서 분기 · CI 에서 bites · bites 삼키기 · bite-gates.sh 삼키기)이 다 떨어짐"

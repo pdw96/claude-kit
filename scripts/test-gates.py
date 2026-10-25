@@ -11,14 +11,19 @@
 있어 변조 시험이 안 돌면 같이 안 돌았다. 그래서 이것은 늘 도는 `checks` 묶음에 둔다.
 
 **어떻게.** 임시 git 저장소에 `gates.sh` 를 베끼고, 그 파일이 부르는 스크립트와 `claude` 를 다 가짜로 세운다 — 가짜는 제
-이름을 기록에 적고 0 으로 끝난다. 그리고 두 꼴로 부른다(조각 35 설계 끝 「닫기 전 감사 회차에서 찾은 것」 T1 ~ T3).
+이름을 기록에 적고 0 으로 끝난다 — `GATES_FAIL` 이 제 이름이면 1 로 끝난다. 그리고 이렇게 부른다(조각 35 설계 끝 「닫기 전
+감사 회차에서 찾은 것」 T1 ~ T3, 조각 36 설계 ② N1 · N2 — 감사 회차 2 의 NC-2).
   - T1 인자 없이(`GITHUB_ACTIONS` 없음) — 종료 0, 부르는 것이 다 한 번씩 돌고, 변조 시험 다섯은 다른 것이 다 돈 뒤에 돈다
+  - T1′ 인자 없이 `GITHUB_ACTIONS=true` — T1 과 같다. CI 가 지문을 「물었다」로 적는 실행이 쓰는 꼴이다
   - T2 `GITHUB_ACTIONS=true --skip-bite 근거` — 종료 0, 변조 시험 다섯 말고 다 돌고, 다섯은 하나도 안 돈다
   - T3 변조 시험 다섯은 이 파일이 이름으로 든다 — `gates.sh` 에서 하나라도 안 불리면 떨어진다
+  - T5 다섯마다 그 하나만 1 로 끝나게 하고 T1 · T1′ 의 꼴로 부른다 — `gates.sh` 가 0 이 아닌 종료여야 한다. 떨어진 변조 시험을
+    삼킨 실행이 지문을 적지 않게 한다
 
 「부르는 것」은 `gates.sh` 의 주석 아닌 줄에서 `python3 scripts/…` · `./scripts/…` · `claude plugin validate …` 를 읽는다.
 그 줄이 어느 묶음에 있는지는 보지 않고 실제로 돌았는지만 본다 — 검사를 `bites` 로 옮기면 T2 에서, 변조 시험을 `checks` 로
-옮기면 T2 에서, `bites` 호출을 지우거나 분기를 뒤집으면 T1 에서 떨어진다. 이것이 무는지는 `bite-gates.sh` 가 본다.
+옮기면 T2 에서, `bites` 호출을 지우거나 분기를 뒤집으면 T1 에서, CI 에서만 건너뛰게 하면 T1′ 에서, 변조 시험의 실패를
+`|| true` 로 삼키면 T5 에서 떨어진다. 이것이 무는지는 `bite-gates.sh` 가 본다.
 수트 지문 밖이다(`run-evals.sh` 가 부르지 않는다). 표준 라이브러리만 쓴다.
 """
 import os
@@ -38,8 +43,9 @@ FIVE = ("bite-verify-docs.py", "bite-slice-gate.py", "bite-map-pin.py", "bite-ev
 
 CALL = re.compile(r"^\s*(?:python3 scripts/(?P<py>[\w.-]+\.py)|\./scripts/(?P<sh>[\w.-]+\.sh)|claude plugin validate (?P<cl>\S+))(?:\s|$)")
 
-PY_STUB = 'import os, pathlib\nwith open(os.environ["GATES_RAN"], "a", encoding="utf-8") as f:\n    f.write({name!r} + "\\n")\n'
-SH_STUB = '#!/bin/sh\nprintf "%s\\n" {name} >> "$GATES_RAN"\n'
+PY_STUB = ('import os, sys\nwith open(os.environ["GATES_RAN"], "a", encoding="utf-8") as f:\n    f.write({name!r} + "\\n")\n'
+           'sys.exit(1 if os.environ.get("GATES_FAIL") == {name!r} else 0)\n')
+SH_STUB = '#!/bin/sh\nprintf "%s\\n" {name} >> "$GATES_RAN"\n[ "${{GATES_FAIL:-}}" = {name} ] && exit 1\nexit 0\n'
 CLAUDE_STUB = '#!/bin/sh\nprintf "claude:%s\\n" "$3" >> "$GATES_RAN"\n'
 
 
@@ -57,7 +63,7 @@ def calls(text):
 
 def run(repo, bindir, ran, env_extra, args):
     ran.write_text("", encoding="utf-8")
-    env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
+    env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_ACTIONS", "GATES_FAIL")}
     env.update(env_extra, PATH=f"{bindir}{os.pathsep}{os.environ.get('PATH', '')}", GATES_RAN=str(ran))
     try:
         p = subprocess.run(["bash", "scripts/gates.sh", *args], cwd=repo, env=env,
@@ -90,18 +96,27 @@ def judge(gates):
         (bindir / "claude").chmod(0o755)
         ran = pathlib.Path(tmp, "ran.txt")
 
-        # T1 인자 없이 — 다 한 번씩, 변조 시험은 맨 뒤에
-        st, out, got = run(repo, bindir, ran, {}, [])
-        if st != 0:
-            bad.append(f"T1 인자 없이 부른 gates.sh 가 종료 {st} 다 — 0 이어야 한다\n{out[-600:]}")
-        else:
+        # T1 · T1′ 인자 없이 — 다 한 번씩, 변조 시험은 맨 뒤에. T1′ 은 CI 의 꼴(GITHUB_ACTIONS=true)이다
+        for tag, extra in (("T1", {}), ("T1′", {"GITHUB_ACTIONS": "true"})):
+            st, out, got = run(repo, bindir, ran, extra, [])
+            if st != 0:
+                bad.append(f"{tag} 인자 없이 부른 gates.sh 가 종료 {st} 다 — 0 이어야 한다\n{out[-600:]}")
+                continue
             missing = [c for c in want if got.count(c) != want.count(c)]
             if missing:
-                bad.append(f"T1 인자 없이 불렀는데 돌지 않았거나 횟수가 다르다: {missing}")
+                bad.append(f"{tag} 인자 없이 불렀는데 돌지 않았거나 횟수가 다르다: {missing}")
             five_at = [i for i, c in enumerate(got) if c in FIVE]
             rest_at = [i for i, c in enumerate(got) if c not in FIVE]
             if five_at and rest_at and min(five_at) < max(rest_at):
-                bad.append(f"T1 변조 시험이 다른 검사보다 먼저 돌았다(설계 ② G1): {got}")
+                bad.append(f"{tag} 변조 시험이 다른 검사보다 먼저 돌았다(설계 ② G1): {got}")
+
+            # T5 다섯 가운데 하나가 떨어지면 gates.sh 도 떨어진다 — 실패를 삼키면 거짓 근거가 적힌다
+            for f in FIVE:
+                st, out, _ = run(repo, bindir, ran, {**extra, "GATES_FAIL": f}, [])
+                if st == 0:
+                    bad.append(f"T5 {tag} 의 꼴에서 {f} 가 1 로 끝났는데 gates.sh 가 종료 0 이다 — 변조 시험의 실패를 삼켰다")
+                elif st is None:
+                    bad.append(f"T5 {tag} 의 꼴에서 {f} 가 1 로 끝났는데 gates.sh 가 {TIMEOUT}초 안에 끝나지 않았다")
 
         # T2 CI 의 --skip-bite — 다섯만 빠진다
         st, out, got = run(repo, bindir, ran, {"GITHUB_ACTIONS": "true"}, ["--skip-bite", "근거"])
@@ -130,8 +145,9 @@ def main(argv):
         for b in bad:
             print(f"FAIL {b}")
         return 1
-    print(f"PASS test-gates.py — 인자 없이 {len(want)} 개가 다 돌고 변조 시험 다섯이 맨 뒤(T1), "
-          f"--skip-bite 는 {len(want) - len(FIVE)} 개만 돈다(T2), 다섯을 이름으로 든다(T3)")
+    print(f"PASS test-gates.py — 인자 없이 {len(want)} 개가 다 돌고 변조 시험 다섯이 맨 뒤(T1 · CI 의 꼴 T1′), "
+          f"--skip-bite 는 {len(want) - len(FIVE)} 개만 돈다(T2), 다섯을 이름으로 든다(T3), "
+          f"다섯 가운데 하나가 떨어지면 두 꼴 다 떨어진다(T5)")
     return 0
 
 
