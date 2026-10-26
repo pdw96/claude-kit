@@ -1481,6 +1481,7 @@ emut bite "T3 run 의 set +e"                  '            ./scripts/gates.sh\n
 emut bite "T3 run 의 지문 박기"               '            echo "key=$key" >> "$GITHUB_OUTPUT"\n' '            echo "key=gate-bite-x" >> "$GITHUB_OUTPUT"\n'
 # F2 의 경계 — 알림 줄처럼 보이는 명령 줄
 emut bite "F2 > 가 붙은 echo"                 '            ./scripts/gates.sh\n          fi\n' '            echo "x" > .gate-pass/run.txt\n            ./scripts/gates.sh\n          fi\n'
+emut bite "F2 ::set-output 알림 줄"         '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "::set-output name=full::true"\n            ./scripts/gates.sh --skip-bite "$why"\n'
 emut bite "F2 \$( 가 든 echo"                 'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::$(./scripts/gates.sh --skip-bite x) $why"'
 # G — 열한 스텝 밖의 근거 파일 · 지문
 emut bite "G 다른 잡의 .gate-pass"            '          mkdir -p .eval-pass\n          echo "$GITHUB_SERVER_URL' '          mkdir -p .eval-pass .gate-pass\n          echo "$GITHUB_SERVER_URL'
