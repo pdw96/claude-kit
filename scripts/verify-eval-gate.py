@@ -17,7 +17,8 @@
   - T1 gate 잡의 스텝이 SPEC 의 열한으로 시작해 그 차례대로 이어진다 · T2 스텝마다 SPEC 의 칸만(`name` 은 자유) ·
     T3 `id` · `if` · `env` · `with` 의 값과 `run` 의 명령 줄이 SPEC 과 같다 — `uses` 는 `@` 앞만, 판은 `v<숫자>`
   - F 자유 — `run` 의 알림 줄(줄 전체가 `echo "<글>"`, 글에 `$(` · 역따옴표 · `\\` · 따옴표가 없고 `$이름` · `${이름}` 만 펼친다)은 명령 줄에서
-    뺀다. 주석 줄 · 빈 줄 · 줄 앞뒤 공백도 보지 않는다
+    뺀다. 글이 `::` 로 열면 `::notice::` · `::warning::` 만 알림 줄이다 — 그 밖의 워크플로 명령(`::set-output` 따위)은 명령 줄로
+    견준다(조각 37 설계 끝 「닫기 전 감사 회차에서 찾은 것」, 감사 회차 4 OB-3). 주석 줄 · 빈 줄 · 줄 앞뒤 공백도 보지 않는다
   - G 주석 밖에서 `.gate-pass` · `gfp` 를 든 줄은 파일 전체에서 열한 스텝 안에만 있다
 
 판정에 드는 칸을 고치는 PR 은 SPEC 도 함께 고친다 — 그 PR 은 변조 시험 지문이 바뀌어 다 돌고, 리뷰가 두 쪽을 함께 본다. 이것이 무는지는
@@ -89,6 +90,7 @@ SPEC = [
 KEY = re.compile(r"([A-Za-z_][A-Za-z0-9_-]*):(?: (.*))?")
 BAD_HEAD = re.compile(r"[&*!{\[>|%@`]")   # Y6 — 앵커 · 별칭 · 태그 · 흐름 꼴 · 블록 꼴 · 예약 글자로 여는 값
 FREE_ECHO = re.compile(r'echo "(?:[^"`\\$]|\$[A-Za-z_][A-Za-z0-9_]*|\$\{[A-Za-z_][A-Za-z0-9_]*\})*"')  # F2
+NOTICE = ("::notice::", "::warning::")  # F2 — 알림 줄이 열 수 있는 워크플로 명령은 이 둘뿐이다
 VERSION = re.compile(r"v[0-9]+")  # F3
 GUARDED = (".gate-pass", "gfp")   # G
 
@@ -190,10 +192,18 @@ class Reader:
         return out
 
 
+def free(line):
+    """F2 — 알림 줄인가. `echo "<글>"` 꼴이고, 글이 `::` 로 열면 `::notice::` · `::warning::` 로 연다."""
+    if not FREE_ECHO.fullmatch(line):
+        return False
+    body = line[len('echo "'):-1]
+    return not body.startswith("::") or body.startswith(NOTICE)
+
+
 def commands(run):
     """`run` 의 명령 줄 — 알림 줄(F2) · 주석 · 빈 줄을 빼고 줄 앞뒤 공백 없이."""
     lines = run if isinstance(run, list) else [run]
-    return [s for s in (l.strip() for l in lines) if s and not s.startswith("#") and not FREE_ECHO.fullmatch(s)]
+    return [s for s in (l.strip() for l in lines) if s and not s.startswith("#") and not free(s)]
 
 
 def sig(step):
@@ -301,9 +311,9 @@ def judge(text):
             if g in line:
                 fail("G", f"{no}행", f"열한 스텝 밖에서 `{g}` 를 쓴다 — {line.strip()[:80]}")
 
-    free = sum(1 for s in steps[:len(SPEC)] if "run" in s
-               for l in (s["run"] if isinstance(s["run"], list) else [s["run"]]) if FREE_ECHO.fullmatch(l.strip()))
-    return bad, free
+    notices = sum(1 for s in steps[:len(SPEC)] if "run" in s
+               for l in (s["run"] if isinstance(s["run"], list) else [s["run"]]) if free(l.strip()))
+    return bad, notices
 
 
 def main(argv):
@@ -316,13 +326,13 @@ def main(argv):
     except (OSError, UnicodeDecodeError) as e:
         print(f"FAIL [A2] {path} — 읽지 못했다: {e}")
         return 1
-    bad, free = judge(text)
+    bad, notices = judge(text)
     if bad:
         for code, where, why in bad:
             print(f"FAIL [{code}] {where} — {why}")
         return 1
     print(f"PASS verify-eval-gate.py — 머리의 키 넷 · gate 잡의 키 넷 · 첫 열한 스텝의 차례 · 칸 · 글이 닫힌 목록과 같고, "
-          f"`.gate-pass` · `gfp` 는 그 안에만 있다(알림 줄 {free} 은 자유)")
+          f"`.gate-pass` · `gfp` 는 그 안에만 있다(알림 줄 {notices} 은 자유)")
     return 0
 
 
