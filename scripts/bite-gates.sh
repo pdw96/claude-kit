@@ -14,6 +14,7 @@
 # `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5),
 # `gates.sh` 가 무엇을 실제로 부르는지 보는 자체 시험(`test-gates.py`)이 무는지(설계 끝 「닫기 전 감사 회차에서 찾은 것」).
 # 맨 끝 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
+# `test-gates.py` 절의 끝은 조각 38 이 더했다 — 고정 목록과 실패 전파가 무는지, 진짜 `gates.sh` 가 지나가는지(조각 38 설계 ② R · V).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -1411,6 +1412,72 @@ gmut "CI 에서 bites 를 부르지 않기"    '\n  bites\n' '\n  [ "${GITHUB_AC
 gmut "bites 의 실패 삼키기"            '\n  bites\n' '\n  bites || true\n'
 gmut "bite-gates.sh 의 실패 삼키기"    '  ./scripts/bite-gates.sh\n' '  ./scripts/bite-gates.sh || true\n'
 echo "test-gates.py: 변조본 아홉(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로 · CI 에서 분기 · CI 에서 bites · bites 삼키기 · bite-gates.sh 삼키기)이 다 떨어짐"
+
+# 고정 목록과 실패 전파 — 늘 도는 검사 줄을 지우거나 삼켜도 떨어진다(조각 38 설계 ② L · S · R · V · ⑤ R1 ~ R4, 감사 OB-2).
+# 새 변조본의 「물었다」는 종료 1 이고 기대한 번호의 FAIL 줄일 때만이다(조각 37 감사 OB-4 의 가 — 다른 까닭으로 떨어진 것을 세지 않는다).
+gbite() {  # $1=이름  $2=기대한 FAIL 줄의 머리(예: 'L2 verify-eval-gate.py')  $3…=gmut 과 같은 바꿀 쌍
+  local name=$1 want=$2; shift 2
+  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
+import pathlib, sys
+src, out, *pairs = sys.argv[1:]
+t = pathlib.Path(src).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본을 gates.sh 에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(out).write_text(t, encoding="utf-8")
+PY
+  set +e
+  python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; st=$?
+  set -e
+  if [ "$st" != 1 ] || ! grep -qF "FAIL $want" "$gt/out"; then
+    echo "::error::test-gates.py 가 「$name」 gates.sh 를 「FAIL $want」로 물지 않았다 (exit $st)"; cat "$gt/out"; exit 1
+  fi
+  gn=$((gn + 1))
+}
+gn=0
+# L2 — 감사가 든 첫째(늘 도는 검사 줄 지우기)와 지우기의 다른 꼴 · 겹침 · 목록에 없는 이름
+gbite "늘 도는 검사 줄 지우기"         'L2 verify-eval-gate.py'     '  python3 scripts/verify-eval-gate.py\n' ''
+gbite "검사 줄 주석 처리"              'L2 verify-docs.py'          '  python3 scripts/verify-docs.py\n' '  # python3 scripts/verify-docs.py\n'
+gbite "검사 줄 겹치기"                 'L2 verify-budget.py'        '  python3 scripts/verify-budget.py\n' '  python3 scripts/verify-budget.py\n  python3 scripts/verify-budget.py\n'
+gbite "목록에 없는 검사 더하기"        'L2 verify-new.py'           '  python3 scripts/verify-budget.py\n' '  python3 scripts/verify-budget.py\n  python3 scripts/verify-new.py\n'
+gbite "claude plugin validate 줄 지우기" 'L2 claude:./vibe-slice'   '  claude plugin validate ./vibe-slice\n' ''
+gbite "test-gates.py 줄 지우기"        'L2 test-gates.py'           '  python3 scripts/test-gates.py\n' ''
+# S1 — 감사가 든 둘째(그 줄 뒤의 || true)와 삼키는 다른 꼴. CI 에서만 삼키면 T1′ 에서 문다
+gbite "늘 도는 검사의 실패 삼키기"     'S1 T1 의 꼴에서 verify-eval-gate.py'  '  python3 scripts/verify-eval-gate.py\n' '  python3 scripts/verify-eval-gate.py || true\n'
+gbite "CI 에서만 삼키기"               'S1 T1′ 의 꼴에서 verify-docs.py'      '  python3 scripts/verify-docs.py\n' '  python3 scripts/verify-docs.py || [ "${GITHUB_ACTIONS:-}" = true ]\n'
+gbite "claude plugin validate 삼키기"  'S1 T1 의 꼴에서 claude:./vibe-audit'  '  claude plugin validate ./vibe-audit\n' '  claude plugin validate ./vibe-audit || :\n'
+gbite "checks 머리의 set +e"           'S1 T1 의 꼴에서 verify-manifest.py'   'checks() {\n' 'checks() {\n  set +e\n'
+# S2 — 건너뛰는 실행(--skip-bite)에서만 삼키기
+gbite "--skip-bite 에서만 삼키기"      'S2 T2 의 꼴에서 verify-manifest.py'   '  python3 scripts/verify-manifest.py\n' '  python3 scripts/verify-manifest.py || [ -n "$skip" ]\n'
+
+# V2 — 자유로운 것(검사 줄의 차례 · 주석)만 바꾼 gates.sh 는 지나간다
+gfree() {  # $1=이름  $2…=gmut 과 같은 바꿀 쌍
+  local name=$1; shift
+  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
+import pathlib, sys
+src, out, *pairs = sys.argv[1:]
+t = pathlib.Path(src).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 대조군을 gates.sh 에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(out).write_text(t, encoding="utf-8")
+PY
+  if ! python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; then
+    echo "::error::test-gates.py 가 자유로운 것만 바꾼 「$name」 gates.sh 를 떨어뜨렸다"; cat "$gt/out"; exit 1
+  fi
+}
+gfree "검사 줄의 차례 바꾸기"  '  python3 scripts/verify-evals.py\n  python3 scripts/verify-graders.py\n' '  python3 scripts/verify-graders.py\n  python3 scripts/verify-evals.py\n'
+gfree "주석 바꾸기"            '  # 브리핑 검사기가 무는지' '  # 브리핑 검사기를 시험한다 — 무는지'
+
+# R — 진짜 gates.sh 에 한 번. checks 에서 test-gates.py 줄이 빠지면 그 시험이 돌지 않아 제 줄을 못 보므로 여기서 문다
+if ! python3 scripts/test-gates.py >"$gt/out" 2>&1; then
+  echo "::error::진짜 gates.sh 가 test-gates.py 를 지나지 못했다 — checks 에서 그 줄이 빠졌는가"; cat "$gt/out"; exit 1
+fi
+echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $gn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 대조군 둘(차례 · 주석)이 지나가고, 진짜 gates.sh 가 지나감"
 
 # eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지(종료 1 이고
 # `FAIL [` 줄 — 0 이 아닌 종료를 다 세지 않는다, 조각 36 OB-4), 자유로운 칸만 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지
