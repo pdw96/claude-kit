@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: recall-inactive-code
+description: |
+  회수율(조각 39 · ADR 0050). 공통코드는 지우지 않고 is_active 를 꺼 「새 기록에서는 못 고른다」고
+  적어 두었는데, 쓰기 경로는 코드가 있는지만 묻는다 — 꺼진 환불 방식 · 사유로 새 기록이 선다.
+  담당 감사자가 이 결함이 있는 커밋을 감사하고도 부적합으로 내지 않았고, 같은 날 그 커밋의 코드
+  리뷰가 찾았다.
+  출처: ERP 대장 회차-기록.md 감사 ㊲ 절 끝(번호 없음) · 감사한 커밋 b5af763(audit-data 회차 ㊲, backend/app/services/returns.py 의 _must_be_a_settle_type) · 찾은 쪽 Codex 리뷰(PR #71) · 고침 62d0030
+expected_outcome: |
+  `app/services/refunds.py` 가 꺼진(is_active = false) 코드로 새 환불을 세우는 자리가 NC 로 나온다.
+tags: [recall, data]
+context:
+  scaffold_script: fixture.sh

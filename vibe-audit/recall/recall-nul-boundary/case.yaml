@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: recall-nul-boundary
+description: |
+  회수율(조각 39 · ADR 0050). 공개 쓰기 엔드포인트의 경계가 공백만인 값은 거르지만 NUL 글자는
+  거르지 않는다 — PostgreSQL 의 text 는 NUL 을 담지 못해 드라이버가 넣는 자리에서 거부하고, 부르는
+  쪽은 422 대신 500 을 받는다. 담당 감사자가 이 결함이 있는 커밋을 감사하고도 부적합으로 내지 않았고,
+  같은 날 그 커밋의 코드 리뷰가 찾았다.
+  출처: ERP 대장 회차-기록.md 감사 ㊲ 절 끝(번호 없음 · 같은 커밋을 감사 ㊱ 이 audit-contract 로 봤다) · 감사한 커밋 b5af763(audit-contract 회차 ㊱, backend/app/api/schemas.py 의 _present) · 찾은 쪽 Codex 리뷰(PR #71) · 고침 62d0030
+expected_outcome: |
+  `app/schemas.py` 의 경계가 NUL 글자를 거르지 않아 PostgreSQL 이 거부하고 500 이 나가는 자리가 NC 로 나온다.
+tags: [recall, contract]
+context:
+  scaffold_script: fixture.sh

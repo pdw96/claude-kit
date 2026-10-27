@@ -1,0 +1,12 @@
+schema_version: "1.1"
+name: recall-expiry-from-processing
+description: |
+  회수율(조각 39 · ADR 0050). 기준 데이터(시드)가 만료일을 「신청일 + 기간」으로 적어 두었는데
+  코드는 처리한 날(승인일)에서 센다 — 처리가 늦어진 만큼 기간이 늘어난다. 담당 감사자가
+  이 결함이 있는 커밋을 감사하고도 부적합으로 내지 않았고, 뒤의 코드 리뷰가 찾았다.
+  출처: ERP 대장 NC-102 · 감사한 커밋 bb8c3db(audit-data 회차 ⑧, backend/app/services/incoming.py:300 의 judged_at.date() + timedelta) · 찾은 쪽 Codex 리뷰 · 고침 e3b3eeb
+expected_outcome: |
+  `app/services/memberships.py` 가 만료일을 승인 시점에서 세어 시드가 적은 「신청일 + 기간」과 갈리는 자리가 NC 로 나온다.
+tags: [recall, data]
+context:
+  scaffold_script: fixture.sh
