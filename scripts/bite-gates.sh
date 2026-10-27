@@ -522,40 +522,75 @@ if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
   echo "::error::verify-graders.py 가 pass-*.md 에서 떨어지는 그레이더를 통과시켰다"; exit 1
 fi
 
-# 회수율 케이스(조각 39 설계 ② M · ⑤ R1 · R2). 회수율 폴더의 사본에서 조건마다 한 자리를 흔들어 그 검사가 떨어져야 하고,
-# 고치지 않은 사본과 회수율 폴더가 없는 트리는 지나가야 한다. 흔드는 명령은 사본의 회수율 폴더에서 돈다($C 는 케이스 이름).
+# 회수율 케이스(조각 39 설계 ② M · ⑤ R1 · R2 · 설계 끝 「닫기 전 감사 회차에서 찾은 것」). 회수율 폴더의 사본에서 조건마다 한 자리를
+# 흔들어 그 검사가 떨어져야 하고, 고치지 않은 사본과 회수율 폴더가 없는 트리는 지나가야 한다. 흔드는 명령은 사본의 회수율 폴더에서
+# 돈다($C 는 케이스 이름). 「물었다」는 종료 1 과 그 조건의 FAIL 글이 함께 있을 때만이다 — 다른 규칙이 같은 변조본을 떨어뜨려도
+# 모르는 일이 없게(감사 회차 6 NC-4 · OB-1). 끝에 센 수를 기대한 수와 견준다.
 C=recall-commit-after-response
 rn=0
-rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령
-  local s; s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
+rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령  $4=그 조건의 FAIL 글(고정 문자열)
+  local s o st; s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
   ( cd "$s/vibe-audit/recall" && eval "$3" )
-  if python3 "scripts/verify-$1.py" "$s/vibe-audit/recall" >/dev/null 2>&1; then
-    echo "::error::verify-$1.py 가 회수율 변조본 「$2」을 통과시켰다"; exit 1
+  set +e
+  o=$(python3 "scripts/verify-$1.py" "$s/vibe-audit/recall" 2>&1)
+  st=$?
+  set -e
+  if [ "$st" != 1 ] || ! grep -F -- "$4" <<<"$o" | grep -q '^FAIL '; then
+    echo "::error::verify-$1.py 가 회수율 변조본 「$2」을 그 조건으로 떨어뜨리지 않았다 (종료 $st, 기대한 FAIL 글: $4)"; printf '%s\n' "$o" | tail -5; exit 1
   fi
   rn=$((rn + 1))
 }
-rbite evals   "이름이 recall- 가 아님(M1)"       'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml'
-rbite evals   "감사자를 지목하지 않음(M1)"        'sed -i "s/audit-data/감사자/" $C/prompt.md'
-rbite evals   "감사자 둘을 지목(M1)"              'echo "audit-secrets 도 함께" >> $C/prompt.md'
-rbite evals   "recall-found 없음(M2)"             'rm $C/graders/recall-found.md'
-rbite evals   "recall-found 가 심판(M2)"          'sed -i "s/^type: regex/type: llm/" $C/graders/recall-found.md'
-rbite evals   "recall-found 를 뒤집음(M2)"        'sed -i "s/^type: regex/type: regex\nmatch: not_contains/" $C/graders/recall-found.md'
-rbite evals   "목적 그레이더 둘(M2 · M4)"         'cp $C/graders/recall-found.md $C/graders/recall-found-2.md'
-rbite evals   "auditor-fired 없음(M3)"            'rm $C/graders/auditor-fired.md'
-rbite evals   "auditor-fired 가 점수에 듦(M3)"    'sed -i "/^arm: with-only/d" $C/graders/auditor-fired.md'
-rbite evals   "auditor-fired 머리말이 빔(M3)"     'printf -- "---\n---\n" > $C/graders/auditor-fired.md'
-rbite evals   "recall-found 머리말이 빔(M2)"      'printf -- "---\n---\n" > $C/graders/recall-found.md'
-rbite evals   "대조군을 더함(M4)"                 'cp ../evals/gate-own-not-pushed/graders/real-nc-found.md $C/graders/'
-rbite evals   "출처 줄 없음(M5)"                  'sed -i "/^  출처:/d" $C/case.yaml'
-rbite graders "fail 표본 없음(M6)"                'rm $C/samples/fail*.md'
-rbite graders "pass 표본 없음(M6)"                'rm $C/samples/pass.md'
-rbite graders "표본 폴더 없음(M6)"                'rm -r $C/samples'
-rbite graders "아무 NC 나 받는 정규식(M6)"        'python3 -c "import pathlib,re; p=pathlib.Path(\"$C/graders/recall-found.md\"); p.write_text(re.sub(r\"(?m)^pattern: .*$\", lambda m: \"pattern: \\\"### NC-\\\\\\\\d+\\\"\", p.read_text()))"'
-# 대조군 — 고치지 않은 회수율 사본은 두 검사를 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
+rbite evals   "이름이 recall- 가 아님(M1)"          'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml' '이름은 recall- 로 시작한다'
+rbite evals   "감사자를 지목하지 않음(M1)"           'sed -i "s/audit-data/감사자/" $C/prompt.md' '지목해야 한다 — 지금 없음'
+rbite evals   "감사자 둘을 지목(M1)"                 'echo "audit-secrets 도 함께" >> $C/prompt.md' "지금 ['audit-data', 'audit-secrets']"
+rbite evals   "recall-found 없음(M2)"                'rm $C/graders/recall-found.md' 'recall-found 가 없다'
+rbite evals   "recall-found 가 심판(M2)"             'sed -i "s/^type: regex/type: llm/" $C/graders/recall-found.md' 'recall-found: type 이 regex 여야'
+rbite evals   "recall-found 를 뒤집음(M2)"           'sed -i "s/^type: regex/type: regex\nmatch: not_contains/" $C/graders/recall-found.md' 'match: not_contains'
+rbite evals   "recall-found 의 target(M2)"           'sed -i "s/^target: last_message/target: transcript/" $C/graders/recall-found.md' 'target 이 last_message 여야'
+rbite evals   "recall-found 의 pattern 없음(M2)"     'sed -i "/^pattern:/d" $C/graders/recall-found.md' 'pattern 이 없다'
+rbite evals   "recall-found 에 arm(M2)"              'sed -i "s/^type: regex/type: regex\narm: with-only/" $C/graders/recall-found.md' 'recall-found: arm 이 붙어'
+rbite evals   "recall-found 머리말이 빔(M2)"         'printf -- "---\n---\n" > $C/graders/recall-found.md' 'recall-found: type 이 regex 여야'
+rbite evals   "목적 그레이더 둘(M2 · M4)"            'cp $C/graders/recall-found.md $C/graders/recall-found-2.md' "['recall-found-2']"
+rbite evals   "auditor-fired 없음(M3)"               'rm $C/graders/auditor-fired.md' 'auditor-fired 가 없다'
+rbite evals   "auditor-fired 가 점수에 듦(M3)"       'sed -i "/^arm: with-only/d" $C/graders/auditor-fired.md' 'arm 이 with-only 여야'
+rbite evals   "auditor-fired 머리말이 빔(M3)"        'printf -- "---\n---\n" > $C/graders/auditor-fired.md' 'auditor-fired: input_match 가 없다'
+rbite evals   "auditor-fired 가 이름만 봄(M3)"       'sed -i "s/^input_match: .*/input_match: audit-data/" $C/graders/auditor-fired.md' 'subagent_type 에 걸려 있지 않다'
+rbite evals   "auditor-fired 가 딴 플러그인(M3)"     'sed -i "s/vibe-audit:audit-data/other-kit:audit-data/" $C/graders/auditor-fired.md' '이 플러그인(vibe-audit)이 아니다'
+rbite evals   "auditor-fired 의 min 0(M3)"           'sed -i "s/^min: 1/min: 0/" $C/graders/auditor-fired.md' 'min 이 1 이상이어야'
+rbite evals   "auditor-fired 의 tool(M3)"            'sed -i "s/^tool: Agent/tool: Skill/" $C/graders/auditor-fired.md' 'tool 은 Agent 여야'
+rbite evals   "대조군을 더함(M4)"                    'cp ../evals/gate-own-not-pushed/graders/real-nc-found.md $C/graders/' "['real-nc-found']"
+rbite evals   "출처 줄 없음(M5)"                     'sed -i "/^  출처:/d" $C/case.yaml' '「출처:」 줄이 없다'
+rbite evals   "schema_version"                       'sed -i "s/^schema_version: .*/schema_version: \"1.0\"/" $C/case.yaml' 'schema_version 이 "1.1" 이 아니다'
+rbite evals   "name 이 폴더와 다름"                  'sed -i "s/^name: .*/name: recall-other/" $C/case.yaml' 'name 이 디렉터리 이름과 다르다'
+rbite evals   "픽스처의 실행 비트"                   'chmod -x $C/fixture.sh' '실행 비트가 없다'
+rbite evals   "픽스처의 문법"                        'echo "if then" >> $C/fixture.sh' 'bash 문법 검사에서 깨진다'
+rbite graders "fail 표본 없음(M6)"                   'rm $C/samples/fail*.md' 'samples/fail*.md 이 하나도 없다'
+rbite graders "pass 표본 없음(M6)"                   'rm $C/samples/pass.md' 'samples/pass.md 이 없다'
+rbite graders "표본 폴더 없음(M6)"                   'rm -r $C/samples' '회수율 케이스에 samples/ 가 없다'
+rbite graders "아무 NC 나 받는 정규식(M6)"           'python3 -c "import pathlib,re; p=pathlib.Path(\"$C/graders/recall-found.md\"); p.write_text(re.sub(r\"(?m)^pattern: .*$\", lambda m: \"pattern: \\\"### NC-\\\\\\\\d+\\\"\", p.read_text()))"' '함정을 밟은 기록'
+[ "$rn" = 28 ] || { echo "::error::회수율 변조본이 $rn 개 돌았다 — 28 이어야 한다(verify-evals.py 스물넷 · verify-graders.py 넷)"; exit 1; }
+# 인자 없는 길 — gates.sh 와 러너가 부르는 꼴(감사 회차 6 NC-3). 트리를 통째로 베껴 회수율 케이스 하나를 깨뜨리고, 폴더를 주지 않고
+# 부른다. 회수율 폴더를 보지 않거나 그 종료를 버리는 인자 없는 길이면 여기서 떨어진다.
+nn=0
+for m in "evals|sed -i '/^  출처:/d' vibe-audit/recall/$C/case.yaml|「출처:」 줄이 없다" \
+         "graders|rm vibe-audit/recall/$C/samples/fail-missed.md vibe-audit/recall/$C/samples/fail-observation.md|samples/fail*.md 이 하나도 없다"; do
+  chk=${m%%|*}; rest=${m#*|}; cmd=${rest%%|*}; want=${rest#*|}
+  u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
+  ( cd "$u" && eval "$cmd" )
+  set +e
+  o=$(python3 "$u/scripts/verify-$chk.py" 2>&1)
+  st=$?
+  set -e
+  if [ "$st" != 1 ] || ! grep -F -- "$want" <<<"$o" | grep -q '^FAIL '; then
+    echo "::error::verify-$chk.py 가 인자 없이 깨진 회수율 케이스를 떨어뜨리지 않았다 (종료 $st)"; printf '%s\n' "$o" | tail -5; exit 1
+  fi
+  nn=$((nn + 1))
+done
+# 대조군 — 고치지 않은 회수율 사본은 두 검사를 종료 0 과 PASS 줄로 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
 for chk in evals graders; do
-  if ! python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall" >/dev/null 2>&1; then
-    echo "::error::verify-$chk.py 가 고치지 않은 회수율 폴더를 떨어뜨렸다"; exit 1
+  if ! out=$(python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall" 2>&1) || ! grep -q '^PASS 회수율 케이스 6개' <<<"$out"; then
+    echo "::error::verify-$chk.py 가 고치지 않은 회수율 폴더를 떨어뜨렸거나 PASS 줄을 찍지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
   fi
 done
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"; rm -rf "$u/vibe-audit/recall"
@@ -564,7 +599,7 @@ for chk in evals graders; do
     echo "::error::verify-$chk.py 가 회수율 폴더 없는 트리를 「0개」로 지나보내지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
   fi
 done
-echo "회수율 케이스: 변조본 $rn 이 다 떨어지고(verify-evals.py 열셋 · verify-graders.py 넷), 고치지 않은 사본과 회수율 폴더 없는 트리가 지나감"
+echo "회수율 케이스: 변조본 $rn 이 그 조건의 FAIL 글로 떨어지고(verify-evals.py 스물넷 · verify-graders.py 넷), 인자 없는 길의 변조본 $nn 이 떨어지고, 고치지 않은 사본(PASS 줄)과 회수율 폴더 없는 트리가 지나감"
 
 # verify-budget.py — 문구가 자란 사본은 실패해야 한다
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
