@@ -543,6 +543,8 @@ rbite evals   "recall-found 를 뒤집음(M2)"        'sed -i "s/^type: regex/ty
 rbite evals   "목적 그레이더 둘(M2 · M4)"         'cp $C/graders/recall-found.md $C/graders/recall-found-2.md'
 rbite evals   "auditor-fired 없음(M3)"            'rm $C/graders/auditor-fired.md'
 rbite evals   "auditor-fired 가 점수에 듦(M3)"    'sed -i "/^arm: with-only/d" $C/graders/auditor-fired.md'
+rbite evals   "auditor-fired 머리말이 빔(M3)"     'printf -- "---\n---\n" > $C/graders/auditor-fired.md'
+rbite evals   "recall-found 머리말이 빔(M2)"      'printf -- "---\n---\n" > $C/graders/recall-found.md'
 rbite evals   "대조군을 더함(M4)"                 'cp ../evals/gate-own-not-pushed/graders/real-nc-found.md $C/graders/'
 rbite evals   "출처 줄 없음(M5)"                  'sed -i "/^  출처:/d" $C/case.yaml'
 rbite graders "fail 표본 없음(M6)"                'rm $C/samples/fail*.md'
@@ -562,7 +564,7 @@ for chk in evals graders; do
     echo "::error::verify-$chk.py 가 회수율 폴더 없는 트리를 「0개」로 지나보내지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
   fi
 done
-echo "회수율 케이스: 변조본 $rn 이 다 떨어지고(verify-evals.py 열하나 · verify-graders.py 넷), 고치지 않은 사본과 회수율 폴더 없는 트리가 지나감"
+echo "회수율 케이스: 변조본 $rn 이 다 떨어지고(verify-evals.py 열셋 · verify-graders.py 넷), 고치지 않은 사본과 회수율 폴더 없는 트리가 지나감"
 
 # verify-budget.py — 문구가 자란 사본은 실패해야 한다
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"

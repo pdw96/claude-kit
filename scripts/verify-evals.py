@@ -498,10 +498,12 @@ def check_recall(suite, agents_dir):
         if extra:
             bad.append(f"{name}: 회수율 케이스에는 {RECALL_GRADER} · auditor-fired 만 둔다 — 더 있는 것 {extra}")
         # M2 목적 그레이더
+        # 머리말이 비어 있어도({}) 아래 규칙을 다 댄다 — 빈 것을 「없음」으로 건너뛰면 칸이 다 빠진
+        # 그레이더가 지나간다(PR #146 Codex 리뷰). 닫히지 않은 머리말(None)은 위에서 이미 적었다.
         fm = graders.get(RECALL_GRADER)
-        if fm is None:
+        if RECALL_GRADER not in graders:
             bad.append(f"{name}: {RECALL_GRADER} 가 없다 — 무엇을 찾아야 하는지 없다")
-        elif fm:
+        elif fm is not None:
             if fm.get("type") != "regex":
                 bad.append(f"{name}/{RECALL_GRADER}: type 이 regex 여야 한다 — 찾는 것을 정확히 아는 판정이다(ADR 0050 의 6)")
             if fm.get("target") != "last_message":
@@ -514,9 +516,9 @@ def check_recall(suite, agents_dir):
                 bad.append(f"{name}/{RECALL_GRADER}: pattern 이 없다")
         # M3 auditor-fired — 판정 케이스와 같은 규칙
         af = graders.get("auditor-fired")
-        if af is None:
+        if "auditor-fired" not in graders:
             bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
-        elif af:
+        elif af is not None:
             if af.get("arm") != "with-only":
                 bad.append(f"{name}/auditor-fired: arm 이 with-only 여야 한다 (점수가 아니라 표시)")
             if af.get("type") != "tool_used" or af.get("tool") != "Agent":
