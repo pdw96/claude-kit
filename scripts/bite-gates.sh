@@ -924,6 +924,52 @@ if [ "$st" != 5 ]; then
   echo "::error::run-evals.sh 가 케이스 머리 없는 결과에서 매번 떨어진 그레이더를 놓쳤다 (exit $st)"; exit 1
 fi
 
+# run-evals.sh --eval-dir recall — 회수율은 재기만 한다(조각 39 설계 ② N · 끝 「PR D 에서 정한 것」). 진짜 하네스처럼
+# --threshold 가 없으면 1.0 을 쓰고 문턱 아래면 종료 1 인 가짜 하네스에서, recall-found 가 세 회차 다 떨어진 결과는
+# 종료 0 · 「회수율 0/3」이어야 하고, auditor-fired 가 한 회차라도 떨어지면 종료 5, 부른 쪽의 --threshold 는 종료 2 다.
+h=$(mktemp -d)
+printf '%s\n' '#!/usr/bin/env bash' \
+  'thr=1.0' \
+  'while [ $# -gt 0 ]; do case "$1" in --json) cp "$FAKE_RESULT" "$2";; --threshold) thr=$2;; esac; shift; done' \
+  'python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(1 if any(c[\"aggregates\"][\"score\"] < float(sys.argv[2]) for c in d[\"cases\"]) else 0)" "$FAKE_RESULT" "$thr"' > "$h/claude"
+chmod +x "$h/claude"
+for fired in all one; do
+  python3 - "$h/r-$fired.json" "$fired" "$h/tr-$fired" <<'PY'
+import json, os, pathlib, sys
+out, fired, tr = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
+runs = []
+for i in range(3):
+    (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
+    (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
+    up = not (fired == "one" and i == 0)
+    runs.append({"score": 0.0, "passed": False, "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
+                 "graders": [{"name": "recall-found", "weight": 1, "scored": True, "passed": False},
+                             {"name": "auditor-fired", "weight": 1, "scored": False, "passed": up}]})
+json.dump({"cases": [{"name": "recall-commit-after-response", "arms": {"with": runs},
+                      "graders": [{"name": "recall-found", "type": "regex", "weight": 1},
+                                  {"name": "auditor-fired", "type": "tool_used", "weight": 1}],
+                      "aggregates": {"score": 0.0}}]}, open(out, "w"))
+PY
+  set +e
+  FAKE_RESULT="$h/r-$fired.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --ablation none >"$h/o-$fired" 2>&1
+  st=$?
+  set -e
+  if [ "$fired" = all ] && { [ "$st" != 0 ] || ! grep -qx '회수율 0/3' "$h/o-$fired"; }; then
+    echo "::error::run-evals.sh --eval-dir recall 이 놓친 회차를 실패로 셌거나 회수율 줄을 안 찍었다 (exit $st)"; tail -5 "$h/o-$fired"; exit 1
+  fi
+  if [ "$fired" = one ] && [ "$st" != 5 ]; then
+    echo "::error::run-evals.sh --eval-dir recall 이 감사자가 안 뜬 회차를 통과시켰다 (exit $st)"; exit 1
+  fi
+done
+set +e
+FAKE_RESULT="$h/r-all.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --threshold 0.5 >/dev/null 2>&1
+st=$?
+set -e
+if [ "$st" != 2 ]; then
+  echo "::error::run-evals.sh --eval-dir recall 이 부른 쪽의 --threshold 를 받았다 (exit $st)"; exit 1
+fi
+echo "run-evals.sh --eval-dir recall: 문턱 1.0 하네스에서 놓친 세 회차가 종료 0 · 회수율 0/3, 감사자가 안 뜬 회차는 종료 5, --threshold 는 종료 2"
+
 # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
 # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
 # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
