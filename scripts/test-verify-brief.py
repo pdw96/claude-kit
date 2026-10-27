@@ -12,6 +12,12 @@
 브리핑을 만든다. 그 브리핑은 통과해야 하고, 한 군데씩 흔든 변조본은 떨어져야 한다.
 검사기를 고치고 이것이 안 돌면, 떨어져야 할 것이 통과해도 아무도 모른다.
 
+**세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — `fail` 과 쓰는 법 오류가 변조본, `ok` 가 대조군이다.
+- (가) 돈 수를 `WANT` 와 견준다 — 목록에서 한 줄을 지운 시험이 지나가지 않게.
+- (나) 변조본은 종료 1 · 「FAIL <브리핑> — 」 줄 · 트레이스백 없음일 때만, 쓰는 법 오류는 종료 2 와
+  「ERROR --exclude 뒤에 경로가 없다」 줄일 때만 떨어진 것으로 센다. 검사기가 규칙 ID 를 찍지 않아 어느 규칙인지는 보지 않는다.
+- (다) 대조군은 종료 0 과 「PASS <브리핑> — 」 줄을 함께 본다.
+
 표준 라이브러리만 쓴다.
 """
 import importlib.util
@@ -214,7 +220,17 @@ def run(top, cwd, text, *extra):
     f.parent.mkdir(exist_ok=True)
     f.write_text(text, encoding="utf-8", errors="surrogateescape")
     p = subprocess.run([sys.executable, str(CHECK), str(f), *extra], cwd=cwd, capture_output=True, text=True)
-    return p.returncode, p.stdout
+    # 트레이스백은 표준 오류로 간다 — 「물었다」를 가르려고 함께 돌려준다
+    return p.returncode, p.stdout + p.stderr
+
+
+WANT = (42, 14)  # (가) 변조본(떨어짐 39 · 쓰는 법 3) · 대조군(통과)
+TB = "Traceback (most recent call last)"
+
+
+def head(out, word):
+    """그 낱말로 여는 판정 줄 — 「FAIL <브리핑> — 」 · 「PASS <브리핑> — 」."""
+    return any(ln.startswith(f"{word} ") and " — " in ln for ln in out.splitlines())
 
 
 def main():
@@ -348,25 +364,32 @@ def main():
             ("「담지 않은 것」 절이 없다", good.split("## 이 브리핑이 담지 않은 것")[0], d, ex),
             ("대장을 빼라는 말 없이 돌렸다 — 대장의 변경이 빠진 것으로 보여야", good, d, ()),
         ]
+        ran = [0, 0]
         for name, text, cwd, extra in ok:
             rc, out = run(d256 if cwd == d256 else d, cwd, text, *extra)
-            if rc != 0:
-                bad.append(f"통과해야 했다 — {name}\n{out}")
+            ran[1] += 1
+            if rc != 0 or not head(out, "PASS") or TB in out:
+                bad.append(f"통과해야 했다 — {name} (종료 {rc})\n{out}")
         for name, text, cwd, extra in fail:
             rc, out = run(d, cwd, text, *extra)
-            if rc != 1 or not out.startswith("FAIL"):  # 예외로 죽어도 종료 1 이다 — 판정으로 떨어져야
+            ran[0] += 1
+            if rc != 1 or not head(out, "FAIL") or TB in out:  # 예외로 죽어도 종료 1 이다 — 판정으로 떨어져야
                 bad.append(f"떨어져야 했다 — {name} (종료 {rc})\n{out}")
         # 빈 제외는 `:(top,exclude)` 가 되어 모든 경로를 뺀다 — 쓰는 법 오류로 멈춰야
         for extra in (("--exclude",), ("--exclude", ""), ("--exclude", "/")):
             rc, out = run(d, d, good, *extra)
-            if rc != 2:
+            ran[0] += 1
+            if rc != 2 or "ERROR --exclude 뒤에 경로가 없다" not in out.splitlines() or TB in out:
                 bad.append(f"쓰는 법 오류여야 했다 — {extra} (종료 {rc})\n{out}")
+        if tuple(ran) != WANT:
+            bad.append(f"변조본 {ran[0]} · 대조군 {ran[1]} 이 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — "
+                       "꼴을 지웠거나 더하고 WANT 를 따라 고치지 않았다")
     if bad:
         print(f"FAIL verify-brief.py 가 {len(bad)}건에서 틀렸다")
         for b in bad:
             print("  - " + b.replace("\n", "\n    "))
         return 1
-    print(f"PASS verify-brief.py — 통과 {len(ok)} · 떨어짐 {len(fail)} 모양 모두 맞다")
+    print(f"PASS verify-brief.py — 변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다 — 통과 {len(ok)} · 떨어짐 {len(fail)} · 쓰는 법 3 모양 모두 맞다")
     return 0
 
 

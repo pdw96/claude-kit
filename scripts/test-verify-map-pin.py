@@ -75,11 +75,32 @@ def expect(what, ok, out=""):
         bad.append(f"{what}\n    {out.strip().replace(chr(10), chr(10) + '    ')}")
 
 
+# 꼴의 세 규칙(조각 41 설계 ② C · N · K · ADR 0054). 종료가 0 이 아닌 꼴이 변조본, 0 인 꼴이 대조군이다.
+#   (가) 돈 변조본 · 대조군의 수를 끝에서 WANT 와 견준다 — 꼴 한 줄을 지운 시험이 지나가지 않게.
+#   (나) 변조본은 그 종료와 정확히 같고, 기대한 번호마다 「FAIL [번호] 」로 여는 줄이 있고, 트레이스백이 없을 때만 지나간다.
+#        사용법 거절(2)은 사용법 줄을 본다. 종료 1 인 꼴은 기대한 번호를 꼭 적는다.
+#   (다) 대조군은 종료 0 과 「PASS 절차 지도 판」 줄을 함께 본다.
+# 기대한 번호의 집합은 PASS 줄에 찍는다 — `bite-map-pin.py` 가 검사가 낼 수 있는 번호와 견준다(설계 ② R).
+WANT = (21, 7)
+ran = {"bite": 0, "keep": 0, "ids": set()}
+
+
 def verdict(what, got, rc, ids=(), absent=(), has=()):
     code, out = got
+    lines = out.splitlines()
     expect(f"{what} — exit {code}, 기대 {rc}", code == rc, out)
+    if rc == 0:
+        ran["keep"] += 1
+        expect(f"{what} — 「PASS 절차 지도 판」 줄이 없다", any(ln.startswith("PASS 절차 지도 판") for ln in lines), out)
+    else:
+        ran["bite"] += 1
+        if rc == 2:
+            expect(f"{what} — 사용법 줄이 없다", any(ln.startswith("사용법: ") for ln in lines), out)
+        else:
+            expect(f"{what} — 종료 {rc} 인 꼴에 기대한 번호가 없다(시험을 잘못 적었다)", bool(ids))
     for g in ids:
-        expect(f"{what} — [{g}] 가 없다", f"[{g}]" in out, out)
+        ran["ids"].add(g)
+        expect(f"{what} — 「FAIL [{g}] 」로 여는 줄이 없다", any(ln.startswith(f"FAIL [{g}] ") for ln in lines), out)
     for g in absent:
         expect(f"{what} — {g} 가 있다", g not in out, out)
     for g in has:
@@ -210,12 +231,16 @@ def main():
         commit(r, {SKILL_A: skill("a", url(a))})
         verdict("O2 — LC_ALL=C · PYTHONIOENCODING=cp949 의 실패 꼴", run(r, extra=NON_UTF8), 1, ["M5"])
 
+    got = (ran["bite"], ran["keep"])
+    expect(f"변조본 · 대조군이 {got[0]} · {got[1]} 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — 꼴을 지웠거나 더하고 WANT 를 따라 고치지 않았다",
+           got == WANT)
     if bad:
         print(f"FAIL verify-map-pin.py — {len(bad)}")
         for b in bad:
             print(f"  {b}")
         return 1
-    print("PASS verify-map-pin.py — 박기 · 지도만 · 다시 박기 · 머지 · 작업트리 · M1 ~ M6 · R1 ~ R3 · 인자 · 로케일")
+    print(f"PASS verify-map-pin.py — 변조본 {got[0]} · 대조군 {got[1]} · 번호 {' '.join(sorted(ran['ids']))}"
+          " — 박기 · 지도만 · 다시 박기 · 머지 · 작업트리 · M1 ~ M6 · R1 ~ R3 · 인자 · 로케일")
     return 0
 
 

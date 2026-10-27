@@ -94,16 +94,36 @@ def expect(what, ok, log=""):
         bad.append(f"{what}\n    {log.strip().replace(chr(10), chr(10) + '    ')}")
 
 
-def case(api, out, name, pulls, cached, skip=False, warn=False):
+# 꼴의 세 규칙(조각 41 설계 ② C · N · K · ADR 0054). 「돈다」로 판정해야 하는 꼴(M)과 잘못 부름이 변조본, 건너뛰는 H1 과 probe 둘이
+# 대조군이다.
+#   (가) 돈 변조본 · 대조군의 수를 끝에서 WANT 와 견준다 — 꼴 한 줄을 지운 시험이 지나가지 않게.
+#   (나) M 은 다 hit=false 로 같아, 그 꼴이 내는 까닭(`reason=`)의 글로 좁힌다 — 다른 까닭으로 돈 판정이 그 꼴을 지나가지 않게.
+#        경고가 나는 꼴은 「읽지 못해 돈다」 줄로, 잘못 부름은 사용법 줄로 본다. 트레이스백이 있으면 떨어진다.
+#   (다) 대조군은 종료 0 과 그 길의 줄(「건너뛴다 — 」 · probe 의 읽은 곳 · probe 의 경고)을 함께 본다.
+WANT = (12, 3)
+ran = {"bite": 0, "keep": 0}
+
+
+def case(api, out, name, pulls, cached, skip=False, warn=False, why=""):
     STATE["pulls"], STATE["caches"] = pulls, cached
     code, log, got = run(api, out, KEY)
+    ran["keep" if skip else "bite"] += 1
     expect(f"{name} — exit {code}, 기대 0", code == 0, log)
+    expect(f"{name} — 예외로 끝났다", "Traceback (most recent call last)" not in log, log)
     expect(f"{name} — hit={got.get('hit')}, 기대 {'true' if skip else 'false'}",
            got.get("hit") == ("true" if skip else "false"), log)
     expect(f"{name} — 경고 {'있음' if '::warning::' in log else '없음'}, 기대 {'있음' if warn else '없음'}",
            ("::warning::" in log) == warn, log)
-    if not skip:
-        expect(f"{name} — 돈다인데 까닭이 없다", bool(got.get("reason")), log)
+    if skip:
+        expect(f"{name} — 「건너뛴다 — 」 줄이 없다", any(ln.startswith("건너뛴다 — ") for ln in log.splitlines()), log)
+    else:
+        expect(f"{name} — 시험을 잘못 적었다: 돈다인 꼴에 기대한 까닭이 없다", bool(why))
+        expect(f"{name} — 까닭 「{got.get('reason')}」 에 「{why}」 가 없다", why in got.get("reason", ""), log)
+        expect(f"{name} — 「돈다 — {why}」 를 찍지 않았다",
+               any(ln.startswith("돈다 — ") and why in ln for ln in log.splitlines()), log)
+    if warn:
+        expect(f"{name} — 「읽지 못해 돈다」 경고 줄이 없다",
+               any(ln.startswith("::warning::머지된 PR 의 통과를 읽지 못해 돈다 — ") for ln in log.splitlines()), log)
     return got, log
 
 
@@ -126,28 +146,39 @@ def main():
                    len(seen) == 2 and all(p == w and (q == wq if wq else True) for (p, q, _), (w, wq) in zip(seen, want)), log)
             expect("H1 — 토큰을 Bearer 로 넘기지 않았다", all(a == f"Bearer {TOKEN}" for _, _, a in seen), log)
 
-            case(api, out, "M1 같은 키가 다른 PR 의 merge ref 에만", (200, [pr(7)]), (200, caches(cache(n=8))))
-            case(api, out, "M2 그 merge ref 에 키가 앞부분만 같은 항목", (200, [pr(7)]), (200, caches(cache(key=KEY + "0"))))
-            case(api, out, "M3 PR 이 머지되지 않았다", (200, [pr(7, merged=False)]), (200, caches(cache())))
-            case(api, out, "M4 merge_commit_sha 가 푸시 sha 와 다르다", (200, [pr(7, mcs=OTHER)]), (200, caches(cache())))
-            case(api, out, "M5 base.ref 가 푸시한 가지가 아니다", (200, [pr(7, base="dev")]), (200, caches(cache())))
-            case(api, out, "M6 PR 이 없다", (200, []), (200, caches(cache())))
-            case(api, out, "M7 머지된 PR 이 둘", (200, [pr(7), pr(8)]), (200, caches(cache(n=7), cache(n=8))))
+            case(api, out, "M1 같은 키가 다른 PR 의 merge ref 에만", (200, [pr(7)]), (200, caches(cache(n=8))),
+                 why="PR #7 의 refs/pull/7/merge 에 같은 키가 없다(앞부분이 같은 항목 1)")
+            case(api, out, "M2 그 merge ref 에 키가 앞부분만 같은 항목", (200, [pr(7)]), (200, caches(cache(key=KEY + "0"))),
+                 why="PR #7 의 refs/pull/7/merge 에 같은 키가 없다(앞부분이 같은 항목 1)")
+            case(api, out, "M3 PR 이 머지되지 않았다", (200, [pr(7, merged=False)]), (200, caches(cache())), why="main 의 PR 이 0 개다")
+            case(api, out, "M4 merge_commit_sha 가 푸시 sha 와 다르다", (200, [pr(7, mcs=OTHER)]), (200, caches(cache())),
+                 why="main 의 PR 이 0 개다")
+            case(api, out, "M5 base.ref 가 푸시한 가지가 아니다", (200, [pr(7, base="dev")]), (200, caches(cache())), why="main 의 PR 이 0 개다")
+            case(api, out, "M6 PR 이 없다", (200, []), (200, caches(cache())), why="main 의 PR 이 0 개다")
+            case(api, out, "M7 머지된 PR 이 둘", (200, [pr(7), pr(8)]), (200, caches(cache(n=7), cache(n=8))),
+                 why="main 의 PR 이 2 개다")
             case(api, out, "M8 PR API 403", (403, {"message": "Resource not accessible by integration"}),
-                 (200, caches(cache())), warn=True)
-            case(api, out, "M9 캐시 API 500", (200, [pr(7)]), (500, {"message": "boom"}), warn=True)
-            case(api, out, "M10 JSON 이 아님", (200, b"<html>not json</html>"), (200, caches(cache())), warn=True)
-            case(api, out, "M11 actions_caches 없음", (200, [pr(7)]), (200, {"total_count": 1}), warn=True)
+                 (200, caches(cache())), warn=True, why=f"읽지 못했다 — /repos/{REPO}/commits/{SHA}/pulls — HTTP 403")
+            case(api, out, "M9 캐시 API 500", (200, [pr(7)]), (500, {"message": "boom"}), warn=True,
+                 why=f"읽지 못했다 — /repos/{REPO}/actions/caches — HTTP 500")
+            case(api, out, "M10 JSON 이 아님", (200, b"<html>not json</html>"), (200, caches(cache())), warn=True,
+                 why=f"읽지 못했다 — /repos/{REPO}/commits/{SHA}/pulls — JSON 이 아니다")
+            case(api, out, "M11 actions_caches 없음", (200, [pr(7)]), (200, {"total_count": 1}), warn=True,
+                 why="읽지 못했다 — actions/caches — actions_caches 배열이 없다")
 
             # 인자 — 틀린 부름은 사용법과 2.
             code, log, _ = run(api, out)
+            ran["bite"] += 1
             expect(f"인자 없음 — exit {code}, 기대 2", code == 2, log)
+            expect("인자 없음 — 사용법 줄이 없다", any(ln.startswith("사용법: ") for ln in log.splitlines()), log)
 
             # R1 --probe — 판정에 쓰지 않는다: 끝은 0, $GITHUB_OUTPUT 에 아무것도 안 적는다.
             probe_env = {"PR_NUMBER": "7", "PR_HEAD_SHA": HEAD}
             STATE["pulls"], STATE["caches"] = (200, [pr(7, merged=False, mcs=OTHER)]), (200, caches(cache()))
             code, log, got = run(api, out, "--probe", extra=probe_env)
+            ran["keep"] += 1
             expect(f"probe 정상 — exit {code}, 기대 0", code == 0, log)
+            expect("probe 정상 — 예외로 끝났다", "Traceback (most recent call last)" not in log, log)
             expect("probe 정상 — 경고가 났다", "::warning::" not in log, log)
             expect("probe 정상 — PR 번호와 캐시 개수를 찍지 않았다", "#7" in log and "ref=refs/pull/7/merge — 1 개" in log, log)
             expect(f"probe 정상 — $GITHUB_OUTPUT 에 적었다: {got}", not got, log)
@@ -156,18 +187,24 @@ def main():
 
             STATE["pulls"] = (403, {"message": "Resource not accessible by integration"})
             code, log, got = run(api, out, "--probe", extra=probe_env)
+            ran["keep"] += 1
             expect(f"probe 403 — exit {code}, 기대 0", code == 0, log)
-            expect("probe 403 — 경고가 없다", "::warning::" in log, log)
+            expect("probe 403 — 예외로 끝났다", "Traceback (most recent call last)" not in log, log)
+            expect("probe 403 — 「읽어 보지 못했다」 경고 줄이 없다",
+                   any(ln.startswith("::warning::판정이 쓸 API 를 읽어 보지 못했다 — ") for ln in log.splitlines()), log)
             expect(f"probe 403 — $GITHUB_OUTPUT 에 적었다: {got}", not got, log)
     finally:
         srv.shutdown()
 
+    got = (ran["bite"], ran["keep"])
+    expect(f"변조본 · 대조군이 {got[0]} · {got[1]} 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — 꼴을 지웠거나 더하고 WANT 를 따라 고치지 않았다",
+           got == WANT)
     if bad:
         print(f"FAIL eval-merged-pass.py — {len(bad)}")
         for b in bad:
             print(f"  {b}")
         return 1
-    print("PASS eval-merged-pass.py — H1 · M1 ~ M11 · 인자 · probe 정상 · 403")
+    print(f"PASS eval-merged-pass.py — 변조본 {got[0]} · 대조군 {got[1]} — H1 · M1 ~ M11 · 인자 · probe 정상 · 403")
     return 0
 
 

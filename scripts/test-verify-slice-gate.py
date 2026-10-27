@@ -116,14 +116,39 @@ def expect(what, ok, out=""):
         bad.append(f"{what}\n    {out.strip().replace(chr(10), chr(10) + '    ')}")
 
 
-def verdict(what, got, rc, gids=(), absent=()):
+# 꼴의 세 규칙(조각 41 설계 ② C · N · K · ADR 0054). 종료가 0 이 아닌 꼴이 변조본, 0 인 꼴이 대조군이다.
+#   (가) 돈 변조본 · 대조군의 수를 끝에서 WANT 와 견준다 — 꼴 한 줄을 지운 시험이 지나가지 않게.
+#   (나) 변조본은 그 종료와 정확히 같고, 기대한 번호마다 그 번호로 여는 실패 줄과 「FAIL 설계 → 구현 관문」 줄이 있고, 트레이스백이
+#        없을 때만 지나간다. 사용법 거절(2)은 사용법 줄을 본다. 종료 1 인 꼴은 기대한 번호를 꼭 적는다.
+#   (다) 대조군은 종료 0 과 PASS 줄을 함께 본다. 기준에 마스터플랜이 없는 꼴은 검사가 PASS 대신 「보지 않는다」 줄을 찍는다.
+# 기대한 번호의 집합은 PASS 줄에 찍는다 — `bite-slice-gate.py` 가 검사가 낼 수 있는 번호와 견준다(설계 ② R).
+WANT = (28, 15)
+FAIL_LINE = "FAIL 설계 → 구현 관문"
+PASS_LINE = "PASS 설계 → 구현 관문"
+ran = {"bite": 0, "keep": 0, "ids": set()}
+
+
+def verdict(what, got, rc, gids=(), absent=(), ok=PASS_LINE):
     code, out = got
+    lines = out.splitlines()
     expect(f"{what} — exit {code}, 기대 {rc}", code == rc, out)
+    expect(f"{what} — 예외로 끝났다", "Traceback (most recent call last)" not in out, out)
     # E3 — 출력의 줄은 다 검사가 찍는 꼴이다. 경로의 줄바꿈이 새 줄(워크플로 명령)을 열면 여기서 떨어진다.
-    stray = [ln for ln in out.splitlines() if ln and not ln.startswith(LINES)]
+    stray = [ln for ln in lines if ln and not ln.startswith(LINES)]
     expect(f"{what} — 검사가 찍는 꼴이 아닌 줄이 있다: {stray!r}", not stray, out)
+    if rc == 0:
+        ran["keep"] += 1
+        expect(f"{what} — 「{ok}」 줄이 없다", any(ln.startswith(ok) for ln in lines), out)
+    else:
+        ran["bite"] += 1
+        if rc == 2:
+            expect(f"{what} — 사용법 줄이 없다", any(ln.startswith("사용법: ") for ln in lines), out)
+        else:
+            expect(f"{what} — 종료 {rc} 인 꼴에 기대한 번호가 없다(시험을 잘못 적었다)", bool(gids))
+            expect(f"{what} — 「{FAIL_LINE}」 줄이 없다", any(ln.startswith(FAIL_LINE) for ln in lines), out)
     for g in gids:
-        expect(f"{what} — [{g}] 가 없다", f"[{g}]" in out, out)
+        ran["ids"].add(g)
+        expect(f"{what} — [{g}] 로 여는 실패 줄이 없다", any(ln.startswith(f"[{g}] ") for ln in lines), out)
     for g in absent:
         expect(f"{what} — [{g}] 가 있다", f"[{g}]" not in out, out)
 
@@ -146,10 +171,10 @@ def main():
         tmp = pathlib.Path(t)
         n = iter(range(1000))
 
-        def committed(what, base, files, rc, gids=(), absent=(), master=True):
+        def committed(what, base, files, rc, gids=(), absent=(), master=True, ok=PASS_LINE):
             r = repo(tmp / f"r{next(n)}", base, master)
             commit(r, files)
-            verdict(what, run(r), rc, gids, absent)
+            verdict(what, run(r), rc, gids, absent, ok)
             return r
 
         # 착공 — 결정 문서만
@@ -171,7 +196,8 @@ def main():
                   {"docs/slices/2-two/requirements.md": "요구\n\n## 닫으며 (2026-10-08)\n",
                    "docs/master-plan.md": MASTER.format(extra=DOING.replace("진행", "닫힘")),
                    "docs/procedure.md": "절차 고침\n", "README.md": "입구 고침\n"}, 0)
-        r = committed("기준에 마스터플랜이 없다", base_files(doing=False), {"scripts/x.py": "x\n"}, 0, master=False)
+        r = committed("기준에 마스터플랜이 없다", base_files(doing=False), {"scripts/x.py": "x\n"}, 0, master=False,
+                      ok="기준에 마스터플랜이 없다 — 보지 않는다")
         expect("기준에 마스터플랜이 없다 — 「보지 않는다」를 찍지 않았다", "보지 않는다" in run(r)[1], run(r)[1])
         committed("바꾼 파일이 없다", base_files(doing=False), {}, 0)
         committed("표를 읽지 못하는 기준 마스터플랜(R3)",
@@ -317,12 +343,16 @@ def main():
                            ("--head 값 없음", ["--base", "main", "--head"])]:
             verdict(what, run(r, *args), 2)
 
+    got = (ran["bite"], ran["keep"])
+    expect(f"변조본 · 대조군이 {got[0]} · {got[1]} 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — 꼴을 지웠거나 더하고 WANT 를 따라 고치지 않았다",
+           got == WANT)
     if bad:
         print(f"FAIL verify-slice-gate.py — {len(bad)}")
         for b in bad:
             print(f"  {b}")
         return 1
-    print("PASS verify-slice-gate.py — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 한글 경로 · 로케일 · 잘못 부름")
+    print(f"PASS verify-slice-gate.py — 변조본 {got[0]} · 대조군 {got[1]} · 번호 {' '.join(sorted(ran['ids']))}"
+          " — 착공 · 구현 · 닫는 PR · 기준과 머리 · 작업트리 · 한글 경로 · 로케일 · 잘못 부름")
     return 0
 
 
