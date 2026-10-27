@@ -71,6 +71,19 @@ for ((i = 0; i < ${#args[@]}; i++)); do
       seen_dir=1; EVAL_DIR=recall ;;
   esac
 done
+# 회수율은 문턱이 없다(ADR 0050 의 2). 하네스는 --threshold 가 없으면 1.0 을 써서 한 케이스라도
+# 놓치면 종료 1 이다 — 그래서 0 을 넘긴다. 부른 쪽이 문턱을 주면 재는 모드가 아니므로 받지 않는다.
+# 조각 39 PR D 가 기준선에서 찾았다(설계 끝 「PR D 에서 정한 것」).
+RECALL=()
+if [ "$EVAL_DIR" = recall ]; then
+  for a in "$@"; do
+    case "$a" in
+      --threshold|--threshold=*)
+        echo "--eval-dir recall 은 문턱을 받지 않는다 — 회수율은 재기만 한다" >&2; exit 2 ;;
+    esac
+  done
+  RECALL=(--threshold 0)
+fi
 
 # `claude plugin eval` 의 기본 동시성은 **1** 이다. 한 회차가 감사 한 번
 # 전체(최대 60턴 · 파일 전수 · 250줄짜리 기록)라서, 13 케이스 × 3회를 직렬로
@@ -116,6 +129,7 @@ claude plugin eval ./vibe-audit \
   --json "$OUT/result.json" \
   "${CONC[@]}" \
   "${MODEL[@]}" \
+  "${RECALL[@]}" \
   "$@" 2>&1 | grep --line-buffered -v '^⚠ kept /tmp/claude-eval-'
 status=${PIPESTATUS[0]}
 set -e

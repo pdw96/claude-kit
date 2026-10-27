@@ -205,3 +205,16 @@ B 에 첫 케이스를 싣는 까닭 — 모양 검사와 그 변조본이 물 �
   | R4 | `recall-nul-boundary` | `audit-contract` | 행사 신청 | `schemas.py` · NUL 의 흔적 |
   | R5 | `recall-inactive-code` | `audit-data` | 환불 | `refunds.py` · 꺼짐의 흔적(`is_active` …) |
   | R6 | `recall-downgrade-equal-rows` | `audit-data` | 배송 권역 | `0007_shipping_zone.py` · 지움 · 검사를 지나는 까닭(같은 값 · `NOT EXISTS` …) |
+
+## PR D 에서 정한 것 (2026-10-27)
+
+- **② N 의 결함과 그 고침을 D 에 싣는다 — ⑥ 의 D 줄에 「러너의 문턱」을 더한다.** 기준선 측정(`main` `aadda6b`)이 「회수율 16/18」을 찍고 종료
+  1 로 끝났다. 하네스(`claude plugin eval`)는 `--threshold` 가 없으면 1.0 을 써서 한 케이스라도 1.0 아래면 종료 1 이다 — B 가 그것을 넘기지 않아
+  ② N(「점수로 종료가 바뀌지 않는다」)이 실제 측정에서 깨졌다. B 의 한 회차 확인은 다 찾아 1.0 이라 드러나지 않았다. 고침:
+  - `run-evals.sh` 가 회수율 모드에서 하네스에 `--threshold 0` 을 넘긴다. 부른 쪽이 `--threshold` 를 주면 하네스 전에 종료 2 다 — 재기만 하는 모드다.
+  - `bite-gates.sh` 의 러너 절에 진짜 하네스처럼 「`--threshold` 가 없으면 1.0, 문턱 아래면 종료 1」인 가짜 하네스를 세워, `recall-found` 가 세 회차
+    다 떨어진 결과가 종료 0 · 「회수율 0/3」이고, `auditor-fired` 가 한 회차 떨어지면 종료 5, `--threshold` 는 종료 2 인지 문다. `main` 의 러너는
+    이 절에서 떨어진다.
+  - 측정은 다시 하지 않는다 — 종료코드만 틀렸고 결과 정리(회차 · 모델 · 트레이스 · 회수 줄)는 끝까지 돌았다.
+- **기준선의 놓침은 확인불가로 갔다.** `recall-commit-after-response` 의 놓친 두 회차가 다 그 자리를 U(「커밋이 응답 전송 뒤에 일어나는지」)로 적었다 —
+  정규식은 NC 절만 세므로 놓침이다(③ D 의 D3 와 같은 쪽). 감사자 문구는 이 조각에서 고치지 않는다(요구사항 하지 않을 일 1) — 닫는 기록이 다룬다.
