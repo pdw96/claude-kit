@@ -15,6 +15,7 @@
 # `gates.sh` 가 무엇을 실제로 부르는지 보는 자체 시험(`test-gates.py`)이 무는지(설계 끝 「닫기 전 감사 회차에서 찾은 것」).
 # 맨 끝 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
 # `test-gates.py` 절의 끝은 조각 38 이 더했다 — 고정 목록과 실패 전파가 무는지, 진짜 `gates.sh` 가 지나가는지(조각 38 설계 ② R · V).
+# 절마다의 세 규칙(센 수 · 좁힌 「물었다」 · 대조군의 PASS 줄)과 규칙마다 변조본의 대조 둘은 조각 41 이 더했다 — 아래 sopen · bit · keep · sclose · rgap.
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -76,37 +77,88 @@ fi
 export BITE_MODEL="$model"
 echo "수트 모델: $model (run-evals.sh) — 이름이 겹치는 딴 모델: $near"
 
+# 변조본을 도는 절의 세 규칙(조각 41 설계 ② C · N · K · ADR 0054). 절마다 sopen 으로 열고 sclose 로 닫는다.
+#   (가) sclose 가 돈 변조본 · 대조군의 수를 기대한 수와 견준다 — 목록에서 변조본 한 줄을 지운 사본이 지나가지 않게.
+#   (나) bit 는 그 검사가 그 꼴에 내는 종료와 정확히 같고, 그 검사의 실패 줄이 있고, 트레이스백 · 셸 오류 줄이 없을 때만 「물었다」로
+#        센다. 규칙 ID 를 찍는 검사는 실패 줄에 기대한 ID 를 든다. 검사마다의 실패 줄 꼴은 조각 41 설계 끝 「PR B 에서 정한 것」의 표.
+#   (다) keep 은 종료 0 과 그 검사의 PASS 줄을 함께 본다 — 아무것도 보지 않고 0 으로 끝나는 검사가 대조군을 지나가지 않게.
+# 0 이 아닌 아무 종료를 세던 절은 출력을 버렸다(>/dev/null) — 이제 출력을 받아 실패 줄을 본다.
+PYF='^FAIL'                                    # verify-*.py · test-*.py 의 실패 줄 — 한 줄에 쓰든 `  - ` 줄로 까닭을 잇든 머리는 같다
+SYF='(심지 않았다|심지 않는다|하지 않는다)\.?' # sync-agents.sh(--merge 아닌 길)의 거절 줄 — 거절마다 그 말로 끝맺는다
+RVF='^FAIL '                                   # run-evals.sh 의 실패 줄 — 종료 3 · 5 · 6 이 다 「FAIL 」로 연다
+NSEC=0
+sopen() { SEC=$1; SB=0; SK=0; }
+sclose() {  # $1=기대한 변조본 수 $2=기대한 대조군 수
+  if [ "$SB" != "$1" ] || [ "$SK" != "$2" ]; then
+    echo "::error::$SEC — 변조본 $SB · 대조군 $SK 이 돌았다, $1 · $2 이어야 한다"; exit 1
+  fi
+  NSEC=$((NSEC + 1))
+}
+BO="$tmp/bite.out"
+brun() { set +e; "$@" >"$BO" 2>&1; bst=$?; set -e; }
+crash() {  # $1=출력 파일 — 파이썬 트레이스백이나, 시험하는 셸 스크립트 자신의 실행 오류(줄 번호를 단 bash 의 말)가 있는가.
+  # 검사가 전하는 남의 bash 오류(verify-evals.py 가 픽스처의 `bash -n` 을 옮기는 것 따위)는 세지 않는다.
+  grep -qE '^Traceback \(most recent call last\)|(sync-agents|gates|run-evals)\.sh: line [0-9]+: ' "${1:-$BO}"
+}
+bit() {  # $1=기대한 종료 $2=실패 줄(grep -E) $3=이름 $4…=명령(env 로 환경을 준다)
+  local want=$1 re=$2 name=$3; shift 3
+  brun "$@"
+  if [ "$bst" != "$want" ] || ! grep -qE -- "$re" "$BO" || crash; then
+    echo "::error::$SEC — 「$name」을 그 규칙으로 물지 않았다 (종료 $bst · $want 이어야, 실패 줄 /$re/)"; tail -8 "$BO"; exit 1
+  fi
+  SB=$((SB + 1))
+}
+keep() {  # $1=PASS 줄(grep -E) $2=이름 $3…=명령
+  local re=$1 name=$2; shift 2
+  brun "$@"
+  if [ "$bst" != 0 ] || ! grep -qE -- "$re" "$BO" || crash; then
+    echo "::error::$SEC — 대조군 「$name」이 종료 0 과 PASS 줄로 지나가지 않았다 (종료 $bst, PASS 줄 /$re/)"; tail -8 "$BO"; exit 1
+  fi
+  SK=$((SK + 1))
+}
+# 규칙마다 변조본(설계 ② R) — 검사가 낼 수 있는 ID 가운데 시험 파일의 변조본이 기대하지 않는 것을 찍는다. 주석 줄은 보지 않는다.
+# 읽은 ID 가 하나도 없으면 「읽는 법이 낡았다」로 종료 1 — 빈 목록끼리 견주어 지나가지 않게.
+rgap() {  # $1=검사 $2=그 ID 를 읽는 정규식(묶음 1) $3=시험 파일 $4=변조본이 기대한 ID 를 읽는 정규식(묶음 1)
+  python3 - "$@" <<'PY'
+import pathlib, re, sys
+chk, cre, tst, tre = sys.argv[1:]
+code = lambda p: "\n".join(l for l in pathlib.Path(p).read_text(encoding="utf-8").split("\n") if not l.lstrip().startswith("#"))
+have, want = set(re.findall(cre, code(chk), re.M)), set(re.findall(tre, code(tst), re.M))
+if not have or not want:
+    sys.exit(f"{chk} 의 ID({len(have)}) 나 {tst} 의 기대 ID({len(want)}) 를 하나도 못 읽었다 — 읽는 정규식이 낡았다")
+print(" ".join(sorted(have - want)))
+PY
+}
+
 # verify-copy.py — tools 를 변조한 사본은 실패해야 한다
-python3 scripts/verify-copy.py vibe-audit/agents
+sopen "verify-copy.py(사본 · 원본 폴더)"
+keep '^PASS 감사자 6개' "고치지 않은 원본" python3 scripts/verify-copy.py vibe-audit/agents
+cat "$BO"
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
 sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-secrets.md"
-if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 tools 변조를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "tools 변조" python3 scripts/verify-copy.py "$t"
 # verify-copy.py — 원본 폴더에 감사자가 아닌 에이전트가 있으면 실패해야 한다(Codex 33차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
 printf -- '---\nname: helper\ndescription: x\ntools: ["Read", "Edit", "Write"]\n---\n' > "$t/helper.md"
-if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 감사자가 아닌 에이전트가 섞인 원본을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "감사자가 아닌 에이전트가 섞인 원본" python3 scripts/verify-copy.py "$t" "$t"
 # README.md 라는 이름도 예외가 아니다 — 플러그인에서는 agents/*.md 가 다 에이전트다(Codex 34차)
 rm "$t/helper.md"; printf -- '---\nname: readme\ndescription: x\ntools: ["Read", "Edit", "Write"]\n---\n' > "$t/README.md"
-if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 README.md 로 숨긴 에이전트를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "README.md 로 숨긴 에이전트" python3 scripts/verify-copy.py "$t" "$t"
 # 원본 감사자의 머리말 name 이 파일 이름과 다르면 실패해야 한다(Codex 35차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
 sed -i '0,/^name: .*/s//name: audit-opx/' "$t/audit-ops.md"
-if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 name 이 파일 이름과 다른 원본 감사자를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "name 이 파일 이름과 다른 원본 감사자" python3 scripts/verify-copy.py "$t" "$t"
+sclose 4 1
 
 # sync-agents.sh — 대장에 있는 사본에 커맨드만 빠졌으면 **아무것도 쓰지 않고** 멈춰야 한다.
 # 빠진 것만 심으면 그 파일이 옛 synced_commit 아래 들어가 대조 밖에 남는다(Codex 28차).
 # --force 면 다 덮고 대장을 이 커밋으로 옮긴다. 감사자가 다 있어 첫 고리가 전부
 # 건너뛰면 HDR 이 안 정해져 `set -u` 로 죽던 것(18차)도 --force 쪽에서 같이 본다
+# 거절 꼴(변조본)은 종료 1 과 거절 줄($SYF)에 흔적 없음을, 심는 꼴(대조군)은 종료 0 과 호출 줄에 심은 결과를 본다.
+sopen "sync-agents.sh(기본 · --force)"
+SYOK='^  호출: @audit-'   # 심은 뒤 찍는 호출 줄 — 심는 길의 PASS 줄
 c=$(mktemp -d); git clone -q "$R" "$c/src"; mkdir -p "$c/svc"
-HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" >/dev/null
+keep "$SYOK" "빈 자리에 심기" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc"
 # 대장에는 홈 기준 경로를 적는다 — 절대 경로는 계정 이름 · 비공개 디렉터리를 커밋에 남긴다
 if ! grep -q '"agents_path": "~/svc/.claude/agents"' "$c/src/copies.json"; then
   echo "::error::sync-agents.sh 가 대장에 홈 기준이 아닌 경로를 적었다"; cat "$c/src/copies.json"; exit 1
@@ -115,54 +167,53 @@ fi
 if [ ! -f "$c/svc/.claude/scripts/verify-brief.py" ]; then
   echo "::error::sync-agents.sh 가 브리핑 검사기를 심지 않았다"; exit 1
 fi
+sytrace() {  # $1=있으면 안 되는 자리 … — 거절한 실행이 남긴 흔적
+  local p; for p in "$@"; do
+    if [ -e "$p" ]; then echo "::error::$SEC — 거절했는데 $p 가 생겼다"; cat "$BO"; exit 1; fi
+  done
+}
 rm "$c/svc/.claude/commands/audit-brief.md"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
-  echo "::error::sync-agents.sh 가 일부만 있는 사본에 빠진 커맨드만 심었다"; cat "$c/out"; exit 1
-fi
-if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
-  echo "::error::sync-agents.sh --force 가 빠진 커맨드를 못 심었다"; cat "$c/out"; exit 1
+bit 1 "$SYF" "일부만 있는 사본에 빠진 커맨드만 심기" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc"
+sytrace "$c/svc/.claude/commands/audit-brief.md"
+keep "$SYOK" "--force 가 빠진 커맨드를 심음" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force
+if [ ! -f "$c/svc/.claude/commands/audit-brief.md" ]; then
+  echo "::error::sync-agents.sh --force 가 빠진 커맨드를 못 심었다"; cat "$BO"; exit 1
 fi
 # 심을 폴더 자리에 파일이 있으면 **아무것도 쓰기 전에** 멈춰야 한다 — 앞 폴더에 다 심고
 # mkdir 에서 죽으면 대장에 없는 반쪽 사본이 남는다(Codex 리뷰)
 mkdir -p "$c/svc3/.claude"; : > "$c/svc3/.claude/scripts"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc3" >"$c/out" 2>&1 || [ -e "$c/svc3/.claude/agents" ]; then
-  echo "::error::sync-agents.sh 가 폴더 자리의 파일을 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "폴더 자리의 파일" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc3"
+sytrace "$c/svc3/.claude/agents"
 # 심을 파일 자리에 끊긴 링크가 있어도 쓰기 전에 멈춰야 한다 — `-e` 로는 없는 것처럼 보여
 # 앞 폴더에 다 심고 cp 에서 죽었다(Codex 리뷰)
 mkdir -p "$c/svc4/.claude/scripts"; ln -s nowhere "$c/svc4/.claude/scripts/verify-brief.py"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc4" >"$c/out" 2>&1 || [ -e "$c/svc4/.claude/agents" ]; then
-  echo "::error::sync-agents.sh 가 끊긴 링크 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "끊긴 링크 자리" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc4"
+sytrace "$c/svc4/.claude/agents"
 # 파일 자리에 폴더가 있으면 --force 여도 쓰기 전에 멈춰야 한다 — cp 가 그 폴더 안에 심고
 # 성공한 것으로 대장을 옮겼다(Codex 리뷰)
 mkdir -p "$c/svc5/.claude/scripts/verify-brief.py"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc5" --force >"$c/out" 2>&1 || [ -e "$c/svc5/.claude/agents" ]; then
-  echo "::error::sync-agents.sh --force 가 파일 자리의 폴더를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "--force 의 파일 자리의 폴더" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc5" --force
+sytrace "$c/svc5/.claude/agents"
 # 폴더 자리가 바깥 폴더를 가리키는 링크여도 쓰기 전에 멈춰야 한다 — `-d` 는 링크를 따라가
 # 바깥에 심고 대장을 옮겼다(Codex 리뷰)
 mkdir -p "$c/svc6/.claude" "$c/outside"; ln -s "$c/outside" "$c/svc6/.claude/scripts"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc6" >"$c/out" 2>&1 || [ -e "$c/svc6/.claude/agents" ] || [ -n "$(ls -A "$c/outside")" ]; then
-  echo "::error::sync-agents.sh 가 링크로 된 폴더 자리를 쓰기 전에 못 봤다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "링크로 된 폴더 자리" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc6"
+sytrace "$c/svc6/.claude/agents"
+if [ -n "$(ls -A "$c/outside")" ]; then echo "::error::sync-agents.sh 가 링크 너머 바깥 폴더에 썼다"; exit 1; fi
 # --force 는 원본에서 물러난 커맨드를 사본에서 지워야 한다 — 남으면 옛 커맨드가 불리고 대장만 새 커밋을 적는다(Codex 29차)
 (cd "$c/src" && git rm -q vibe-audit/commands/audit-brief.md && git -c user.name=t -c user.email=t@t commit -qm retire)
-if ! HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1 || [ -e "$c/svc/.claude/commands/audit-brief.md" ]; then
-  echo "::error::sync-agents.sh --force 가 원본에서 물러난 커맨드를 남겼다"; cat "$c/out"; exit 1
-fi
+keep "$SYOK" "--force 가 물러난 커맨드를 지움" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc" --force
+sytrace "$c/svc/.claude/commands/audit-brief.md"
 # --force 는 얕은 복제에서 거절해야 한다 — 경계 앞에서 물러난 것을 못 본다(Codex 32차)
 git clone -q --depth 1 "file://$c/src" "$c/shallow"
-if HOME="$c" "$c/shallow/scripts/sync-agents.sh" "$c/svc" --force >"$c/out" 2>&1; then
-  echo "::error::sync-agents.sh --force 가 얕은 복제에서 돌았다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "얕은 복제의 --force" env HOME="$c" "$c/shallow/scripts/sync-agents.sh" "$c/svc" --force
 # 무시된(ignored) 원본 파일은 심지 않아야 한다 — HEAD 에 없어 출처가 없다(Codex 34차)
 mkdir -p "$c/svc2" "$c/src/vibe-audit/commands"; echo 'vibe-audit/commands/local.md' >> "$c/src/.git/info/exclude"
 printf -- '---\ndescription: x\n---\n' > "$c/src/vibe-audit/commands/local.md"
-if HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc2" >"$c/out" 2>&1 || [ -e "$c/svc2/.claude/commands/local.md" ]; then
-  echo "::error::sync-agents.sh 가 HEAD 에 없는 무시된 커맨드를 심었다"; cat "$c/out"; exit 1
-fi
+bit 1 "$SYF" "HEAD 에 없는 무시된 커맨드" env HOME="$c" "$c/src/scripts/sync-agents.sh" "$c/svc2"
+sytrace "$c/svc2/.claude/commands/local.md"
 rm "$c/src/vibe-audit/commands/local.md"
+sclose 7 3
 
 # sync-agents.sh --merge — 조각 27 설계 ② 「시험」. 꼴마다 새 고정물 F 에서 돈다: src(이 저장소의 clone) · svc(src 의 커밋 A 로
 # 심은 사본 레포 — 감사자 하나의 특화 · README 를 다시 쓴 꼴 · 레포 고유 파일) · remote.git(svc 의 bare 원격, 기본 가지 main).
@@ -251,8 +302,10 @@ mcode() {  # $1=꼴 $2=코드 — 이유 코드 줄이 그것 하나
 mrefuse() {  # $1=기대 코드 $2=꼴 [$3…=인자] — V1
   local code=$1 name=$2; shift 2
   msnap; mrun "$@"
-  if [ "$mrc" -eq 0 ]; then mfail "$name: 종료 0 — 멈춰야 한다"; return; fi
-  if [ "$code" = merge:force-and-merge ] && [ "$mrc" -ne 2 ]; then mfail "$name: 종료 $mrc — 2 여야 한다"; return; fi
+  # 그 꼴의 종료와 정확히 — 인자의 거절(P1 의 둘)은 2, 그 밖의 멈춤은 1. 0 이 아닌 아무 종료를 세지 않는다(조각 41 설계 ② N1)
+  local rc=1; case "$code" in merge:force-and-merge|merge:no-target) rc=2 ;; esac
+  if [ "$mrc" -ne "$rc" ]; then mfail "$name: 종료 $mrc — $rc 여야 한다"; return; fi
+  if crash "$F/out"; then mfail "$name: 트레이스백이나 셸 오류 줄이 있다"; return; fi
   mcode "$name" "$code" || return 0
   msame || { mfail "$name: 사본 · 대장 · 사본 레포 상태가 그대로가 아니다"; return; }
   mtidy "$name" "$code" || return 0
@@ -477,14 +530,21 @@ if [ "$(mcodes "$mt/src/scripts/sync-agents.sh" "$F/cut.sh")" != merge:shallow ]
 if [ -n "$MFAILS" ]; then
   echo "::error::sync-agents.sh --merge 의 꼴 $(printf '%s' "$MFAILS" | grep -c .) 이 떨어졌다 (지나간 꼴 $mpass):"; printf '%s' "$MFAILS"; exit 1
 fi
-echo "sync-agents.sh --merge: 꼴 $mpass 다 지나감 — 거절은 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
+# 센 수(조각 41 설계 ② C) — 고정 꼴 MFIXED 와, 사본 파일마다 도는 T5c · T5d · T5e 셋. 꼴 한 줄을 지운 절은 여기서 떨어진다.
+# 파일마다의 몫은 사본 파일의 수(MNAMES)로 센다 — 플러그인에 파일이 늘면 그 꼴도 함께 는다.
+MFIXED=54
+mn=$(grep -c . <<<"$MNAMES")
+if [ "$mpass" != $((MFIXED + 3 * mn)) ]; then
+  echo "::error::sync-agents.sh --merge 의 꼴이 $mpass 돌았다 — $((MFIXED + 3 * mn))(고정 $MFIXED · 사본 파일 $mn 마다 셋) 이어야 한다"; exit 1
+fi
+NSEC=$((NSEC + 1))
+echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 셋) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
 
 # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
+sopen "verify-evals.py · verify-graders.py(수트)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 rm "$s"/vibe-audit/evals/*/graders/real-nc-found.md
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 대조군 없는 수트를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "대조군 없는 수트" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — input_match 가 subagent_type 에 안 걸린 그레이더는 실패해야 한다.
 # 이름만 적으면 입력 어디에 적혀 있기만 해도 뜬 것으로 센다. 공백을 넣은 JSON 은
@@ -494,51 +554,41 @@ for mut in \
   "s/\"subagent_type\":\"/\"subagent_type\": \"/"; do
   s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
   sed -i "$mut" "$s/vibe-audit/evals/route-contract/graders/route-not-data.md"
-  if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-    echo "::error::verify-evals.py 가 subagent_type 에 안 걸린 input_match 를 통과시켰다 ($mut)"; exit 1
-  fi
+  bit 1 "$PYF" "subagent_type 에 안 걸린 input_match ($mut)" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 done
 
 # verify-evals.py — route-quiet 이 감사자 하나만 짚으면 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/"vibe-audit:'"'"'$/"vibe-audit:audit-data"'"'"'/' "$s/vibe-audit/evals/route-quiet/graders/route-quiet.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 하나만 짚는 route-quiet 을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "하나만 짚는 route-quiet" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-graders.py — 함정을 못 무는 그레이더는 실패해야 한다
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
 sed -i 's/NC-3\\\\b/NC-9\\\\b/' "$g/vibe-audit/evals/cycle-continuity/graders/trap-no-false-resolved.md"
-if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-graders.py 가 못 무는 그레이더를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "못 무는 그레이더" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
 
 # verify-graders.py — pass.md 밖의 바른 기록(pass-*.md)에서 떨어지는 그레이더는 실패해야 한다.
 # pass.md 만 보던 판은 이것을 지나보냈다. 수트 안의 pass-*.md 에 기대지 않고 pass.md 를
 # 베껴 report.py 줄을 뺀다 — gate-escalated-perf 하나만 떨어진다(조각 21, ADR 0031).
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
 grep -v 'report\.py' "$g/vibe-audit/evals/gap-unowned/samples/pass.md" > "$g/vibe-audit/evals/gap-unowned/samples/pass-bite.md"
-if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-graders.py 가 pass-*.md 에서 떨어지는 그레이더를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "pass-*.md 에서 떨어지는 그레이더" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
+sclose 6 0
 
 # 회수율 케이스(조각 39 설계 ② M · ⑤ R1 · R2 · 설계 끝 「닫기 전 감사 회차에서 찾은 것」). 회수율 폴더의 사본에서 조건마다 한 자리를
 # 흔들어 그 검사가 떨어져야 하고, 고치지 않은 사본과 회수율 폴더가 없는 트리는 지나가야 한다. 흔드는 명령은 사본의 회수율 폴더에서
 # 돈다($C 는 케이스 이름). 「물었다」는 종료 1 과 그 조건의 FAIL 글이 함께 있을 때만이다 — 다른 규칙이 같은 변조본을 떨어뜨려도
 # 모르는 일이 없게(감사 회차 6 NC-4 · OB-1). 끝에 센 수를 기대한 수와 견준다.
+sopen "회수율 케이스(verify-evals.py · verify-graders.py)"
 C=recall-commit-after-response
-rn=0
 rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령  $4=그 조건의 FAIL 글(고정 문자열)
-  local s o st; s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
+  local s; s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
   ( cd "$s/vibe-audit/recall" && eval "$3" )
-  set +e
-  o=$(python3 "scripts/verify-$1.py" "$s/vibe-audit/recall" 2>&1)
-  st=$?
-  set -e
-  if [ "$st" != 1 ] || ! grep -F -- "$4" <<<"$o" | grep -q '^FAIL '; then
-    echo "::error::verify-$1.py 가 회수율 변조본 「$2」을 그 조건으로 떨어뜨리지 않았다 (종료 $st, 기대한 FAIL 글: $4)"; printf '%s\n' "$o" | tail -5; exit 1
+  brun python3 "scripts/verify-$1.py" "$s/vibe-audit/recall"
+  if [ "$bst" != 1 ] || ! grep -F -- "$4" "$BO" | grep -q '^FAIL ' || crash; then
+    echo "::error::verify-$1.py 가 회수율 변조본 「$2」을 그 조건으로 떨어뜨리지 않았다 (종료 $bst, 기대한 FAIL 글: $4)"; tail -5 "$BO"; exit 1
   fi
-  rn=$((rn + 1))
+  SB=$((SB + 1))
 }
 rbite evals   "이름이 recall- 가 아님(M1)"          'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml' '이름은 recall- 로 시작한다'
 rbite evals   "감사자를 지목하지 않음(M1)"           'sed -i "s/audit-data/감사자/" $C/prompt.md' '지목해야 한다 — 지금 없음'
@@ -568,59 +618,50 @@ rbite graders "fail 표본 없음(M6)"                   'rm $C/samples/fail*.md
 rbite graders "pass 표본 없음(M6)"                   'rm $C/samples/pass.md' 'samples/pass.md 이 없다'
 rbite graders "표본 폴더 없음(M6)"                   'rm -r $C/samples' '회수율 케이스에 samples/ 가 없다'
 rbite graders "아무 NC 나 받는 정규식(M6)"           'python3 -c "import pathlib,re; p=pathlib.Path(\"$C/graders/recall-found.md\"); p.write_text(re.sub(r\"(?m)^pattern: .*$\", lambda m: \"pattern: \\\"### NC-\\\\\\\\d+\\\"\", p.read_text()))"' '함정을 밟은 기록'
-[ "$rn" = 28 ] || { echo "::error::회수율 변조본이 $rn 개 돌았다 — 28 이어야 한다(verify-evals.py 스물넷 · verify-graders.py 넷)"; exit 1; }
 # 인자 없는 길 — gates.sh 와 러너가 부르는 꼴(감사 회차 6 NC-3). 트리를 통째로 베껴 회수율 케이스 하나를 깨뜨리고, 폴더를 주지 않고
 # 부른다. 회수율 폴더를 보지 않거나 그 종료를 버리는 인자 없는 길이면 여기서 떨어진다.
-nn=0
 for m in "evals|sed -i '/^  출처:/d' vibe-audit/recall/$C/case.yaml|「출처:」 줄이 없다" \
          "graders|rm vibe-audit/recall/$C/samples/fail-missed.md vibe-audit/recall/$C/samples/fail-observation.md|samples/fail*.md 이 하나도 없다"; do
   chk=${m%%|*}; rest=${m#*|}; cmd=${rest%%|*}; want=${rest#*|}
   u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
   ( cd "$u" && eval "$cmd" )
-  set +e
-  o=$(python3 "$u/scripts/verify-$chk.py" 2>&1)
-  st=$?
-  set -e
-  if [ "$st" != 1 ] || ! grep -F -- "$want" <<<"$o" | grep -q '^FAIL '; then
-    echo "::error::verify-$chk.py 가 인자 없이 깨진 회수율 케이스를 떨어뜨리지 않았다 (종료 $st)"; printf '%s\n' "$o" | tail -5; exit 1
+  brun python3 "$u/scripts/verify-$chk.py"
+  if [ "$bst" != 1 ] || ! grep -F -- "$want" "$BO" | grep -q '^FAIL ' || crash; then
+    echo "::error::verify-$chk.py 가 인자 없이 깨진 회수율 케이스를 떨어뜨리지 않았다 (종료 $bst)"; tail -5 "$BO"; exit 1
   fi
-  nn=$((nn + 1))
+  SB=$((SB + 1))
 done
 # 대조군 — 고치지 않은 회수율 사본은 두 검사를 종료 0 과 PASS 줄로 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
 for chk in evals graders; do
-  if ! out=$(python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall" 2>&1) || ! grep -q '^PASS 회수율 케이스 6개' <<<"$out"; then
-    echo "::error::verify-$chk.py 가 고치지 않은 회수율 폴더를 떨어뜨렸거나 PASS 줄을 찍지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
-  fi
+  keep '^PASS 회수율 케이스 6개' "verify-$chk.py 에 고치지 않은 회수율 사본" python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall"
 done
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"; rm -rf "$u/vibe-audit/recall"
 for chk in evals graders; do
-  if ! out=$(python3 "$u/scripts/verify-$chk.py" 2>&1) || ! grep -q '^PASS 회수율 케이스 0개' <<<"$out"; then
-    echo "::error::verify-$chk.py 가 회수율 폴더 없는 트리를 「0개」로 지나보내지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
-  fi
+  keep '^PASS 회수율 케이스 0개' "verify-$chk.py 에 회수율 폴더 없는 트리(인자 없이)" python3 "$u/scripts/verify-$chk.py"
 done
-echo "회수율 케이스: 변조본 $rn 이 그 조건의 FAIL 글로 떨어지고(verify-evals.py 스물넷 · verify-graders.py 넷), 인자 없는 길의 변조본 $nn 이 떨어지고, 고치지 않은 사본(PASS 줄)과 회수율 폴더 없는 트리가 지나감"
+sclose 30 4   # 폴더를 주는 변조본 28(verify-evals.py 스물넷 · verify-graders.py 넷) · 인자 없는 길 2 / 대조군 둘씩 둘
+echo "회수율 케이스: 변조본 $SB(폴더를 주는 꼴과 인자 없는 길)이 그 조건의 FAIL 글로 떨어지고, 대조군 $SK(고치지 않은 사본 · 회수율 폴더 없는 트리)이 PASS 줄로 지나감"
 
 # verify-budget.py — 문구가 자란 사본은 실패해야 한다
+sopen "verify-budget.py · verify-manifest.py"
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
 python3 -c "
 import pathlib
 p = pathlib.Path('$u/vibe-audit/agents/audit-secrets.md')
 p.write_text(p.read_text() + '\n' + '규칙을 더 붙인다. ' * 200)
 "
-if python3 "$u/scripts/verify-budget.py" >/dev/null 2>&1; then
-  echo "::error::verify-budget.py 가 자란 문구를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "자란 문구" python3 "$u/scripts/verify-budget.py"
 
 # verify-manifest.py — 선언한 라이선스의 파일이 없으면 실패해야 한다
 m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
 rm "$m/LICENSE"
-if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
-  echo "::error::verify-manifest.py 가 LICENSE 없는 선언을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "LICENSE 없는 선언" python3 "$m/scripts/verify-manifest.py"
+sclose 2 0
 
 # verify-copies.py — 이 저장소에 없는 커밋을 적은 대장은 실패해야 한다.
-# 이 검사는 git 이력을 보므로 사본이 아니라 제자리에서 흔들고 되돌린다.
+# 이 검사는 git 이력을 보므로 사본이 아니라 제자리에서 흔들고 되돌린다. 떨어져 끝나면 trap 이 되돌린다(undo_all).
+sopen "verify-copies.py(제자리)"
 hold copies.json
 python3 - <<'PY'
 import json, pathlib
@@ -630,10 +671,7 @@ d["copies"].append({"repo": "없는-레포", "agents_path": "/없는/자리",
                     "synced_commit": "0" * 40, "synced_at": "2026-01-01"})
 p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
-if python3 scripts/verify-copies.py >/dev/null 2>&1; then
-  undo copies.json
-  echo "::error::verify-copies.py 가 없는 커밋을 적은 대장을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "없는 커밋을 적은 대장" python3 scripts/verify-copies.py
 undo copies.json
 
 # 체크아웃이 얕으면 실패한다. verify-copies.py 는 대장의 synced_commit 을 이
@@ -673,39 +711,30 @@ d["copies"].append({"repo": "흔드는-사본", "agents_path": sys.argv[1],
                     "synced_commit": sys.argv[2], "synced_at": "2026-01-01"})
 p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
-if ! python3 scripts/verify-copies.py; then
-  undo copies.json
-  echo "::error::verify-copies.py 가 HEAD~1 에서 그대로 심은 사본을 떨어뜨렸다 — 체크아웃이 얕은가"; exit 1
-fi
+keep '^PASS 사본 [0-9]+개' "그 커밋에서 그대로 심은 사본(체크아웃이 얕으면 떨어진다)" python3 scripts/verify-copies.py
+cat "$BO"
 # 감사자의 머리말 name 을 바꾼 사본도 실패해야 한다 — 문서가 적은 이름으로 안 불린다
 cp "$c/.claude/agents/audit-secrets.md" "$c/keep.md"
 sed -i '0,/^name: .*/s//name: renamed-secrets/' "$c/.claude/agents/audit-secrets.md"
-if python3 scripts/verify-copies.py >/dev/null 2>&1; then
-  undo copies.json
-  echo "::error::verify-copies.py 가 name 을 바꾼 감사자 사본을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "name 을 바꾼 감사자 사본" python3 scripts/verify-copies.py
 mv "$c/keep.md" "$c/.claude/agents/audit-secrets.md"
 rm "$c/.claude/commands/audit-brief.md"
-if python3 scripts/verify-copies.py >/dev/null 2>&1; then
-  undo copies.json
-  echo "::error::verify-copies.py 가 /audit-brief 가 빠진 사본을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "/audit-brief 가 빠진 사본" python3 scripts/verify-copies.py
 # 검사기가 빠진 사본도 실패해야 한다. 적는 커밋은 검사기를 가진 것으로 골랐다 —
 # 없는 커밋을 고르면 이 변조가 늘 건너뛰어져 아무것도 안 본다(Codex 리뷰)
 if [ ! -f "$c/.claude/scripts/verify-brief.py" ]; then
-  undo copies.json
   echo "::error::적는 커밋 $old 에 브리핑 검사기가 없다 — 검사기 빠진 사본 변조를 못 한다"; exit 1
 fi
 git show "$old:vibe-audit/commands/audit-brief.md" > "$c/.claude/commands/audit-brief.md"
 rm "$c/.claude/scripts/verify-brief.py"
-if python3 scripts/verify-copies.py >/dev/null 2>&1; then
-  undo copies.json
-  echo "::error::verify-copies.py 가 브리핑 검사기가 빠진 사본을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "브리핑 검사기가 빠진 사본" python3 scripts/verify-copies.py
 undo copies.json
+sclose 4 1
 
 # verify-copies.py — 사본 줄이 그 뒤 바뀐 원본 파일의 이름을 찍어야 한다(조각 15 설계 ② V2). 경로가 없는 줄
-# (CI 의 꼴)에 커맨드를 마지막으로 고친 커밋의 부모를 적으면, 그 커밋이 고친 커맨드 이름이 그 줄에 나와야 한다.
+# (CI 의 꼴)에 커맨드를 마지막으로 고친 커밋의 부모를 적으면, 그 커밋이 고친 커맨드 이름이 그 줄에 나와야 한다. 닿지 않는 사본 줄은
+# 판정 밖이라 종료 0 과 PASS 줄이다 — 그 실행에 이름이 찍혔는지를 하나로 센다.
+sopen "verify-copies.py(바뀐 원본 이름)"
 k=$(git log -1 --no-merges --format=%H -- vibe-audit/commands/)
 want=$(git diff --name-only "$k^" "$k" -- vibe-audit/commands/ | sed 's#.*/##')
 if [ -z "$k" ] || [ -z "$want" ]; then
@@ -720,7 +749,8 @@ d["copies"].append({"repo": "이름-보는-사본", "agents_path": "/없는/자�
                     "synced_commit": sys.argv[1], "synced_at": "2026-01-01"})
 p.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
-line=$(python3 scripts/verify-copies.py 2>&1 | grep '이름-보는-사본:' || true)
+keep '^PASS 사본 [0-9]+개' "닿지 않는 사본 줄이 든 대장" python3 scripts/verify-copies.py
+line=$(grep '이름-보는-사본:' "$BO" || true)
 undo copies.json
 for n in $want; do
   case "$line" in
@@ -728,9 +758,11 @@ for n in $want; do
     *) echo "::error::verify-copies.py 가 그 뒤 바뀐 원본 $n 의 이름을 사본 줄에 안 찍었다 — $line"; exit 1 ;;
   esac
 done
+sclose 0 1
 
 # verify-feedback.py — 성하지 않은 후보 대장은 실패해야 한다(docs/schema.md 의 규칙).
-# 같은 모양의 성한 대장은 통과해야 한다 — 다 떨어뜨리는 검사도 무는 것처럼 보인다.
+# 같은 모양의 성한 대장은 통과해야 한다 — 다 떨어뜨리는 검사도 무는 것처럼 보인다. 나쁜 대장은 glob 으로 돌고 끝에 센다.
+sopen "verify-feedback.py"
 fb=$(mktemp -d)
 python3 - "$fb" "$(git rev-parse HEAD)" <<'PY'
 import copy, json, pathlib, sys
@@ -756,16 +788,15 @@ bad("feedback-not-fed", lambda c: c.update(status="defect"))
 bad("files-folder", lambda c: c["seen"][0].update(files=["commands/audit-brief.md"]))
 bad("files-ext", lambda c: c["seen"][0].update(files=["sync.sh"]))
 PY
-python3 scripts/verify-feedback.py "$fb/ok.json" >/dev/null || {
-  echo "::error::verify-feedback.py 가 성한 대장을 떨어뜨렸다"; python3 scripts/verify-feedback.py "$fb/ok.json"; exit 1; }
+keep '^PASS 후보 1 ' "성한 대장" python3 scripts/verify-feedback.py "$fb/ok.json"
 for f in "$fb"/bad-*.json; do
-  if python3 scripts/verify-feedback.py "$f" >/dev/null 2>&1; then
-    echo "::error::verify-feedback.py 가 $(basename "$f" .json) 대장을 통과시켰다"; exit 1
-  fi
+  bit 1 "$PYF" "$(basename "$f" .json) 대장" python3 scripts/verify-feedback.py "$f"
 done
+sclose 11 1
 
 # test-compare-copies.py — 비교기를 한 군데씩 망가뜨리면 자체 시험이 떨어져야 한다.
 # 그 시험이 무는지를 따로 묻지 않으면, 시험이 비어도 gates.sh 는 초록이다.
+sopen "test-compare-copies.py"
 cc=$(mktemp -d)
 for m in 'if behind != "0":|if False:' \
          'if dirty:|if False:' \
@@ -784,12 +815,12 @@ if s.count(a) != 1:
     sys.exit(f"변조할 자리 {a!r} 가 비교기에 {s.count(a)} 번 있다 — 이 단계를 비교기에 맞춰 고쳐라")
 pathlib.Path(out).write_text(s.replace(a, b), encoding="utf-8")
 PY
-  if python3 scripts/test-compare-copies.py "$cc/c.py" >/dev/null 2>&1; then
-    echo "::error::test-compare-copies.py 가 '${m%%|*}' 를 망가뜨린 비교기를 통과시켰다"; exit 1
-  fi
+  bit 1 "$PYF" "'${m%%|*}' 를 망가뜨린 비교기" python3 scripts/test-compare-copies.py "$cc/c.py"
 done
+sclose 9 0
 
 # test-verify-feedback.py — 역사 규칙을 끈 대장 검사기를 자체 시험이 잡아야 한다
+sopen "test-verify-feedback.py"
 for m in 'if past:|if False:' \
          'f"{commit}:vibe-audit/evals/{c}/case.yaml"|f"HEAD:vibe-audit/evals/{c}/case.yaml"'; do
   python3 - "${m%%|*}" "${m##*|}" "$cc/v.py" <<'PY'
@@ -800,10 +831,9 @@ if s.count(a) != 1:
     sys.exit(f"변조할 자리 {a!r} 가 대장 검사기에 {s.count(a)} 번 있다 — 이 단계를 검사기에 맞춰 고쳐라")
 pathlib.Path(out).write_text(s.replace(a, b), encoding="utf-8")
 PY
-  if python3 scripts/test-verify-feedback.py "$cc/v.py" >/dev/null 2>&1; then
-    echo "::error::test-verify-feedback.py 가 '${m%%|*}' 를 망가뜨린 대장 검사기를 통과시켰다"; exit 1
-  fi
+  bit 1 "$PYF" "'${m%%|*}' 를 망가뜨린 대장 검사기" python3 scripts/test-verify-feedback.py "$cc/v.py"
 done
+sclose 2 0
 
 # test-verify-docs.py — 문서 대조 검사를 보장 묶음마다 한 군데씩 망가뜨리면 자체 시험이 떨어져야 한다
 # (조각 3 설계 ⑤ 「시험이 문다」). 원천 · 틀 · 의도 · 마스터플랜 경로 · 상태와 의존 · 폴더 대응 ·
@@ -812,7 +842,8 @@ done
 # 프로필의 P1 자리마다 하나와 여섯째 「…의 칸」, CommonMark 펜스의 여닫는 꼴(조각 31 설계 ⑤ V3).
 # 빠르게(조각 36 설계 ② P2 ~ P5 · ADR 0047) — 변조본을 먼저 다 만들고, 자체 시험을 `--first`(첫 어긋난 꼴에서 멈춘다)로
 # CPU 수만큼 함께 돌린다. 변조본은 제 사본만 읽어 서로 기대지 않는다. 먼저 대조군 — 바꾸지 않은 검사 — 을 같은 길로 돌려
-# 지나가고 「물지 않았다」로 세는지 본다. 물지 않은 변조본은 다 모아 찍고 떨어진다.
+# 지나가고 「물지 않았다」로 세는지 본다. 물지 않은 변조본은 다 모아 찍고 떨어진다. 끝에 센 수를 기대한 수와 견준다.
+sopen "test-verify-docs.py"
 dv="$cc/docs"; mkdir -p "$dv"
 cp scripts/verify-docs.py "$dv/m0.py"
 dnames=("대조군 — 바꾸지 않은 검사")
@@ -882,31 +913,39 @@ drun() {  # $@=변조본 번호 — 자체 시험을 --first 로 djobs 개씩 �
 }
 # 물었다 = 자체 시험이 종료 1 로 끝나고 `FAIL — ` 줄을 찍었다. 함께 돌다 자원으로 죽은 실행(137 따위)을 「물었다」로 세지 않는다
 # (조각 36 닫기 전 감사 회차 OB-4 · 설계 끝 「닫기 전 감사 회차에서 찾은 것」).
-dbit() { [ "$(cat "$dv/m$1.rc")" = 1 ] && grep -q '^FAIL — ' "$dv/m$1.out"; }
+dbit() { [ "$(cat "$dv/m$1.rc")" = 1 ] && grep -q '^FAIL — ' "$dv/m$1.out" && ! crash "$dv/m$1.out"; }
 printf '137\n' > "$dv/mx.rc"; : > "$dv/mx.out"
 if dbit x; then echo "::error::자원으로 죽은 실행(종료 137 · 출력 없음)을 「물었다」로 센다"; exit 1; fi
 printf '1\n' > "$dv/mx.rc"; printf 'Traceback (most recent call last):\n' > "$dv/mx.out"
 if dbit x; then echo "::error::FAIL 줄 없이 1 로 끝난 실행을 「물었다」로 센다"; exit 1; fi
+printf '1\n' > "$dv/mx.rc"; printf 'FAIL — x\nTraceback (most recent call last):\n' > "$dv/mx.out"
+if dbit x; then echo "::error::FAIL 줄과 함께 트레이스백을 찍은 실행을 「물었다」로 센다"; exit 1; fi
 drun 0
-if dbit 0 || ! grep -q '^PASS ' "$dv/m0.out"; then
+if [ "$(cat "$dv/m0.rc")" != 0 ] || ! grep -q '^PASS 문서 대조 검사가 문다' "$dv/m0.out" || crash "$dv/m0.out"; then
   echo "::error::test-verify-docs.py --first 가 바꾸지 않은 문서 대조 검사(대조군)를 지나가게 하지 않았다 — 깃발이나 함께 돌리는 길이 망가졌다"
   tail -5 "$dv/m0.out"; exit 1
 fi
+SK=$((SK + 1))
 drun $(seq 1 "$dk")
 dmiss=0
 for i in $(seq 1 "$dk"); do
-  if ! dbit "$i"; then
+  if dbit "$i"; then
+    SB=$((SB + 1))
+  else
     echo "::error::test-verify-docs.py 가 '${dnames[$i]}' 를 망가뜨린 문서 대조 검사를 통과시켰다"; dmiss=1
   fi
 done
 [ "$dmiss" = 0 ] || exit 1
-echo "test-verify-docs.py: 대조군은 지나가고 변조본 $dk 이 다 떨어짐(--first · 동시 $djobs · 종료 1 과 FAIL 줄만 물었다로 센다)"
+sclose 45 1
+echo "test-verify-docs.py: 대조군 $SK 은 지나가고 변조본 $SB 이 다 떨어짐(--first · 동시 $djobs · 종료 1 과 FAIL 줄, 트레이스백 없음만 물었다로 센다)"
 
 # run-evals.sh — 결정론 그레이더가 모든 회차에서 떨어지면 점수가 문턱을 넘어도
 # 실패해야 한다(종료코드 5). 한 회차만 떨어진 것은 흔들림이라 통과해야 한다.
 # 매번 떨어진 쪽은 회차가 점수로는 통과여도 트레이스 셋이 남아야 한다 — 실패
 # 산출물에 증거가 없으면 못 연다. 가짜 하네스가 --json 자리에 결과를 쓴다
-# — 모델은 안 부른다.
+# — 모델은 안 부른다. run-evals.sh 의 PASS 줄은 「결과: 」 줄이다(실패해도 찍지만 대조군은 종료 0 과 함께 본다).
+sopen "run-evals.sh(결정론 그레이더)"
+RVOK='^결과: '
 f=$(mktemp -d)
 printf '%s\n' '#!/usr/bin/env bash' \
   'while [ $# -gt 0 ]; do [ "$1" = --json ] && cp "$FAKE_RESULT" "$2"; shift; done' > "$f/claude"
@@ -932,36 +971,24 @@ json.dump({"cases": [{"name": "gate-out-of-scope", "arms": {"with": runs},
                       "aggregates": {"score": sum(r["score"] for r in runs) / 3}}]},
           open(out, "w"))
 PY
-  set +e
-  FAKE_RESULT="$f/r$n.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >"$f/o$n" 2>&1
-  st=$?
-  set -e
-  if [ "$n" = 3 ] && [ "$st" != 5 ]; then
-    echo "::error::run-evals.sh 가 매번 떨어진 결정론 그레이더를 통과시켰다 (exit $st)"; exit 1
-  fi
-  if [ "$n" = 3 ] && [ "$(grep -c '실패 기록 남김' "$f/o3")" != 3 ]; then
-    echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$f/o3"; exit 1
-  fi
-  if [ "$n" = 1 ] && [ "$st" != 0 ]; then
-    echo "::error::run-evals.sh 가 한 회차만 떨어진 흔들림을 실패로 셌다 (exit $st)"; exit 1
-  fi
 done
+bit 5 "$RVF" "매번 떨어진 결정론 그레이더" env FAKE_RESULT="$f/r3.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+if [ "$(grep -c '실패 기록 남김' "$BO")" != 3 ]; then
+  echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$BO"; exit 1
+fi
+keep "$RVOK" "한 회차만 떨어진 흔들림" env FAKE_RESULT="$f/r1.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
 # 케이스 머리의 graders 가 빈 결과도 매번 떨어진 그레이더를 잡아야 한다 — 종류는 디스크에서
 python3 -c "
 import json, sys
 d = json.load(open('$f/r3.json')); d['cases'][0]['graders'] = []
 json.dump(d, open('$f/r3e.json', 'w'))"
-set +e
-FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 5 ]; then
-  echo "::error::run-evals.sh 가 케이스 머리 없는 결과에서 매번 떨어진 그레이더를 놓쳤다 (exit $st)"; exit 1
-fi
+bit 5 "$RVF" "케이스 머리 없는 결과의 매번 떨어진 그레이더" env FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+sclose 2 1
 
 # run-evals.sh --eval-dir recall — 회수율은 재기만 한다(조각 39 설계 ② N · 끝 「PR D 에서 정한 것」). 진짜 하네스처럼
 # --threshold 가 없으면 1.0 을 쓰고 문턱 아래면 종료 1 인 가짜 하네스에서, recall-found 가 세 회차 다 떨어진 결과는
 # 종료 0 · 「회수율 0/3」이어야 하고, auditor-fired 가 한 회차라도 떨어지면 종료 5, 부른 쪽의 --threshold 는 종료 2 다.
+sopen "run-evals.sh --eval-dir recall"
 h=$(mktemp -d)
 printf '%s\n' '#!/usr/bin/env bash' \
   'thr=1.0' \
@@ -985,29 +1012,18 @@ json.dump({"cases": [{"name": "recall-commit-after-response", "arms": {"with": r
                                   {"name": "auditor-fired", "type": "tool_used", "weight": 1}],
                       "aggregates": {"score": 0.0}}]}, open(out, "w"))
 PY
-  set +e
-  FAKE_RESULT="$h/r-$fired.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --ablation none >"$h/o-$fired" 2>&1
-  st=$?
-  set -e
-  if [ "$fired" = all ] && { [ "$st" != 0 ] || ! grep -qx '회수율 0/3' "$h/o-$fired"; }; then
-    echo "::error::run-evals.sh --eval-dir recall 이 놓친 회차를 실패로 셌거나 회수율 줄을 안 찍었다 (exit $st)"; tail -5 "$h/o-$fired"; exit 1
-  fi
-  if [ "$fired" = one ] && [ "$st" != 5 ]; then
-    echo "::error::run-evals.sh --eval-dir recall 이 감사자가 안 뜬 회차를 통과시켰다 (exit $st)"; exit 1
-  fi
 done
-set +e
-FAKE_RESULT="$h/r-all.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --threshold 0.5 >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 2 ]; then
-  echo "::error::run-evals.sh --eval-dir recall 이 부른 쪽의 --threshold 를 받았다 (exit $st)"; exit 1
-fi
-echo "run-evals.sh --eval-dir recall: 문턱 1.0 하네스에서 놓친 세 회차가 종료 0 · 회수율 0/3, 감사자가 안 뜬 회차는 종료 5, --threshold 는 종료 2"
+keep '^회수율 0/3$' "놓친 세 회차(문턱 1.0 하네스)" env FAKE_RESULT="$h/r-all.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --ablation none
+bit 5 "$RVF" "감사자가 안 뜬 회차" env FAKE_RESULT="$h/r-one.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --ablation none
+# 거절을 재는 꼴이라 종료 2 와 그 거절 줄을 본다
+bit 2 '문턱을 받지 않는다' "부른 쪽의 --threshold" env FAKE_RESULT="$h/r-all.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --threshold 0.5
+sclose 2 1
+echo "run-evals.sh --eval-dir recall: 문턱 1.0 하네스에서 놓친 세 회차가 종료 0 · 회수율 0/3(대조군 $SK), 감사자가 안 뜬 회차는 종료 5, --threshold 는 종료 2(변조본 $SB)"
 
 # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
 # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
 # 만점을 받아도 지나갔다. 그 모양(점수 1.0 · auditor-fired 만 한 회차 실패)을 준다.
+sopen "run-evals.sh(auditor-fired)"
 python3 - "$f/ra.json" <<'PY'
 import json, os, pathlib, sys
 # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
@@ -1029,24 +1045,26 @@ json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "wit
                                   {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
                       "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
 PY
-set +e
-FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 5 ]; then
-  echo "::error::run-evals.sh 가 감사자가 안 뜬 회차를 통과시켰다 (exit $st)"; exit 1
-fi
+bit 5 "$RVF" "감사자가 안 뜬 두 팔 회차" env FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe
+sclose 1 0
 
 # verify-evals.py — 실행 비트가 빠진 픽스처는 실패해야 한다
+sopen "verify-evals.py(실행 비트)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 chmod 644 "$s/vibe-audit/evals/route-quiet/fixture.sh"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 실행 비트 없는 픽스처를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "실행 비트 없는 픽스처" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
+sclose 1 0
 
 # run-evals.sh — 고른 케이스 가운데 하나가 결과에서 빠지면 실패해야 한다(종료코드 3).
 # 회차가 다 있어도 디스크에 적힌 그레이더가 채점되지 않았으면 같다(graders: []).
 # 사용량 한도에 걸린 회차는 회귀가 아니라 한도로 따로 끝나야 한다(종료코드 6).
+# 기대한 종료가 0 이면 대조군(종료 0 · 「결과: 」 줄), 아니면 변조본(그 종료 · FAIL 줄)이다.
+sopen "run-evals.sh(구조 · 한도 · 모델 · 두 팔)"
+rv() {  # $1=기대한 종료 $2=이름 $3…=run-evals.sh 인자 — 가짜 하네스 $f 로, 결과는 $FR
+  local want=$1 name=$2; shift 2
+  if [ "$want" = 0 ]; then keep "$RVOK" "$name" env FAKE_RESULT="$FR" PATH="$f:$PATH" ./scripts/run-evals.sh "$@"
+  else bit "$want" "$RVF" "$name" env FAKE_RESULT="$FR" PATH="$f:$PATH" ./scripts/run-evals.sh "$@"; fi
+}
 mkdir -p "$f/lim"; printf '%s\n' '{"type":"result","result":"You'"'"'ve hit your weekly limit · resets Sep 26, 6pm (UTC)"}' > "$f/lim/trace.jsonl"
 python3 - "$f" <<'PY'
 import json, os, pathlib, sys
@@ -1087,22 +1105,13 @@ json.dump({"cases": [two(n, lambda n: dict(ok(n), graders=[])) for n in names]},
 PY
 mkdir -p "$f/words"; printf '%s\n' '{"type":"result","result":"## 부적합 목록\n### NC-1 · 로그인 라우트에 rate limit 이 없다","modelUsage":{"'"$model"'":{}}}' > "$f/words/trace.jsonl"
 for m in miss:3 lim:6 empty:3 limpass:6 ratetext:0 allok:0 errrun:3 errlim:6; do
-  set +e
-  FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
-  st=$?
-  set -e
-  if [ "$st" != "${m##*:}" ]; then
-    echo "::error::run-evals.sh 가 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
-  fi
+  FR="$f/${m%%:*}.json" rv "${m##*:}" "${m%%:*} 결과" --case 'route-*' --runs 3 --ablation none
 done
 # 구조 실패(3)로 끝나도 트레이스는 결과 폴더에 남아야 한다 — 그레이더가 왜 빠졌는지 볼 증거다
-set +e
-o=$(FAKE_RESULT="$f/empty.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none 2>&1)
-st=$?
-set -e
-r=$(printf '%s\n' "$o" | sed -n 's/^결과: //p' | tail -1)
-if [ "$st" != 3 ] || [ -z "$r" ] || ! ls "$r"/traces/*.jsonl >/dev/null 2>&1; then
-  echo "::error::run-evals.sh 가 구조 실패(exit $st)에서 트레이스를 안 남겼다 (${r:-결과 폴더 없음})"; exit 1
+FR="$f/empty.json" rv 3 "구조 실패의 트레이스" --case 'route-*' --runs 3 --ablation none
+r=$(sed -n 's/^결과: //p' "$BO" | tail -1)
+if [ -z "$r" ] || ! ls "$r"/traces/*.jsonl >/dev/null 2>&1; then
+  echo "::error::run-evals.sh 가 구조 실패에서 트레이스를 안 남겼다 (${r:-결과 폴더 없음})"; exit 1
 fi
 # --runs 를 안 주면 케이스에 적힌 회차 수(3)를 요구한다 — 한 회차만 돈 결과는 3
 json_one=$(mktemp); python3 - "$json_one" <<'PY'
@@ -1114,13 +1123,7 @@ run = {"score": 1.0, "passed": True, "tracePath": str(tr),
 json.dump({"cases": [{"name": "route-quiet", "graders": [{"name": n, "type": "tool_used", "weight": 3} for n in g],
                       "arms": {"with": [run]}, "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
 PY
-set +e
-FAKE_RESULT="$json_one" PATH="$f:$PATH" ./scripts/run-evals.sh --case route-quiet --ablation none >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 3 ]; then
-  echo "::error::run-evals.sh 가 --runs 없이 한 회차만 돈 결과를 받았다 (exit $st)"; exit 1
-fi
+FR="$json_one" rv 3 "--runs 없이 한 회차만 돈 결과" --case route-quiet --ablation none
 # 트레이스에 요청한 모델(수트 모델)이 안 보이면 무엇을 쟀는지 모른다(→ 3)
 printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5":{}}}' > "$f/haiku.jsonl"
 python3 -c "
@@ -1130,23 +1133,11 @@ for c in d['cases']:
     for r in c['arms']['with']:
         r['tracePath'] = '$f/haiku.jsonl'
 json.dump(d, open('$f/othermodel.json', 'w'))"
-set +e
-FAKE_RESULT="$f/othermodel.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 3 ]; then
-  echo "::error::run-evals.sh 가 요청한 모델이 안 보이는 회차를 받았다 (exit $st)"; exit 1
-fi
+FR="$f/othermodel.json" rv 3 "요청한 모델이 안 보이는 회차" --case 'route-*' --runs 3 --ablation none
 # 이름이 겹치는 딴 모델은 같은 모델이 아니다 — $near 를 요청했는데
 # 수트 모델($model)로 돈 회차(→ 3). 부분 문자열로 견주던 러너는 이것을 받았다.
 # 거꾸로 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)은 받아야 한다(→ 0).
-set +e
-FAKE_RESULT="$f/allok.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model "$near" >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 3 ]; then
-  echo "::error::run-evals.sh 가 $near 를 요청했는데 $model 로 돈 회차를 받았다 (exit $st)"; exit 1
-fi
+FR="$f/allok.json" rv 3 "$near 를 요청했는데 $model 로 돈 회차" --case 'route-*' --runs 3 --ablation none --model "$near"
 printf '%s\n' '{"type":"result","result":"ok","modelUsage":{"claude-haiku-4-5-20251001":{}}}' > "$f/dated.jsonl"
 python3 -c "
 import json
@@ -1155,13 +1146,7 @@ for c in d['cases']:
     for r in c['arms']['with']:
         r['tracePath'] = '$f/dated.jsonl'
 json.dump(d, open('$f/dated.json', 'w'))"
-set +e
-FAKE_RESULT="$f/dated.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none --model claude-haiku-4-5 >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 0 ]; then
-  echo "::error::run-evals.sh 가 날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)을 받지 않았다 (exit $st)"; exit 1
-fi
+FR="$f/dated.json" rv 0 "날짜가 붙은 같은 모델(claude-haiku-4-5-20251001)" --case 'route-*' --runs 3 --ablation none --model claude-haiku-4-5
 # 회차가 다 채점됐어도 트레이스가 없으면 무효다 — 모델 · 한도를 볼 수 없다(→ 3)
 python3 -c "
 import json
@@ -1170,75 +1155,53 @@ for c in d['cases']:
     for r in c['arms']['with']:
         r['tracePath'] = None
 json.dump(d, open('$f/notrace.json', 'w'))"
-set +e
-FAKE_RESULT="$f/notrace.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 --ablation none >/dev/null 2>&1
-st=$?
-set -e
-if [ "$st" != 3 ]; then
-  echo "::error::run-evals.sh 가 트레이스 없는 회차를 받았다 (exit $st)"; exit 1
-fi
+FR="$f/notrace.json" rv 3 "트레이스 없는 회차" --case 'route-*' --runs 3 --ablation none
 # --ablation 을 안 주면 두 팔이다. without 팔이 없거나(한 팔 실험으로 바뀐 것) 채점되지
 # 않았으면 3, 두 팔이 다 채점됐으면 0
 for m in allok:3 woempty:3 wook:0; do
-  set +e
-  FAKE_RESULT="$f/${m%%:*}.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case 'route-*' --runs 3 >/dev/null 2>&1
-  st=$?
-  set -e
-  if [ "$st" != "${m##*:}" ]; then
-    echo "::error::run-evals.sh 가 두 팔 ${m%%:*} 결과에 exit $st 를 냈다 (${m##*:} 이어야)"; exit 1
-  fi
+  FR="$f/${m%%:*}.json" rv "${m##*:}" "두 팔 ${m%%:*} 결과" --case 'route-*' --runs 3
 done
+sclose 13 4
 
 # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
+sopen "verify-evals.py · verify-graders.py(무게 · arm · 대조군)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gap-unowned/graders/gate-no-fake-owner.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 문턱을 못 넘기는 심판 그레이더를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "문턱을 못 넘기는 심판 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — auditor-fired 가 호출을 요구하지 않으면(min 0) 실패해야 한다(Codex 33차)
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/^min: .*/min: 0/' "$s/vibe-audit/evals/cycle-first/graders/auditor-fired.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 min 0 인 auditor-fired 를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "min 0 인 auditor-fired" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — 채점 그레이더에 arm 을 붙이면(점수에서 빠짐) 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i '0,/^weight/s//arm: with-only\nweight/' "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 arm 붙은 route-correct 를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "arm 붙은 route-correct" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — 떨어져도 문턱을 못 넘기는 가벼운 음성 그레이더는 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-secrets.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 문턱 아래로 못 끌어내리는 음성 그레이더를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "문턱 아래로 못 끌어내리는 음성 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-graders.py — 무엇에나 맞는 대조군은 실패해야 한다(무는 fail 표본이 있어야)
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
 sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-local-dev-password/graders/real-nc-found.md"
-if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-graders.py 가 무엇에나 맞는 대조군을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "무엇에나 맞는 대조군" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
+sclose 5 0
 
 # verify-copy.py — 원본 여섯 가운데 하나만 공통 절이 갈리면 실패해야 한다
+sopen "verify-copy.py(공통 절 · tools · 출력 형식)"
 # (gates.sh 는 원본을 원본과 견주므로 파일마다 자기 자신과 같다)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
 sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-secrets.md"
-if python3 scripts/verify-copy.py "$t" "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 원본끼리 갈린 공통 절을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "원본끼리 갈린 공통 절" python3 scripts/verify-copy.py "$t" "$t"
 
 # verify-copy.py — 머리말에 Edit 를 넣고 본문에 원형 tools 줄을 적어 두면 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
 sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-ops.md"
 printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
-if python3 scripts/verify-copy.py "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 본문의 원형 줄에 속아 쓰기 도구를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "본문의 원형 줄에 속아 쓰기 도구" python3 scripts/verify-copy.py "$t"
 
 # verify-copy.py — 출력 형식에서 `## 지난 회차` 를 빼고 파일 끝에 딴 절로 붙인 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
@@ -1248,9 +1211,7 @@ p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 지난 회차\n", t.find("## 출력 형식"))
 p.write_text(t[:j] + t[j + len("## 지난 회차\n"):] + "\n## 지난 회차\n\n딴 절\n")
 PY
-if python3 scripts/verify-copy.py vibe-audit/agents "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 출력 형식 밖의 「지난 회차」에 속았다"; exit 1
-fi
+bit 1 "$PYF" "출력 형식 밖의 「지난 회차」에 속았다" python3 scripts/verify-copy.py vibe-audit/agents "$t"
 
 # verify-copy.py — 출력 형식의 `## 안 본 것` 머리만 지우고 자리표시를 남긴 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
@@ -1260,43 +1221,37 @@ p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 안 본 것\n", t.find("## 출력 형식"))
 p.write_text(t[:j] + t[j + len("## 안 본 것\n"):])
 PY
-if python3 scripts/verify-copy.py vibe-audit/agents "$t" >/dev/null 2>&1; then
-  echo "::error::verify-copy.py 가 출력 형식의 「안 본 것」 머리가 빠진 사본을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "출력 형식의 「안 본 것」 머리가 빠진 사본" python3 scripts/verify-copy.py vibe-audit/agents "$t"
+sclose 4 0
 
 # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다
+sopen "verify-evals.py · verify-manifest.py(선언)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 rm "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 route-not-others 없는 route 케이스를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "route-not-others 없는 route 케이스" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
   "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 허용 선언과 어긋난 route-not-others 를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "허용 선언과 어긋난 route-not-others" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — scaffold_script 선언이 빠진 케이스는 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i '/scaffold_script/d' "$s/vibe-audit/evals/route-quiet/case.yaml"
-if python3 scripts/verify-evals.py "$s/vibe-audit/evals" >/dev/null 2>&1; then
-  echo "::error::verify-evals.py 가 스캐폴드 없는 케이스를 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "스캐폴드 없는 케이스" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-manifest.py — 검사가 모르는 라이선스 선언은 실패해야 한다
 m=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$m"
 sed -i 's/"license": "MIT"/"license": "GPL-3.0"/' "$m/vibe-audit/.claude-plugin/plugin.json"
-if python3 "$m/scripts/verify-manifest.py" >/dev/null 2>&1; then
-  echo "::error::verify-manifest.py 가 견줄 수 없는 라이선스 선언을 통과시켰다"; exit 1
-fi
+bit 1 "$PYF" "견줄 수 없는 라이선스 선언" python3 "$m/scripts/verify-manifest.py"
+sclose 4 0
 
-echo "게이트 여덟 중 변조본으로 확인한 여덟: manifest · copies · copy · evals · graders · budget · brief · docs(둘은 스스로 변조본을 돌린다)"
+echo "검사의 변조본 절 $NSEC 이 센 수 · 실패 줄 · 대조군의 PASS 줄로 닫힘 — manifest · copies · copy · evals · graders · budget · feedback · sync-agents · run-evals 와 자체 시험 셋(brief 는 test-verify-brief.py 가, docs 는 bite-verify-docs.py 가 스스로 변조본을 돈다)"
 
 # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
 # 앞쪽이 깨지면 낭비로 끝나지만 뒤쪽이 깨지면 **문구를 고친 PR 이 수트 없이
 # 지나간다.** 제자리에서 흔들고 그 파일만 흔들기 전의 백업에서 되돌린다 — 커밋
-# 안 한 수정도 남는다.
+# 안 한 수정도 남는다. 지문이 바뀌어야 하는 쪽을 변조본으로, 그대로여야 하는 쪽을 대조군으로 센다.
+sopen "eval-key.py(수트 지문)"
 k0=$(python3 scripts/eval-key.py route)
 keyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
   hold "$2"
@@ -1308,6 +1263,7 @@ keyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
   if [ "$1" = diff ] && [ "$k" = "$k0" ]; then
     echo "::error::eval-key.py 가 $2 를 바꿔도 지문이 그대로다 — 수트 없이 지나간다"; exit 1
   fi
+  if [ "$1" = same ]; then SK=$((SK + 1)); else SB=$((SB + 1)); fi
 }
 keyed same vibe-audit/evals/README.md                     'echo x >> vibe-audit/evals/README.md'
 keyed same vibe-audit/README.md                           'echo x >> vibe-audit/README.md'
@@ -1322,6 +1278,7 @@ keyed diff scripts/run-evals.sh                           'chmod -x scripts/run-
 if [ "$(python3 scripts/eval-key.py full)" = "$k0" ]; then
   echo "::error::eval-key.py 의 지문에 모드가 안 들었다"; exit 1
 fi
+SB=$((SB + 1))
 # 회수율 케이스는 두 모드 다 밖이다(조각 39 설계 ② K · ⑤ R4) — 전수가 돌리지 않으므로 full 도 그대로여야 한다.
 kf0=$(python3 scripts/eval-key.py full)
 keyed same vibe-audit/recall/recall-commit-after-response/fixture.sh 'echo "# x" >> vibe-audit/recall/recall-commit-after-response/fixture.sh'
@@ -1331,23 +1288,29 @@ kf=$(python3 scripts/eval-key.py full); undo vibe-audit/recall/recall-commit-aft
 if [ "$kf" != "$kf0" ]; then
   echo "::error::eval-key.py 가 회수율 케이스로 전수 지문을 바꿨다 — 전수는 그것을 돌리지 않는다"; exit 1
 fi
-echo "수트 지문: 무관한 다섯(회수율 케이스는 route · full 둘 다)은 그대로, 관련된 여섯(실행 비트 포함)과 모드는 바뀐다"
+SK=$((SK + 1))
+sclose 7 6
+echo "수트 지문: 무관한 것 $SK(회수율 케이스는 route · full 둘 다)은 그대로, 관련된 것과 모드 $SB(실행 비트 포함)은 바뀐다"
 
 # 변조본 파일이 수트 지문 밖인가(ADR 0020 의 6). eval-key.py 는 run-evals.sh 에 적힌 스크립트를 지문에 넣는다 —
 # 러너가 이 이름들을 적게 되면(주석이라도) 변조본을 고칠 때마다 수트가 다시 돈다. 판정은 안 틀리고 비용만
 # 돌아와 아무도 모르므로 여기서 문다. 목록은 stderr 로 나온다 — 러너가 목록에 없으면 목록을 못 읽은 것이다.
+sopen "eval-key.py(변조본 파일이 지문 밖)"
 for mode in route full; do
   list=$(python3 scripts/eval-key.py "$mode" --list 2>&1 >/dev/null)
   hit=$(grep -E ' scripts/(gates\.sh|bite-gates\.sh|bite-[^/]*\.py)$' <<<"$list" || true)
   if [ -n "$hit" ] || ! grep -q ' scripts/run-evals\.sh$' <<<"$list"; then
     echo "::error::변조본 파일이 수트 지문($mode)에 들었거나 지문 목록을 못 읽었다 — 고칠 때마다 수트가 다시 돈다"; printf '%s\n' "${hit:-$list}"; exit 1
   fi
+  SK=$((SK + 1))
 done
+sclose 0 2
 echo "변조본 파일: gates.sh · bite-gates.sh · bite-*.py 가 수트 지문(route · full) 밖이다"
 
 # gate-key.py — 변조 시험의 지문(조각 35 설계 ② K1 ~ K6 · ⑤ R1 · R2). 검사가 대조하는 문서와 기록(③ S1 ~ S12)은 지문을
 # 그대로 두고, 그 밖(S13 ~ S19)은 바꿔야 한다. 앞쪽이 깨지면 변조 시험이 괜히 돌 뿐이지만 뒤쪽이 깨지면 **검사를 고친 PR 이
 # 변조 시험 없이 초록으로 지나간다.** 수트 지문의 keyed 와 같은 모양 — 제자리에서 흔들고 그 파일만 백업에서 되돌린다.
+sopen "gate-key.py(변조 시험 지문)"
 gst0=$(git status --porcelain)
 g0=$(python3 scripts/gate-key.py)
 gpy=$(python3 --version | sed -nE 's/^Python ([0-9][A-Za-z0-9_.+-]*)$/\1/p')
@@ -1365,6 +1328,7 @@ gkeyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
   if [ "$1" = diff ] && [ "$k" = "$g0" ]; then
     echo "::error::gate-key.py 가 $2 를 바꿔도 지문이 그대로다 — 변조 시험 없이 지나간다"; exit 1
   fi
+  if [ "$1" = same ]; then SK=$((SK + 1)); else SB=$((SB + 1)); fi
 }
 # 빼는 쪽 — S1 ~ S11 마다 하나. S12(docs/audit/)는 아래 사본에서 본다
 gkeyed same "$(git ls-files docs/slices/ | head -1)"    'echo x >> "$2"'
@@ -1396,16 +1360,19 @@ mkdir -p "$gc/r/docs/audit"; echo x > "$gc/r/docs/audit/bite.md"; git -C "$gc/r"
 if [ "$(python3 "$gc/r/scripts/gate-key.py")" != "$gb" ]; then
   echo "::error::gate-key.py 가 docs/audit/ 의 새 기록으로 지문을 바꿨다"; exit 1
 fi
+SK=$((SK + 1))
 echo x > "$gc/r/scripts/bite-new.py"; git -C "$gc/r" add scripts/bite-new.py
 if [ "$(python3 "$gc/r/scripts/gate-key.py")" = "$gb" ]; then
   echo "::error::gate-key.py 가 넣는 쪽의 새 파일(scripts/bite-new.py)을 지문에 넣지 않았다"; exit 1
 fi
+SB=$((SB + 1))
 # 경로에 \r 이 든 파일도 그 내용으로 센다 — 글로 읽어 \r 이 \n 으로 바뀌면 「없음」으로 세어 내용이 바뀌어도 그대로였다(Codex 리뷰)
 gcr="$gc/r/scripts/bite-cr"$'\r'".py"; echo 'print(1)' > "$gcr"; git -C "$gc/r" add -A scripts
 gb=$(python3 "$gc/r/scripts/gate-key.py"); echo 'print(2)' > "$gcr"
 if [ "$(python3 "$gc/r/scripts/gate-key.py")" = "$gb" ]; then
   echo "::error::gate-key.py 가 경로에 \\r 이 든 파일의 내용을 바꿔도 지문이 그대로다"; exit 1
 fi
+SB=$((SB + 1))
 # 판 — 같은 트리라도 파이썬 · git 판이 바뀌면 지문이 바뀐다. 판을 못 읽는 꼴이면 지문 없이 종료 1, 모르는 인자는 종료 2(K1 · K4)
 # 진짜 해석기는 sys.executable 로 찾는다 — pyenv 의 shim 은 PATH 앞에 제 판을 다시 얹어 가짜 python3 를 가린다(Codex 리뷰).
 gv=$(mktemp -d); gpy3=$(python3 -c 'import sys; print(sys.executable)'); ggit3=$(command -v git)
@@ -1423,27 +1390,29 @@ for w in py git; do
   if [ "${k##*-}" != "${g0##*-}" ] || [ "$k" = "$g0" ]; then
     echo "::error::gate-key.py 가 $w 판만 바꾼 지문을 '$g0' 와 가르지 못했다 — '$k'"; exit 1
   fi
+  SB=$((SB + 1))
 done
-set +e
-k=$(PATH="$gv/bad:$PATH" "$gpy3" scripts/gate-key.py 2>/dev/null); st=$?
-set -e
-if [ "$st" != 1 ] || [ -n "$k" ]; then
-  echo "::error::gate-key.py 가 뜻밖의 python3 --version 에 지문을 냈거나 종료 1 이 아니다 (exit $st, '$k')"; exit 1
-fi
-set +e
-k=$(python3 scripts/gate-key.py --nope 2>/dev/null); st=$?
-set -e
-if [ "$st" != 2 ] || [ -n "$k" ]; then
-  echo "::error::gate-key.py 가 모르는 인자에 종료 2 가 아니다 (exit $st, '$k')"; exit 1
-fi
+# 지문 없이(표준 출력이 비고) 그 종료와 그 까닭 줄 — 판을 못 읽으면 「지문을 내지 않는다」, 모르는 인자면 사용법(거절을 재는 꼴)
+gnokey() {  # $1=기대한 종료 $2=까닭 줄(grep -E) $3=이름 $4…=명령
+  local want=$1 re=$2 name=$3; shift 3
+  set +e; k=$("$@" 2>"$BO"); st=$?; set -e
+  if [ "$st" != "$want" ] || [ -n "$k" ] || ! grep -qE -- "$re" "$BO" || crash; then
+    echo "::error::gate-key.py 가 $name 에 지문을 냈거나 종료 $want · 까닭 줄 /$re/ 이 아니다 (exit $st, '$k')"; cat "$BO"; exit 1
+  fi
+  SB=$((SB + 1))
+}
+gnokey 1 '지문을 내지 않는다' "뜻밖의 python3 --version" env PATH="$gv/bad:$PATH" "$gpy3" scripts/gate-key.py
+gnokey 2 '^사용법: gate-key.py' "모르는 인자" python3 scripts/gate-key.py --nope
 if [ "$(git status --porcelain)" != "$gst0" ]; then
   echo "::error::지문 시험이 작업트리를 흔든 채로 남겼다"; git status --porcelain; exit 1
 fi
-echo "변조 시험 지문: 대조하는 기록 열둘은 그대로, 넣는 쪽 일곱 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판은 바뀐다"
+sclose 15 12
+echo "변조 시험 지문: 대조하는 기록 $SK 은 그대로, 넣는 쪽 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판 · 지문 없는 종료 둘의 $SB 은 바뀌거나 지문을 내지 않는다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
-# 실행이 변조 시험 아닌 검사까지 빼면 「스물하나 통과」가 거짓이 된다.
-bunch() {  # $1=gates.sh — 모양이 맞으면 0, 아니면 까닭을 찍고 1
+# 실행이 변조 시험 아닌 검사까지 빼면 「스물하나 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
+sopen "gates.sh 의 bites 묶음"
+bunch() {  # $1=gates.sh — 모양이 맞으면 PASS 줄과 0, 아니면 까닭을 찍고 1
   python3 - "$1" <<'PY'
 import pathlib, re, sys
 ls = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").split("\n")
@@ -1463,11 +1432,10 @@ for f in FIVE:
         sys.exit(f"{f} 가 bites 묶음에 한 번이 아니다")
     if any(f in l for l in outside):
         sys.exit(f"{f} 가 bites 묶음 밖에서 불린다")
+print("PASS bites 묶음 — 변조 시험 다섯만 든다")
 PY
 }
-if ! bunch scripts/gates.sh; then
-  echo "::error::gates.sh 의 bites 묶음이 변조 시험 다섯만 든 모양이 아니다"; exit 1
-fi
+keep '^PASS bites 묶음' "진짜 gates.sh" bunch scripts/gates.sh
 gm=$(mktemp -d)
 for mv in 'python3 scripts/verify-docs.py|bites' './scripts/bite-gates.sh|checks'; do
   python3 - "${mv%%|*}" "${mv##*|}" scripts/gates.sh "$gm/gates.sh" <<'PY'
@@ -1480,14 +1448,14 @@ ls.remove("  " + line)
 ls.insert(ls.index(f"{to}() {{") + 1, "  " + line)
 pathlib.Path(out).write_text("\n".join(ls), encoding="utf-8")
 PY
-  if bunch "$gm/gates.sh" >/dev/null 2>&1; then
-    echo "::error::묶음 시험이 '${mv%%|*}' 를 ${mv##*|} 로 옮긴 gates.sh 를 통과시켰다"; exit 1
-  fi
+  bit 1 'bites 묶음' "'${mv%%|*}' 를 ${mv##*|} 로 옮긴 gates.sh" bunch "$gm/gates.sh"
 done
+sclose 2 1
 
 # gates.sh 의 인자 — 거절하는 꼴은 아무 검사도 돌리기 전에 종료 2(조각 35 설계 ② G3 · G5 의 나 · ③ A3 ~ A5 · ⑤ R3). 첫
 # 검사가 claude 라 가짜 claude 를 앞에 둔다 — 거절하지 않고 검사로 들어가면 PASS 를 찍고 97 로 끝나 바로 드러나고, 변조
-# 시험까지 가서 이 파일을 다시 부르는 일이 없다. 받는 꼴(A2)도 하나 — 근거를 찍고 첫 검사에 닿는다.
+# 시험까지 가서 이 파일을 다시 부르는 일이 없다. 받는 꼴(A2)도 하나 — 근거를 찍고 첫 검사에 닿는다. 거절의 실패 줄은 「  거절: 」 줄이다.
+sopen "gates.sh 의 인자"
 ga=$(mktemp -d); printf '#!/bin/sh\necho "PASS 가짜 claude"\nexit 97\n' > "$ga/claude"; chmod +x "$ga/claude"
 gargs() {  # $1=기대 종료  $2=이름  $3…=env 인자와 gates.sh 인자
   local want=$1 name=$2; shift 2
@@ -1497,9 +1465,11 @@ gargs() {  # $1=기대 종료  $2=이름  $3…=env 인자와 gates.sh 인자
   if [ "$st" != "$want" ]; then
     echo "::error::gates.sh $name — 종료 $st, $want 이어야 한다"; cat "$ga/out"; exit 1
   fi
-  if [ "$want" = 2 ] && grep -q PASS "$ga/out"; then
-    echo "::error::gates.sh $name — 거절했는데 검사가 돌았다"; cat "$ga/out"; exit 1
+  if [ "$want" = 2 ] && { grep -q PASS "$ga/out" || ! grep -q '^  거절: ' "$ga/out"; }; then
+    echo "::error::gates.sh $name — 거절했는데 검사가 돌았거나 거절 줄이 없다"; cat "$ga/out"; exit 1
   fi
+  if crash "$ga/out"; then echo "::error::gates.sh $name — 셸 오류 줄이 있다"; cat "$ga/out"; exit 1; fi
+  if [ "$want" = 2 ]; then SB=$((SB + 1)); else SK=$((SK + 1)); fi
 }
 gargs 2 "A3 CI 밖의 --skip-bite"           -u GITHUB_ACTIONS     "$R/scripts/gates.sh" --skip-bite 근거
 gargs 2 "A3 GITHUB_ACTIONS=false"          GITHUB_ACTIONS=false  "$R/scripts/gates.sh" --skip-bite 근거
@@ -1509,68 +1479,59 @@ gargs 2 "A5 모르는 인자"                    GITHUB_ACTIONS=true   "$R/scrip
 gargs 2 "A5 모르는 인자 둘"                 GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --nope 근거
 gargs 2 "A5 인자 셋"                        GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite 근거 더
 gargs 97 "A2 CI 의 --skip-bite"             GITHUB_ACTIONS=true   "$R/scripts/gates.sh" --skip-bite 근거
-if ! grep -q '^변조 시험 다섯을 건너뛴다 — 근거$' "$ga/out"; then
-  echo "::error::gates.sh --skip-bite 가 근거를 먼저 찍지 않았다"; cat "$ga/out"; exit 1
+# 받는 꼴의 PASS 줄은 근거 줄과 가짜 claude 의 PASS 줄이다 — 종료 97 은 첫 검사(가짜 claude)에 닿았다는 표
+if ! grep -q '^변조 시험 다섯을 건너뛴다 — 근거$' "$ga/out" || ! grep -q '^PASS 가짜 claude$' "$ga/out"; then
+  echo "::error::gates.sh --skip-bite 가 근거를 먼저 찍지 않았거나 첫 검사에 닿지 않았다"; cat "$ga/out"; exit 1
 fi
-echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 둘이 떨어짐), 거절 일곱은 검사 전에 종료 2, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
+sclose 7 1
+echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 둘이 떨어짐), 거절 $SB 은 검사 전에 종료 2 와 거절 줄, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
 
 # gates.sh 가 무엇을 실제로 부르는지 — test-gates.py 가 무는지(조각 35 닫기 전 감사 회차 NC-1 · 설계 끝 「닫기 전 감사 회차에서
 # 찾은 것」 T4). 감사가 든 셋(변조 시험 줄 지우기 · bites 호출 지우기 · 건너뛰는 분기 뒤집기)과 묶음을 넘나드는 둘을 gates.sh
 # 사본에 만들어 test-gates.py 가 떨어지는지 본다. 바른 gates.sh 는 checks 에서 이미 지나갔다.
+# 「물었다」는 종료 1 이고 기대한 태그로 여는 FAIL 줄이 있을 때만이다 — 태그는 test-gates.py 머리말의 L2 · T1 · T1′ · T2 · T3 · S1 · S2
+# (조각 41 설계 ② N1). 변조본마다 그 꼴을 이름으로 드는 태그를 적는다 — 함께 찍히는 태그는 막지 않는다(설계 ② 「보장하지 않는 것」).
 gt=$(mktemp -d)
-gmut() {  # $1=이름  $2=바꿀 글  $3=바꿀 것 — \n 은 줄바꿈. $4…=더 바꿀 쌍(앞의 바꿈 뒤에 차례로)
-  local name=$1; shift
-  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
+gcopy() {  # $1=만들 파일 $2…=바꿀 글 · 바꿀 것 쌍(앞의 바꿈 뒤에 차례로) — \n 은 줄바꿈
+  local out=$1; shift
+  python3 - scripts/gates.sh "$out" "$@" <<'PY'
 import pathlib, sys
 src, out, *pairs = sys.argv[1:]
 t = pathlib.Path(src).read_text(encoding="utf-8")
 for a, b in zip(pairs[::2], pairs[1::2]):
     a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
     if t.count(a) != 1:
-        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본을 gates.sh 에 맞춰 고쳐라")
+        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본 · 대조군을 gates.sh 에 맞춰 고쳐라")
     t = t.replace(a, b)
 pathlib.Path(out).write_text(t, encoding="utf-8")
 PY
-  if python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; then
-    echo "::error::test-gates.py 가 「$name」 gates.sh 를 통과시켰다"; cat "$gt/out"; exit 1
-  fi
 }
-gmut "변조 시험 줄 지우기"           '  ./scripts/bite-gates.sh\n' ''
-gmut "bites 호출 지우기"             '\n  bites\n' '\n'
-gmut "건너뛰는 분기 뒤집기"         '  checks\n\n  if [ -n "$skip" ]' '  checks\n\n  if [ -z "$skip" ]'
-gmut "검사를 bites 로 옮기기"        '  python3 scripts/verify-docs.py\n' '' 'bites() {\n' 'bites() {\n  python3 scripts/verify-docs.py\n'
-gmut "변조 시험을 checks 로 옮기기"  '  ./scripts/bite-gates.sh\n' '' 'checks() {\n' 'checks() {\n  ./scripts/bite-gates.sh\n'
-# 감사 회차 2 의 NC-2 — CI 의 꼴에서만 건너뛰기(T1′ 이 문다)와 변조 시험의 실패 삼키기(T5 가 문다). 조각 36 설계 ② N3.
-gmut "CI 에서 분기를 건너뛰는 쪽으로"  '  checks\n\n  if [ -n "$skip" ]; then' '  checks\n\n  if [ -n "$skip" ] || [ "${GITHUB_ACTIONS:-}" = true ]; then'
-gmut "CI 에서 bites 를 부르지 않기"    '\n  bites\n' '\n  [ "${GITHUB_ACTIONS:-}" = true ] || bites\n'
-gmut "bites 의 실패 삼키기"            '\n  bites\n' '\n  bites || true\n'
-gmut "bite-gates.sh 의 실패 삼키기"    '  ./scripts/bite-gates.sh\n' '  ./scripts/bite-gates.sh || true\n'
-echo "test-gates.py: 변조본 아홉(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로 · CI 에서 분기 · CI 에서 bites · bites 삼키기 · bite-gates.sh 삼키기)이 다 떨어짐"
+gbite() {  # $1=이름  $2=기대한 FAIL 줄의 머리 — 태그로 연다(예: 'T3' · 'L2 verify-eval-gate.py')  $3…=gcopy 의 바꿀 쌍
+  local name=$1 want=$2; shift 2
+  gcopy "$gt/gates.sh" "$@"
+  brun python3 scripts/test-gates.py "$gt/gates.sh"
+  if [ "$bst" != 1 ] || ! awk -v p="FAIL $want " 'index($0, p) == 1 { f = 1 } END { exit !f }' "$BO" || crash; then
+    echo "::error::$SEC — test-gates.py 가 「$name」 gates.sh 를 「FAIL $want」로 물지 않았다 (exit $bst)"; cat "$BO"; exit 1
+  fi
+  SB=$((SB + 1))
+}
+sopen "test-gates.py(묶음 · 분기 · 삼키기)"
+gbite "변조 시험 줄 지우기"           'T3'   '  ./scripts/bite-gates.sh\n' ''
+gbite "bites 호출 지우기"             'T1'   '\n  bites\n' '\n'
+gbite "건너뛰는 분기 뒤집기"         'T1'   '  checks\n\n  if [ -n "$skip" ]' '  checks\n\n  if [ -z "$skip" ]'
+gbite "검사를 bites 로 옮기기"        'T2'   '  python3 scripts/verify-docs.py\n' '' 'bites() {\n' 'bites() {\n  python3 scripts/verify-docs.py\n'
+gbite "변조 시험을 checks 로 옮기기"  'T2'   '  ./scripts/bite-gates.sh\n' '' 'checks() {\n' 'checks() {\n  ./scripts/bite-gates.sh\n'
+# 감사 회차 2 의 NC-2 — CI 의 꼴에서만 건너뛰기(T1′ 이 문다)와 변조 시험의 실패 삼키기(S1 이 문다). 조각 36 설계 ② N3.
+gbite "CI 에서 분기를 건너뛰는 쪽으로"  'T1′'  '  checks\n\n  if [ -n "$skip" ]; then' '  checks\n\n  if [ -n "$skip" ] || [ "${GITHUB_ACTIONS:-}" = true ]; then'
+gbite "CI 에서 bites 를 부르지 않기"    'T1′'  '\n  bites\n' '\n  [ "${GITHUB_ACTIONS:-}" = true ] || bites\n'
+gbite "bites 의 실패 삼키기"            'S1'   '\n  bites\n' '\n  bites || true\n'
+gbite "bite-gates.sh 의 실패 삼키기"    'S1'   '  ./scripts/bite-gates.sh\n' '  ./scripts/bite-gates.sh || true\n'
+sclose 9 0
+echo "test-gates.py: 변조본 $SB(변조 시험 줄 · bites 호출 · 분기 뒤집기 · 검사를 bites 로 · 변조 시험을 checks 로 · CI 에서 분기 · CI 에서 bites · bites 삼키기 · bite-gates.sh 삼키기)이 다 기대한 태그로 떨어짐"
 
 # 고정 목록과 실패 전파 — 늘 도는 검사 줄을 지우거나 삼켜도 떨어진다(조각 38 설계 ② L · S · R · V · ⑤ R1 ~ R4, 감사 OB-2).
-# 새 변조본의 「물었다」는 종료 1 이고 기대한 번호의 FAIL 줄일 때만이다(조각 37 감사 OB-4 의 가 — 다른 까닭으로 떨어진 것을 세지 않는다).
-gbite() {  # $1=이름  $2=기대한 FAIL 줄의 머리(예: 'L2 verify-eval-gate.py')  $3…=gmut 과 같은 바꿀 쌍
-  local name=$1 want=$2; shift 2
-  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
-import pathlib, sys
-src, out, *pairs = sys.argv[1:]
-t = pathlib.Path(src).read_text(encoding="utf-8")
-for a, b in zip(pairs[::2], pairs[1::2]):
-    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
-    if t.count(a) != 1:
-        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 변조본을 gates.sh 에 맞춰 고쳐라")
-    t = t.replace(a, b)
-pathlib.Path(out).write_text(t, encoding="utf-8")
-PY
-  set +e
-  python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; st=$?
-  set -e
-  if [ "$st" != 1 ] || ! grep -qF "FAIL $want" "$gt/out"; then
-    echo "::error::test-gates.py 가 「$name」 gates.sh 를 「FAIL $want」로 물지 않았다 (exit $st)"; cat "$gt/out"; exit 1
-  fi
-  gn=$((gn + 1))
-}
-gn=0
+# 「물었다」는 종료 1 이고 기대한 번호의 FAIL 줄일 때만이다(조각 37 감사 OB-4 의 가 — 다른 까닭으로 떨어진 것을 세지 않는다).
+sopen "test-gates.py(고정 목록 · 실패 전파)"
 # L2 — 감사가 든 첫째(늘 도는 검사 줄 지우기)와 지우기의 다른 꼴 · 겹침 · 목록에 없는 이름
 gbite "늘 도는 검사 줄 지우기"         'L2 verify-eval-gate.py'     '  python3 scripts/verify-eval-gate.py\n' ''
 gbite "검사 줄 주석 처리"              'L2 verify-docs.py'          '  python3 scripts/verify-docs.py\n' '  # python3 scripts/verify-docs.py\n'
@@ -1585,44 +1546,52 @@ gbite "claude plugin validate 삼키기"  'S1 T1 의 꼴에서 claude:./vibe-aud
 gbite "checks 머리의 set +e"           'S1 T1 의 꼴에서 verify-manifest.py'   'checks() {\n' 'checks() {\n  set +e\n'
 # S2 — 건너뛰는 실행(--skip-bite)에서만 삼키기
 gbite "--skip-bite 에서만 삼키기"      'S2 T2 의 꼴에서 verify-manifest.py'   '  python3 scripts/verify-manifest.py\n' '  python3 scripts/verify-manifest.py || [ -n "$skip" ]\n'
-# 센 수를 기대한 수와 견준다 — gbite 줄 하나를 지운 사본이 「변조본 10」을 찍고 지나가지 않게(설계 끝 V1″ — 감사 회차 5 OB-1 의 가)
-if [ "$gn" != 11 ]; then
-  echo "::error::test-gates.py 절의 변조본이 $gn 개 돌았다 — 11 이어야 한다(조각 38 설계 ⑤ R1)"; exit 1
-fi
+sclose 11 0
+tgn=$SB
 
-# V2 — 자유로운 것(검사 줄의 차례 · 주석)만 바꾼 gates.sh 는 지나간다
-gfree() {  # $1=이름  $2…=gmut 과 같은 바꿀 쌍
+# 태그마다 변조본(조각 41 설계 ② R) — test-gates.py 가 찍을 수 있는 태그(bad 에 넣는 f-글의 머리와 그 태그를 든 꼴의 튜플)마다 그 태그로
+# 여는 gbite 가 이 파일에 있다. 변조본: 한 태그(T3)의 gbite 를 다 지운 이 파일은 그 태그를 「변조본 없음」으로 찍는다.
+sopen "test-gates.py 의 태그마다 변조본"
+TGID='(?:bad\.append\(f"|\[f"|\(")([A-Z][0-9]+′?)[ "]'
+TGWANT="^gbite \"[^\"]*\" +'([A-Z][0-9]+′?)[ ']"
+gap=$(rgap scripts/test-gates.py "$TGID" "$R/scripts/bite-gates.sh" "$TGWANT")
+if [ -n "$gap" ]; then echo "::error::$SEC — 변조본이 없는 태그: $gap"; exit 1; fi
+SK=$((SK + 1))
+grep -v "^gbite \"[^\"]*\" *'T3'" "$R/scripts/bite-gates.sh" > "$gt/cut.sh"
+if [ "$(rgap scripts/test-gates.py "$TGID" "$gt/cut.sh" "$TGWANT")" != T3 ]; then
+  echo "::error::$SEC — T3 의 변조본을 다 지운 목록이 「T3 변조본 없음」으로 떨어지지 않는다"; exit 1
+fi
+SB=$((SB + 1))
+sclose 1 1
+
+# V2 — 자유로운 것(검사 줄의 차례 · 주석)만 바꾼 gates.sh 는 지나간다. 종료 0 과 PASS 줄을 함께 본다(조각 38 설계 끝 「닫기 전 감사
+# 회차에서 찾은 것」 V2′ — 감사 회차 5 OB-1 의 나)
+sopen "test-gates.py(자유로운 것)"
+gfree() {  # $1=이름  $2…=gcopy 의 바꿀 쌍
   local name=$1; shift
-  python3 - scripts/gates.sh "$gt/gates.sh" "$@" <<'PY'
-import pathlib, sys
-src, out, *pairs = sys.argv[1:]
-t = pathlib.Path(src).read_text(encoding="utf-8")
-for a, b in zip(pairs[::2], pairs[1::2]):
-    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
-    if t.count(a) != 1:
-        sys.exit(f"바꿀 글 {a!r} 이 gates.sh 에 한 번이 아니다 — 이 대조군을 gates.sh 에 맞춰 고쳐라")
-    t = t.replace(a, b)
-pathlib.Path(out).write_text(t, encoding="utf-8")
-PY
-  # 종료 0 과 PASS 줄을 함께 본다(조각 38 설계 끝 「닫기 전 감사 회차에서 찾은 것」 V2′ — 감사 회차 5 OB-1 의 나)
-  if ! python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1 || ! grep -q '^PASS test-gates.py' "$gt/out"; then
-    echo "::error::test-gates.py 가 자유로운 것만 바꾼 「$name」 gates.sh 를 떨어뜨렸거나 PASS 줄을 찍지 않았다"; cat "$gt/out"; exit 1
-  fi
+  gcopy "$gt/gates.sh" "$@"
+  keep '^PASS test-gates.py' "자유로운 것만 바꾼 「$name」 gates.sh" python3 scripts/test-gates.py "$gt/gates.sh"
 }
 gfree "검사 줄의 차례 바꾸기"  '  python3 scripts/verify-evals.py\n  python3 scripts/verify-graders.py\n' '  python3 scripts/verify-graders.py\n  python3 scripts/verify-evals.py\n'
 gfree "주석 바꾸기"            '  # 브리핑 검사기가 무는지' '  # 브리핑 검사기를 시험한다 — 무는지'
+sclose 0 2
 
 # R — 진짜 gates.sh 에 한 번. checks 에서 test-gates.py 줄이 빠지면 그 시험이 돌지 않아 제 줄을 못 보므로 여기서 문다
-if ! python3 scripts/test-gates.py >"$gt/out" 2>&1; then
-  echo "::error::진짜 gates.sh 가 test-gates.py 를 지나지 못했다 — checks 에서 그 줄이 빠졌는가"; cat "$gt/out"; exit 1
-fi
-echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $gn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 대조군 둘(차례 · 주석)이 지나가고, 진짜 gates.sh 가 지나감"
+sopen "test-gates.py(진짜 gates.sh)"
+keep '^PASS test-gates.py' "진짜 gates.sh — checks 에서 test-gates.py 줄이 빠졌는가" python3 scripts/test-gates.py
+sclose 0 1
+echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 태그마다 변조본이 있고, 대조군 둘(차례 · 주석)과 진짜 gates.sh 가 PASS 줄로 지나감"
 
-# eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지(종료 1 이고
-# `FAIL [` 줄 — 0 이 아닌 종료를 다 세지 않는다, 조각 36 OB-4), 자유로운 칸만 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지
-# 않고 종료 2 인지 본다. 바꿀 글은 eval.yml 에 꼭 한 번이어야 한다 — 아니면 변조본을 eval.yml 에 맞춰 고친다(R3). 바른 eval.yml 은 checks 에서 이미 지나갔다.
-ge=$(mktemp -d); en=0; ec=0
-emut() {  # $1=bite|pass  $2=이름  $3…=바꿀 글 · 바꿀 것 쌍(앞의 바꿈 뒤에 차례로) — \n 은 줄바꿈, \t 는 탭
+# eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지, 자유로운 칸만
+# 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지 않고 종료 2 인지 본다. 「물었다」는 종료 1 이고 기대한 번호의 `FAIL [번호]` 줄이
+# 있을 때만이다(조각 41 설계 ② N1 — 0 이 아닌 종료나 아무 `FAIL [` 줄을 세지 않는다). 함께 찍히는 번호는 막지 않는다. 바꿀 글은 eval.yml 에
+# 꼭 한 번이어야 한다 — 아니면 변조본을 eval.yml 에 맞춰 고친다(R3). 바른 eval.yml 은 checks 에서 이미 지나갔다.
+sopen "verify-eval-gate.py"
+ge=$(mktemp -d)
+eraw() {  # $1=기대한 번호 $2=이름 $3=견줄 파일
+  bit 1 "^FAIL \[$1\] " "$2" python3 scripts/verify-eval-gate.py "$3"
+}
+emut() {  # $1=기대한 번호 | pass  $2=이름  $3…=바꿀 글 · 바꿀 것 쌍(앞의 바꿈 뒤에 차례로) — \n 은 줄바꿈, \t 는 탭
   local want=$1 name=$2; shift 2
   python3 - .github/workflows/eval.yml "$ge/eval.yml" "$@" <<'PY'
 import pathlib, sys
@@ -1635,75 +1604,93 @@ for a, b in zip(pairs[::2], pairs[1::2]):
     t = t.replace(a, b)
 pathlib.Path(out).write_text(t, encoding="utf-8")
 PY
-  set +e
-  python3 scripts/verify-eval-gate.py "$ge/eval.yml" >"$ge/out" 2>&1; st=$?
-  set -e
-  if [ "$want" = bite ]; then
-    if [ "$st" != 1 ] || ! grep -q '^FAIL \[' "$ge/out"; then
-      echo "::error::verify-eval-gate.py 가 「$name」 eval.yml 을 물지 않았다 (exit $st)"; cat "$ge/out"; exit 1
-    fi
-    en=$((en + 1))
+  if [ "$want" = pass ]; then
+    keep '^PASS verify-eval-gate.py' "자유로운 칸만 바꾼 「$name」 eval.yml" python3 scripts/verify-eval-gate.py "$ge/eval.yml"
   else
-    if [ "$st" != 0 ] || ! grep -q '^PASS ' "$ge/out"; then
-      echo "::error::verify-eval-gate.py 가 자유로운 칸만 바꾼 「$name」 eval.yml 을 떨어뜨렸다 (exit $st)"; cat "$ge/out"; exit 1
-    fi
-    ec=$((ec + 1))
+    eraw "$want" "$name" "$ge/eval.yml"
   fi
 }
 # 감사가 든 둘(OB-1)
-emut bite "gates.sh 의 실패 삼키기"          '            ./scripts/gates.sh\n          fi\n' '            ./scripts/gates.sh || true\n          fi\n'
-emut bite "건너뛰는 갈래의 full=true"        '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "full=true" >> "$GITHUB_OUTPUT"\n            ./scripts/gates.sh --skip-bite "$why"\n'
+emut T3 "gates.sh 의 실패 삼키기"          '            ./scripts/gates.sh\n          fi\n' '            ./scripts/gates.sh || true\n          fi\n'
+emut T3 "건너뛰는 갈래의 full=true"        '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "full=true" >> "$GITHUB_OUTPUT"\n            ./scripts/gates.sh --skip-bite "$why"\n'
 # Y — 읽는 꼴 밖(③ Y6 의 꼴마다)
-emut bite "Y 탭"                              '        id: gates\n' '        id:\tgates\n'
-emut bite "Y 앵커"                            '        id: gfp\n' '        id: &g gfp\n'
-emut bite "Y 별칭"                            '        id: gpass\n' '        id: *g\n'
-emut bite "Y 태그"                            '        id: gates\n' '        id: !!str gates\n'
-emut bite "Y 병합 키"                         '        id: gseen\n' '        id: gseen\n        <<: x\n'
-emut bite "Y 흐름 꼴"                         '          fetch-depth: 0\n' '          fetch-depth: [0]\n'
-emut bite "Y 같은 키 둘"                      '        id: gpass\n' '        id: gpass\n        id: gpass\n'
-emut bite "Y | 밖의 블록 꼴"                  "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |\n" "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |-\n"
-emut bite "Y 따옴표 키"                       '        id: gates\n' '        "id": gates\n'
-emut bite "Y 값 뒤의 주석"                    '        id: gmerged\n' '        id: gmerged # 주석\n'
-emut bite "Y 알 수 없는 들여쓰기"             '        id: gfp\n' '         id: gfp\n'
+emut Y "Y 탭"                              '        id: gates\n' '        id:\tgates\n'
+emut Y "Y 앵커"                            '        id: gfp\n' '        id: &g gfp\n'
+emut Y "Y 별칭"                            '        id: gpass\n' '        id: *g\n'
+emut Y "Y 태그"                            '        id: gates\n' '        id: !!str gates\n'
+emut Y "Y 병합 키"                         '        id: gseen\n' '        id: gseen\n        <<: x\n'
+emut Y "Y 흐름 꼴"                         '          fetch-depth: 0\n' '          fetch-depth: [0]\n'
+emut Y "Y 같은 키 둘"                      '        id: gpass\n' '        id: gpass\n        id: gpass\n'
+emut Y "Y | 밖의 블록 꼴"                  "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |\n" "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n        run: |-\n"
+emut Y "Y 따옴표 키"                       '        id: gates\n' '        "id": gates\n'
+emut Y "Y 값 뒤의 주석"                    '        id: gmerged\n' '        id: gmerged # 주석\n'
+emut Y "Y 알 수 없는 들여쓰기"             '        id: gfp\n' '         id: gfp\n'
 # H — 머리의 키
-emut bite "H1 워크플로의 defaults"            '\njobs:\n' '\ndefaults:\n  run:\n    shell: bash {0}\n\njobs:\n'
-emut bite "H2 gate 잡의 continue-on-error"    '  gate:\n    runs-on: ubuntu-24.04\n' '  gate:\n    runs-on: ubuntu-24.04\n    continue-on-error: true\n'
+emut H1 "H1 워크플로의 defaults"            '\njobs:\n' '\ndefaults:\n  run:\n    shell: bash {0}\n\njobs:\n'
+emut H2 "H2 gate 잡의 continue-on-error"    '  gate:\n    runs-on: ubuntu-24.04\n' '  gate:\n    runs-on: ubuntu-24.04\n    continue-on-error: true\n'
 # T1 — 차례(끼기 · 빠지기 · 바꾸기)
-emut bite "T1 스텝 끼기"                      '      - name: 키 없이 도는 게이트\n' '      - run: echo hi\n      - name: 키 없이 도는 게이트\n'
-emut bite "T1 스텝 빠지기"                    "      - uses: actions/cache/save@v6\n        if: steps.gmerged.outputs.hit == 'true'\n        with:\n          path: .gate-pass\n          key: \${{ steps.gfp.outputs.key }}\n" ''
-emut bite "T1 차례 바꾸기"                    '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n' '      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n'
+emut T1 "T1 스텝 끼기"                      '      - name: 키 없이 도는 게이트\n' '      - run: echo hi\n      - name: 키 없이 도는 게이트\n'
+emut T1 "T1 스텝 빠지기"                    "      - uses: actions/cache/save@v6\n        if: steps.gmerged.outputs.hit == 'true'\n        with:\n          path: .gate-pass\n          key: \${{ steps.gfp.outputs.key }}\n" ''
+emut T1 "T1 차례 바꾸기"                    '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n' '      - uses: actions/setup-node@v7\n        with:\n          node-version: "22"\n          package-manager-cache: false\n      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n'
 # T2 — 다른 칸
-emut bite "T2 gate 스텝의 continue-on-error"  '        id: gates\n' '        id: gates\n        continue-on-error: true\n'
-emut bite "T2 gate 스텝의 shell"              '        id: gates\n' '        id: gates\n        shell: bash {0}\n'
-# T3 — 칸 갈래마다(id · if · env · with · uses · run)
-emut bite "T3 id"                             '        id: gpass\n' '        id: gpass2\n'
-emut bite "T3 적는 스텝의 if 에 always()"     "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n" "        if: always() && steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n"
-emut bite "T3 캐시 저장의 if"                 "        if: steps.gpass.outcome == 'success'\n" "        if: always()\n"
-emut bite "T3 HIT 를 늘 참으로"               "          HIT: \${{ steps.gseen.outputs.cache-hit == 'true' || steps.gmerged.outputs.hit == 'true' }}\n" "          HIT: \${{ true }}\n"
-emut bite "T3 찾아보기의 restore-keys"        '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n          restore-keys: gate-bite-\n'
-emut bite "T3 uses 의 이름"                   '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache@v6\n        with:\n          path: .gate-pass\n'
-emut bite "T3 uses 의 판"                     '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n' '      - uses: actions/checkout@main\n        with:\n          fetch-depth: 0\n'
-emut bite "T3 run 의 set +e"                  '            ./scripts/gates.sh\n          fi\n' '            set +e\n            ./scripts/gates.sh\n          fi\n'
-emut bite "T3 run 의 지문 박기"               '            echo "key=$key" >> "$GITHUB_OUTPUT"\n' '            echo "key=gate-bite-x" >> "$GITHUB_OUTPUT"\n'
-# F2 의 경계 — 알림 줄처럼 보이는 명령 줄
-emut bite "F2 > 가 붙은 echo"                 '            ./scripts/gates.sh\n          fi\n' '            echo "x" > .gate-pass/run.txt\n            ./scripts/gates.sh\n          fi\n'
-emut bite "F2 ::set-output 알림 줄"         '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "::set-output name=full::true"\n            ./scripts/gates.sh --skip-bite "$why"\n'
-emut bite "F2 \$( 가 든 echo"                 'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::$(./scripts/gates.sh --skip-bite x) $why"'
+emut T2 "T2 gate 스텝의 continue-on-error"  '        id: gates\n' '        id: gates\n        continue-on-error: true\n'
+emut T2 "T2 gate 스텝의 shell"              '        id: gates\n' '        id: gates\n        shell: bash {0}\n'
+# T3 — 칸 갈래마다(if · env · with · uses · run). id 는 차례의 얼굴이라 바꾸면 T1 이 문다(조각 41 — 감사 회차 4 OB-4 의 가)
+emut T1 "T1 id 를 바꿈 — id 는 차례의 얼굴이라 T3 이 아니라 T1"                             '        id: gpass\n' '        id: gpass2\n'
+emut T3 "T3 적는 스텝의 if 에 always()"     "        if: steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n" "        if: always() && steps.gates.outputs.full == 'true' && steps.gfp.outputs.key != ''\n"
+emut T3 "T3 캐시 저장의 if"                 "        if: steps.gpass.outcome == 'success'\n" "        if: always()\n"
+emut T3 "T3 HIT 를 늘 참으로"               "          HIT: \${{ steps.gseen.outputs.cache-hit == 'true' || steps.gmerged.outputs.hit == 'true' }}\n" "          HIT: \${{ true }}\n"
+emut T3 "T3 찾아보기의 restore-keys"        '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n          restore-keys: gate-bite-\n'
+emut T3 "T3 uses 의 이름"                   '        uses: actions/cache/restore@v6\n        with:\n          path: .gate-pass\n' '        uses: actions/cache@v6\n        with:\n          path: .gate-pass\n'
+emut T3 "T3 uses 의 판"                     '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n' '      - uses: actions/checkout@main\n        with:\n          fetch-depth: 0\n'
+emut T3 "T3 run 의 set +e"                  '            ./scripts/gates.sh\n          fi\n' '            set +e\n            ./scripts/gates.sh\n          fi\n'
+emut T3 "T3 run 의 지문 박기"               '            echo "key=$key" >> "$GITHUB_OUTPUT"\n' '            echo "key=gate-bite-x" >> "$GITHUB_OUTPUT"\n'
+# F2 의 경계 — 알림 줄처럼 보이는 명령 줄(명령 줄로 견주어 T3 이 문다)
+emut T3 "F2 > 가 붙은 echo"                 '            ./scripts/gates.sh\n          fi\n' '            echo "x" > .gate-pass/run.txt\n            ./scripts/gates.sh\n          fi\n'
+emut T3 "F2 ::set-output 알림 줄"         '            ./scripts/gates.sh --skip-bite "$why"\n' '            echo "::set-output name=full::true"\n            ./scripts/gates.sh --skip-bite "$why"\n'
+emut T3 "F2 \$( 가 든 echo"                 'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::$(./scripts/gates.sh --skip-bite x) $why"'
 # G — 열한 스텝 밖의 근거 파일 · 지문
-emut bite "G 다른 잡의 .gate-pass"            '          mkdir -p .eval-pass\n          echo "$GITHUB_SERVER_URL' '          mkdir -p .eval-pass .gate-pass\n          echo "$GITHUB_SERVER_URL'
-emut bite "G 열한 뒤 스텝의 gfp"              '          KEY: ${{ steps.fp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"' '          KEY: ${{ steps.gfp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"'
+emut G "G 다른 잡의 .gate-pass"            '          mkdir -p .eval-pass\n          echo "$GITHUB_SERVER_URL' '          mkdir -p .eval-pass .gate-pass\n          echo "$GITHUB_SERVER_URL'
+emut G "G 열한 뒤 스텝의 gfp"              '          KEY: ${{ steps.fp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"' '          KEY: ${{ steps.gfp.outputs.key }}\n        run: python3 scripts/eval-merged-pass.py "$KEY"'
 # 대조군 — F 의 칸마다 하나(R2)
 emut pass "F1 이름 · 주석 · 빈 줄"            '      - name: 키 없이 도는 게이트\n' '\n      # 주석\n      - name: 게이트\n' '      - name: 변조 시험 지문\n        id: gfp\n' '      - id: gfp\n' '            ./scripts/gates.sh\n          fi\n' '            # 셸 주석\n\n            ./scripts/gates.sh\n          fi\n'
 emut pass "F2 알림 줄"                        'echo "::notice::변조 시험 다섯을 건너뛴다 — $why"' 'echo "::notice::건너뛴다 — ${why}"' '            ./scripts/gates.sh\n          fi\n' '            echo "다 돈다 — $KEY"\n            ./scripts/gates.sh\n          fi\n'
 emut pass "F3 액션의 판"                      "      - uses: actions/cache/save@v6\n        if: steps.gpass.outcome == 'success'\n" "      - uses: actions/cache/save@v7\n        if: steps.gpass.outcome == 'success'\n" '      - uses: actions/checkout@v7\n        with:\n          fetch-depth: 0\n' '      - uses: actions/checkout@v12\n        with:\n          fetch-depth: 0\n'
-# 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2(R4)
+# A2 — 읽지 못하는 eval.yml(R 이 찾은 빈칸 — 조각 41 설계 ② R). UTF-8 이 아닌 바이트 · 없는 파일
+printf '\xff\xfe\n' > "$ge/bad.yml"
+eraw A2 "UTF-8 이 아닌 eval.yml" "$ge/bad.yml"
+eraw A2 "없는 eval.yml" "$ge/nope.yml"
+# 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2 와 사용법 줄(R4)
 for args in "a b" "-x" "--help"; do
   set +e
   # shellcheck disable=SC2086
-  python3 scripts/verify-eval-gate.py $args >"$ge/out" 2>&1; st=$?
+  python3 scripts/verify-eval-gate.py $args >"$BO" 2>&1; st=$?
   set -e
-  if [ "$st" != 2 ] || grep -qE '^(PASS|FAIL)' "$ge/out"; then
-    echo "::error::verify-eval-gate.py 가 거절할 인자 '$args' 에 종료 2 가 아니거나 견주었다 (exit $st)"; cat "$ge/out"; exit 1
+  if [ "$st" != 2 ] || grep -qE '^(PASS|FAIL)' "$BO" || ! grep -q '^사용법: verify-eval-gate.py' "$BO" || crash; then
+    echo "::error::verify-eval-gate.py 가 거절할 인자 '$args' 에 종료 2 · 사용법 줄이 아니거나 견주었다 (exit $st)"; cat "$BO"; exit 1
   fi
+  SB=$((SB + 1))
 done
-echo "verify-eval-gate.py: eval.yml 변조본 $en 이 다 떨어지고(감사가 든 둘 · 읽는 꼴 · 머리 · 차례 · 칸 · 글 · 알림 줄의 경계 · 갇힘) 자유로운 칸의 대조군 $ec 이 지나감, 거절 인자 셋은 종료 2"
+sclose 39 3
+echo "verify-eval-gate.py: eval.yml 변조본(감사가 든 둘 · 읽는 꼴 · 머리 · 차례 · 칸 · 글 · 알림 줄의 경계 · 갇힘 · 읽지 못함)과 거절 인자 셋, 합 $SB 이 기대한 번호 · 종료로 떨어지고, 자유로운 칸의 대조군 $SK 이 PASS 줄로 지나감"
+
+# 번호마다 변조본(조각 41 설계 ② R) — verify-eval-gate.py 가 찍을 수 있는 번호(fail(…) · 일찍 돌려주는 [("…") · 「FAIL [A2]」)마다
+# 그 번호를 기대하는 emut · eraw 가 이 파일에 있다. 변조본: A2 의 변조본을 다 지운 이 파일은 A2 를 「변조본 없음」으로 찍는다.
+sopen "verify-eval-gate.py 의 번호마다 변조본"
+EGID='(?:fail\(|\[\(|FAIL \[)"?([A-Z][0-9]*)\b'
+EGWANT='^(?:emut|eraw) ([A-Z][0-9]*) '
+gap=$(rgap scripts/verify-eval-gate.py "$EGID" "$R/scripts/bite-gates.sh" "$EGWANT")
+if [ -n "$gap" ]; then echo "::error::$SEC — 변조본이 없는 번호: $gap"; exit 1; fi
+SK=$((SK + 1))
+grep -vE '^(emut|eraw) A2 ' "$R/scripts/bite-gates.sh" > "$ge/cut.sh"
+if [ "$(rgap scripts/verify-eval-gate.py "$EGID" "$ge/cut.sh" "$EGWANT")" != A2 ]; then
+  echo "::error::$SEC — A2 의 변조본을 다 지운 목록이 「A2 변조본 없음」으로 떨어지지 않는다"; exit 1
+fi
+SB=$((SB + 1))
+sclose 1 1
+
+# 끝 — 절의 수(조각 41 설계 ② C). 절을 통째로 지운 사본은 여기서 떨어진다 — 절 안의 한 줄은 그 절의 sclose 가 본다.
+if [ "$NSEC" != 32 ]; then
+  echo "::error::변조본을 도는 절이 $NSEC 닫혔다 — 32 이어야 한다"; exit 1
+fi
+echo "변조 시험: 절 $NSEC 이 다 닫힘 — 절마다 센 수를 기대한 수와 견주고, 그 검사의 종료와 실패 줄(ID)로만 물었다고 세고, 대조군은 종료 0 과 PASS 줄을 봄"
