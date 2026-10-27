@@ -220,3 +220,60 @@ B 와 C 로 나누는 까닭 — 파일이 겹치지 않고, 한 PR 이 1,700 �
 
 **시간** — 같은 기계(4 코어)에서 `main` 의 `bite-gates.sh` 8 분 33 초, 이 PR 의 것 9 분 5 초다(+6%). 새 실행은 A2 변조본 둘과 대조 정적 셋뿐이고, 나머지는
 이미 돈 실행의 출력을 다시 읽는다. CI 의 수는 PR 본문에 적는다(⑤ V6).
+
+## PR C 에서 정한 것 (2026-10-27)
+
+④ 의 열어 둔 것 가운데 C 몫과, `bite-*.py` 넷 · `test-*.py` 열을 고치며 정한 것.
+
+**ID 목록의 원천 — 검사 코드에서 정규식으로 읽는다(PR B 와 같다).** 변조본이 기대한 ID 는 시험 파일에서 읽는다. 대조는 그 검사의 변조 시험
+(`bite-*.py`) 안에 둔다 — `gates.sh` 의 목록은 그대로다(요구사항 하지 않을 일 5). 어느 쪽이든 하나도 못 읽으면 「읽는 법이 낡았다」로 떨어진다.
+
+| 검사 | 낼 수 있는 ID 를 읽는 자리 | 변조본이 기대한 ID 를 읽는 자리 | 대조를 두는 곳 · 떨어지는 변조본 | 지금 집합 |
+|---|---|---|---|---|
+| `verify-slice-gate.py` | 실패 줄을 여는 `"[G1] ` · `FAIL [G1] ` | 자체 시험의 종료 1 꼴의 번호 목록(`, 1, ["G1"]`) — 읽은 집합을 대조군의 PASS 줄이 찍은 번호와도 견준다 | `bite-slice-gate.py` · B2 의 꼴을 다 지운 시험 글 | B2 · G1 · G2 |
+| `verify-map-pin.py` | 같다 | 같다 | `bite-map-pin.py` · R3 | M1 ~ M6 · R1 ~ R3 |
+| `verify-docs.py` | `.fail(<경로>, "<번호>"` 와 원천의 `"[A2] ` | 자체 시험을 모듈로 읽은 목록(`CASES` 의 번호 · `QUIET` · `PROFILE_CASES` · `R_CASES` 의 기대 줄) — 돌리지 않는다 | `bite-verify-docs.py` · A2 를 기대한 변조본을 다 뺀 목록 | 서른하나(A2 · C1 ~ C3 · F1 ~ F5 · I1 ~ I3 · M1 · M2 · O1 ~ O3 · P1 · R1 · S1 ~ S10 · T1 · T2) |
+
+대조가 찾은 빈칸은 없다 — 세 검사의 번호마다 변조본이 이미 있었다.
+
+**`bite-*.py` 의 N — 자체 시험의 꼴 이름으로 좁힌다.** 변조본마다 넷째 칸에 「자체 시험에서 떨어져야 하는 꼴」을 적고, 자체 시험이 종료 1 로
+`FAIL <검사> — ` 줄을 찍고 그 꼴의 이름으로 여는 실패 줄이 있고 자체 시험 자신의 트레이스백 · 「준비 실패」가 없을 때만 「물었다」로 센다.
+`bite-verify-docs.py` 는 `--first` 라 처음 어긋난 꼴 하나만 찍히므로 넷째 칸은 그 꼴이다(ADR 0047). 넷째 칸은 지금 판의 자체 시험을 돌려
+변조본마다 떨어진 꼴을 읽고 그 변조본이 깨는 보장에 가장 가까운 것을 골랐다.
+
+**검사마다의 실패 줄과 PASS 줄** — 자체 시험이 보는 꼴. PR B 의 표에 없던 것만.
+
+| 검사(자체 시험) | 실패 줄(종료) | PASS 줄 |
+|---|---|---|
+| `verify-slice-gate.py` | `[<번호>] ` 로 여는 줄과 `FAIL 설계 → 구현 관문`(1) · 사용법 줄(2) | `PASS 설계 → 구현 관문` — 기준에 마스터플랜이 없는 꼴은 `기준에 마스터플랜이 없다 — 보지 않는다` |
+| `verify-map-pin.py` | `FAIL [<번호>] `(1) · 사용법 줄(2) | `PASS 절차 지도 판` |
+| `eval-merged-pass.py` | 판정은 늘 0 이다 — M 꼴은 `reason=` 의 글과 `돈다 — <그 글>` 줄로, 경고 꼴은 `::warning::머지된 PR 의 통과를 읽지 못해 돈다 — ` 로, 인자 없음은 사용법 줄(2) | `건너뛴다 — ` · probe 의 읽은 곳 줄 · `::warning::판정이 쓸 API 를 읽어 보지 못했다 — ` |
+| `verify-docs.py` | `FAIL` 한 줄과 `  - <경로>: [<번호>] `(1) · 사용법 줄(2) | `PASS 문서의 모양` — 다른 레포 모드는 원천을 든 그 줄 |
+| `gates.sh`(`test-gates.py` 의 S) | 가짜의 종료 1 그대로 · 그 검사가 불렸고 · `gates.sh: line N:` 없음 | `… 다 통과 — 키 없이 볼 수 있는 것은 여기까지다.` · `… 통과 · 변조 시험 다섯은 건너뛰었다 — <근거>` |
+| `verify-brief.py` | `FAIL <브리핑> — `(1) · `ERROR --exclude 뒤에 경로가 없다`(2) | `PASS <브리핑> — ` |
+| `compare-copies.py` | `STOP ` 줄과 `아무것도 견주지 않았다.`(1) | `--json` 은 `compared` 를 든 JSON, 글은 `후보 N — 미판정 ` 줄 |
+| `verify-feedback.py` | `FAIL `(1) | `PASS 후보 ` |
+| `verify-manifest.py` | `FAIL` 한 줄과 기대한 글로 여는 `  - `(1) | `PASS 플러그인 ` |
+| `sync-slice.sh` | 「심지 않는다 · 심지 않았다」를 든 거절 줄 · `그런 디렉터리가 없다: `(1) · `사용법: `(2), `sync-slice.sh: line N:` 없음 | `→ ` |
+
+**센 수의 모양.** 파일마다 `WANT = (<변조본>, <대조군>)` 를 두고 돈 수와 견준다 — 종료가 0 이 아닌 꼴이 변조본, 0 인 꼴이 대조군이다.
+`test-verify-docs.py` 는 모드마다 둘(`WANT_BOTH` · `WANT_REPO`)이다. `PASS` 줄의 수는 목록의 길이가 아니라 돈 수를 찍는다. 예외 하나 —
+`test-gates.py` 의 S 는 기대 수를 `2 × 고정 목록 + CHECKS` 로 셈한다. 목록 자체는 L2 가 `gates.sh` 와 견주므로, 셋째 벌을 두면 검사를 더하는 PR 이
+세 군데를 고친다(ADR 0049). 셈한 수는 고리가 일찍 끝나거나 꼴을 거르는 것을 문다.
+
+| 파일 | 변조본 · 대조군 |
+|---|---|
+| `bite-verify-docs.py` · `bite-slice-gate.py` · `bite-map-pin.py` · `bite-eval-merged-pass.py` | 26 · 1 · 18 · 1 · 11 · 1 · 6 · 1 |
+| `test-verify-docs.py` | 두 모드 195 · 30, `--repo-only` 70 · 10 |
+| `test-verify-slice-gate.py` · `test-verify-map-pin.py` · `test-eval-merged-pass.py` | 28 · 15 · 21 · 7 · 12 · 3 |
+| `test-gates.py` · `test-verify-brief.py` · `test-compare-copies.py` | 79 · 3 · 42 · 14 · 10 · 15 |
+| `test-verify-feedback.py` · `test-verify-manifest.py` · `test-sync-slice.py` | 4 · 4 · 4 · 1 · 25 · 10 |
+
+③ A 의 어림(T3 약 25 · T7 약 20)은 28 · 10 + 15 로 바로잡았다.
+
+**대조군을 새로 세운 것** — `bite-slice-gate.py` · `bite-map-pin.py` · `bite-eval-merged-pass.py` 의 대조군 셋(성공 기준 3). 변조본보다 먼저 돌고,
+어긋나면 아무 변조본도 돌리지 않고 멈춘다. 종료만 보던 대조군과, 종료조차 보지 않던 둘 — `test-verify-docs.py` 의 「원천 표에 제목을 더하면」 · `test-sync-slice.py`
+의 L3 앞의 심기 — 도 이제 그 길의 줄을 본다.
+
+**이름이 틀린 변조본 — 없었다.** 좁혀도 떨어진 변조본이 없다. `bite-*.py` 의 이름은 검사의 보장을 들고 넷째 칸이 자체 시험의 꼴을 들어, 이름이
+꼴과 다른 것(예: 「A1 — 틀의 원천을 빈 목록으로 읽는다」가 `--first` 에서 F3 꼴로 처음 떨어진다)은 틀린 것이 아니다.
