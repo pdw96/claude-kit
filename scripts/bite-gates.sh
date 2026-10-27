@@ -1451,6 +1451,10 @@ gbite "claude plugin validate 삼키기"  'S1 T1 의 꼴에서 claude:./vibe-aud
 gbite "checks 머리의 set +e"           'S1 T1 의 꼴에서 verify-manifest.py'   'checks() {\n' 'checks() {\n  set +e\n'
 # S2 — 건너뛰는 실행(--skip-bite)에서만 삼키기
 gbite "--skip-bite 에서만 삼키기"      'S2 T2 의 꼴에서 verify-manifest.py'   '  python3 scripts/verify-manifest.py\n' '  python3 scripts/verify-manifest.py || [ -n "$skip" ]\n'
+# 센 수를 기대한 수와 견준다 — gbite 줄 하나를 지운 사본이 「변조본 10」을 찍고 지나가지 않게(설계 끝 V1″ — 감사 회차 5 OB-1 의 가)
+if [ "$gn" != 11 ]; then
+  echo "::error::test-gates.py 절의 변조본이 $gn 개 돌았다 — 11 이어야 한다(조각 38 설계 ⑤ R1)"; exit 1
+fi
 
 # V2 — 자유로운 것(검사 줄의 차례 · 주석)만 바꾼 gates.sh 는 지나간다
 gfree() {  # $1=이름  $2…=gmut 과 같은 바꿀 쌍
@@ -1466,8 +1470,9 @@ for a, b in zip(pairs[::2], pairs[1::2]):
     t = t.replace(a, b)
 pathlib.Path(out).write_text(t, encoding="utf-8")
 PY
-  if ! python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1; then
-    echo "::error::test-gates.py 가 자유로운 것만 바꾼 「$name」 gates.sh 를 떨어뜨렸다"; cat "$gt/out"; exit 1
+  # 종료 0 과 PASS 줄을 함께 본다(조각 38 설계 끝 「닫기 전 감사 회차에서 찾은 것」 V2′ — 감사 회차 5 OB-1 의 나)
+  if ! python3 scripts/test-gates.py "$gt/gates.sh" >"$gt/out" 2>&1 || ! grep -q '^PASS test-gates.py' "$gt/out"; then
+    echo "::error::test-gates.py 가 자유로운 것만 바꾼 「$name」 gates.sh 를 떨어뜨렸거나 PASS 줄을 찍지 않았다"; cat "$gt/out"; exit 1
   fi
 }
 gfree "검사 줄의 차례 바꾸기"  '  python3 scripts/verify-evals.py\n  python3 scripts/verify-graders.py\n' '  python3 scripts/verify-graders.py\n  python3 scripts/verify-evals.py\n'
