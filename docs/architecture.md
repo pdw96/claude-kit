@@ -16,6 +16,7 @@
 | 사본 대장 | `copies.json` | 사본마다 레포 · 경로 · 심을 때의 커밋 · 날짜 |
 | 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |
+| 회수율 | `vibe-audit/recall/` | 담당 감사자가 놓친 실제 결함을 옮긴 케이스. 수트와 따로 `run-evals.sh --eval-dir recall` 로 재기만 한다 — CI 는 돌리지 않고 수트 지문 밖이다(ADR 0050) |
 | 키 없는 게이트 | `scripts/gates.sh` 가 부르는 것 | 모델 없이 도는 검사 전부. 목록은 그 파일에 있고, 그 이름을 `scripts/test-gates.py` 가 고정 목록으로 들어 갈리면 떨어진다(ADR 0049) — 늘 도는 검사와 자체 시험 스물하나(`checks`)와 건너뛸 수 있는 변조 시험 다섯(`bites`) 두 묶음이다. `--skip-bite <근거>` 는 `checks` 만 돌리고 CI(`GITHUB_ACTIONS=true`)에서만 받는다. 변조 시험의 지문은 `scripts/gate-key.py` 가 낸다 — 검사가 대조하는 문서와 기록을 뺀 파일 전부와 파이썬 · git 판(ADR 0046). 조각 문서 스킬의 검사 둘은 `scripts/` 의 같은 이름 링크로 부른다(ADR 0018 의 3). `scripts/verify-map-pin.py` 는 원본 스킬의 절차 지도 링크가 커밋으로 박혔고 그 지도가 `vibe-slice/` 를 마지막으로 고친 커밋의 것인지 본다 — claude-kit 의 역사를 읽으므로 플러그인에 싣지 않는다(ADR 0019 의 5) |
 | CI | `.github/workflows/eval.yml` | 키 없는 게이트(`gates.sh` 하나 — 변조본도 거기서 돈다. 변조 시험의 지문이 이미 물었으면 `--skip-bite` 로 부른다), 수트, 그리고 판정. 잡의 이름과 설정은 그 파일이 들고, 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이 든다 |
 
@@ -79,7 +80,8 @@ ref 범위에 캐시로 적혀, PR 은 제 merge ref 와 `main` 범위를 읽는
 커밋으로 가진 PR 하나의 merge ref 를 캐시 목록 API 로 읽고(`scripts/eval-merged-pass.py`), 같은 키가 있으면 건너뛰며 그 키를
 `main` 범위에도 적는다 — 지문을 바꾼 PR 의 수트가 머지 뒤 한 번 더 돌지 않는다(ADR 0021). 그래서 `main` 에서 다시 돌리려면
 `refs/heads/main` 과 그 PR 의 `eval-route-` 항목을 둘 다 지우거나 전수를 부른다. 사람이 부르는 전수(`workflow_dispatch`)는
-지문을 찾아보지 않고 늘 돈다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`.
+지문을 찾아보지 않고 늘 돈다. 재는 법과 케이스 표는 `vibe-audit/evals/README.md`. 회수율 케이스는 이 흐름 밖이다 — 같은 러너가 `--eval-dir recall` 로 같은 결과 정리를
+그 폴더에 대고, 끝에 찾은 회차 수를 찍을 뿐 종료를 바꾸지 않는다(ADR 0050 의 2 · 4).
 
 ## 게이트가 무는가
 

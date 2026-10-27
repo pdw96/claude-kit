@@ -1,4 +1,5 @@
 .DS_Store
 vibe-audit/evals/results/
+vibe-audit/recall/results/
 __pycache__/
 .gate-pass/

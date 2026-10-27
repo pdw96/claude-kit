@@ -3,6 +3,7 @@
 #
 #   ./scripts/run-evals.sh                          # 전부
 #   ./scripts/run-evals.sh --case 'trap-*' --runs 5 # 골라서
+#   ./scripts/run-evals.sh --eval-dir recall        # 회수율 케이스(vibe-audit/recall/)
 #
 # 깃발을 손으로 적지 않는 이유는 하나다. `--judge-model sonnet` 을 빠뜨리면
 # **조용히 오검이 난다** — 기본 심판(haiku)은 이 수트의 감사 기록에서 아홉 번
@@ -28,6 +29,12 @@
 # 실행에서 난 결함과, 회귀를 통과(exit 0)로 내는 결함뿐이다. 하네스가 이상한
 # result.json · 트레이스를 쓰는 가설적 모양은 한계로 둔다 — 목록은 evals/README.md
 # 「브리핑 검사기를 떼고, 러너를 고정했다」.
+#
+# **회수율 폴더(2026-10-27, 조각 39).** `--eval-dir recall` 하나만 받아 하네스에 넘기고,
+# 아래 결과 정리를 그 폴더(`vibe-audit/recall`)에 그대로 댄다. 새 방어가 아니다 — 그 밖의
+# 값은 하네스를 부르기 전에 종료 2 다. 회수율은 재기만 한다(ADR 0050 의 2): 목적 그레이더
+# `recall-found` 가 매번 떨어져도 종료가 바뀌지 않고, 끝에 찾은 회차 수를 찍는다.
+# 감사자가 안 뜬 회차는 측정이 아니라서 그대로 떨어진다. 조각 39 설계 ② E · N.
 set -euo pipefail
 
 main() {
@@ -45,6 +52,23 @@ for a in "$@"; do
       jflag=0 ;;
     --model|--model=*)
       mflag=0 ;;
+  esac
+done
+
+# 수트 폴더 — 없으면 하네스의 기본(evals). 받는 값은 recall 하나다. 하네스에 넘기는 것은
+# 부른 쪽의 인자 그대로("$@")라 여기서는 고르기만 한다.
+EVAL_DIR=evals
+seen_dir=0
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  a=${args[$i]}
+  case "$a" in
+    --eval-dir|--eval-dir=*)
+      if [ "$a" = --eval-dir ]; then v=${args[$((i + 1))]:-}; i=$((i + 1)); else v=${a#--eval-dir=}; fi
+      if [ "$seen_dir" = 1 ] || [ "$v" != recall ]; then
+        echo "--eval-dir 는 recall 하나만 한 번 받는다 (받은 것: '${v}')" >&2; exit 2
+      fi
+      seen_dir=1; EVAL_DIR=recall ;;
   esac
 done
 
@@ -74,7 +98,7 @@ if [ "$mflag" = 1 ]; then MODEL=(--model "$DEFAULT_MODEL"); fi
 python3 scripts/verify-evals.py
 python3 scripts/verify-graders.py
 
-OUT="vibe-audit/evals/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+OUT="vibe-audit/$EVAL_DIR/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)"
 mkdir -p "$OUT"
 
 # **`⚠ kept …` 줄은 거른다.** `--keep-temp` 로 남긴 임시 디렉터리마다 하네스가 한 줄씩
@@ -97,7 +121,7 @@ status=${PIPESTATUS[0]}
 set -e
 
 # 실패한 회차의 트레이스만 남기고 임시 디렉터리는 지운다.
-EVAL_DEFAULT_MODEL="$DEFAULT_MODEL" python3 - "$OUT" "$@" <<'PY'
+EVAL_DEFAULT_MODEL="$DEFAULT_MODEL" EVAL_DIR="$EVAL_DIR" python3 - "$OUT" "$@" <<'PY'
 import json, pathlib, re, shutil, sys
 
 out = pathlib.Path(sys.argv[1])
@@ -142,7 +166,9 @@ for i, a in enumerate(argv):
         ablation = argv[i + 1]
     elif a.startswith("--ablation="):
         ablation = a.split("=", 1)[1]
-suite = pathlib.Path("vibe-audit/evals")
+import os
+recall = os.environ.get("EVAL_DIR") == "recall"
+suite = pathlib.Path("vibe-audit") / ("recall" if recall else "evals")
 chosen = sorted(c.parent.name for c in suite.glob("*/case.yaml")
                 if not pats or any(fnmatch.fnmatchcase(c.parent.name, p) for p in pats))
 # 한도 문구는 **답의 머리에 온 것만** 센다. 「rate limit」 같은 말은 감사 기록이 정상으로
@@ -313,6 +339,10 @@ for case in d.get("cases", []):
                 steady.append(f"{case.get('name')}/{name} ({missed}/{len(runs)} 회차 — 감사자가 안 떴다)")
                 steady_cases.add(case.get("name"))
             continue
+        # 회수율의 목적 그레이더는 재는 것이지 막는 것이 아니다 — 매번 떨어져도 「놓쳤다」는 측정이다
+        # (ADR 0050 의 2). 아래 끝의 회수 줄이 그것을 찍는다.
+        if recall and name == "recall-found":
+            continue
         if len(marks) == len(runs) and all(g.get("scored", True) and not g.get("passed") for g in marks):
             steady.append(f"{case.get('name')}/{name} ({len(runs)}/{len(runs)} 회차)")
             steady_cases.add(case.get("name"))
@@ -406,6 +436,19 @@ for t in temps:
     shutil.rmtree(t, ignore_errors=True)
     if t.exists():
         print(f"  치우지 못했다: {t}")
+
+# 회수율 — 케이스마다 recall-found 가 통과한 with 회차 수와 그 합. 종료코드는 바꾸지 않는다.
+if recall:
+    found_all = runs_all = 0
+    print()
+    for case in d.get("cases", []):
+        runs = (case.get("arms") or {}).get("with") or []
+        found = sum(1 for run in runs for g in run.get("graders", [])
+                    if g.get("name") == "recall-found" and g.get("passed"))
+        found_all += found
+        runs_all += len(runs)
+        print(f"회수 {case.get('name')} {found}/{len(runs)}")
+    print(f"회수율 {found_all}/{runs_all}")
 
 print(f"\n결과: {out}")
 print(f"  result.json · report.html" + (f" · traces/ ({kept}건)" if kept else "  (실패 없음)"))

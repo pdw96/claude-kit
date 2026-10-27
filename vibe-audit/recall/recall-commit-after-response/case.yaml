@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: recall-commit-after-response
+description: |
+  회수율(조각 39 · ADR 0050). 쓰기 엔드포인트의 트랜잭션 의존성이 `yield` 뒤에서
+  커밋한다 — 그 자리는 응답이 만들어져 나간 뒤에 돌아, 커밋이 실패해도 201 은 이미
+  떠났고 부르는 쪽은 저장되지 않은 것을 저장됐다고 읽는다. 담당 감사자가 이 결함이
+  있는 커밋을 감사하고도 부적합으로 내지 않았고, 뒤의 코드 리뷰가 찾았다.
+  출처: ERP 대장 NC-104 · 감사한 커밋 bb8c3db(audit-data 회차 ⑧, backend/app/api/app.py:74-75) · 찾은 쪽 Codex 리뷰 · 고침 e3b3eeb
+expected_outcome: |
+  `app/main.py` 의 `session_scope` 가 `yield` 뒤에서 커밋하는 자리가 NC 로 나온다 —
+  커밋이 응답보다 늦어 실패를 알릴 수 없다는 것과 함께.
+tags: [recall, data]
+context:
+  scaffold_script: fixture.sh

@@ -29,6 +29,11 @@
 **표본은 선택이다.** 다만 없는 케이스는 여기서 세어 찍는다 — 덮이지 않은 자리를
 덮인 것처럼 두지 않는다.
 
+**회수율 케이스(`vibe-audit/recall/`)는 표본이 필수다**(조각 39 설계 ② M6 · ADR 0050 의 6).
+그 판정은 정규식 하나(`recall-found`)뿐이라, 그것이 그 결함을 실제로 가르는지 키 없이
+보일 자리가 표본밖에 없다. 인자가 없으면 두 폴더를 다 보고(recall 이 없으면 넘어간다),
+폴더 하나를 주면 그 하나다 — 이름이 `recall` 이면 표본을 필수로 본다.
+
 심판 그레이더(`llm` · `baseline`)는 여기서 보지 않는다. 모델이 필요하고, 이
 스크립트는 필요 없어야 한다.
 
@@ -69,7 +74,7 @@ def hits(g, text):
     return found if g.get("match") != "not_contains" else not found
 
 
-def check(suite):
+def check(suite, required=False):
     cases = sorted(
         d for d in suite.iterdir()
         if d.is_dir() and d.name != "results" and not d.name.startswith(".")
@@ -90,11 +95,16 @@ def check(suite):
             # 줄에 세면 덮을 수 있는 자리가 몇인지 흐려진다.
             if samples.is_dir():
                 bad.append(f"{case.name}: samples/ 가 있는데 정규식 그레이더가 없다")
+            elif required:
+                bad.append(f"{case.name}: 회수율 케이스에 정규식 그레이더가 없다 — 표본으로 가를 것이 없다")
             else:
                 nothing.append(case.name)
             continue
         if not samples.is_dir():
-            uncovered.append(case.name)
+            if required:
+                bad.append(f"{case.name}: 회수율 케이스에 samples/ 가 없다 — 정규식이 그 결함을 가르는지 보일 자리가 없다")
+            else:
+                uncovered.append(case.name)
             continue
 
         ok_file = samples / "pass.md"
@@ -168,15 +178,41 @@ def check(suite):
     return bad, covered, uncovered, nothing
 
 
+RECALL_DIR = "recall"
+
+
 def main(argv):
     here = pathlib.Path(__file__).resolve().parent.parent
-    suite = pathlib.Path(argv[1]) if len(argv) == 2 else here / "vibe-audit" / "evals"
     if len(argv) > 2:
         print(__doc__)
         return 2
-    if not suite.is_dir():
-        print(f"FAIL 수트 디렉터리가 없다: {suite}")
+    suites = [pathlib.Path(argv[1])] if len(argv) == 2 else [here / "vibe-audit" / "evals"]
+    if not suites[0].is_dir():
+        print(f"FAIL 수트 디렉터리가 없다: {suites[0]}")
         return 1
+    if len(argv) == 1:
+        recall = here / "vibe-audit" / RECALL_DIR
+        if recall.is_dir():
+            suites.append(recall)
+        else:
+            print(f"PASS 회수율 케이스 0개 — {recall} 이 없다")
+    rc = 0
+    for suite in suites:
+        rc = max(rc, one(suite))
+    return rc
+
+
+def one(suite):
+    if suite.name == RECALL_DIR:
+        bad, covered, _, _ = check(suite, required=True)
+        for line in bad:
+            print("FAIL " + line)
+        if bad:
+            print(f"\n{len(bad)}건. 회수율: {suite}")
+            return 1
+        print(f"PASS 회수율 케이스 {len(covered)}개가 다 표본으로 견딤 — {' · '.join(covered) or '없음'}")
+        print(f"     회수율 {suite}")
+        return 0
 
     bad, covered, uncovered, nothing = check(suite)
     for line in bad:
