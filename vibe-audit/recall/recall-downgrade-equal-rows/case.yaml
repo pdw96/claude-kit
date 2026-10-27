@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: recall-downgrade-equal-rows
+description: |
+  회수율(조각 39 · ADR 0050). 공통코드를 심는 리비전이 upgrade 에서 「이미 있으면 넘어가」고,
+  downgrade 의 멈춤 검사는 「값이 다를 때만」 멈춘 뒤 그룹째 지운다 — 운영자가 리비전보다 먼저
+  글자까지 같은 값으로 만든 줄은 어느 검사에도 걸리지 않고 말없이 사라진다. 담당 감사자가 같은
+  모양의 다섯을 닫으며 「여섯 번째는 없다」고 적은 커밋에 있었고, 뒤의 코드 리뷰가 찾았다.
+  출처: ERP 대장 NC-62 · 감사한 커밋 97a06a7(audit-data 회차 ⑦, backend/migrations/versions/65d31f8b7918_material_group_axis.py 의 IS DISTINCT FROM 과 DELETE) · 찾은 쪽 Codex 리뷰 P1 · 고침 없음(등록)
+expected_outcome: |
+  `0007_shipping_zone.py` 의 downgrade 가 리비전이 만들지 않은(운영자가 먼저 만든) 같은 값의 줄을 지우는 자리가 NC 로 나온다.
+tags: [recall, data]
+context:
+  scaffold_script: fixture.sh

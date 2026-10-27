@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: recall-blank-boundary
+description: |
+  회수율(조각 39 · ADR 0050). 공개 쓰기 엔드포인트의 경계가 문자열 칸에 길이만 걸어,
+  공백 · 탭 · 전각 공백만인 값이 경계를 지나 데이터베이스의 CHECK 에서 거부된다 —
+  부르는 쪽은 칸과 까닭을 말하는 422 대신 500 을 받는다. 담당 감사자가 이 결함이 있는
+  커밋을 감사하고도 부적합으로 내지 않았고, 다른 감사자의 「안 본 것」 한 줄이 남았다.
+  출처: ERP 대장 NC-74 · 감사한 커밋 bb8c3db(audit-contract 회차 ⑧, backend/app/api/schemas.py 의 min_length=1) · 찾은 쪽 audit-secrets 의 「안 본 것」과 저자의 재현 · 고침 03b6c1f
+expected_outcome: |
+  `app/schemas.py` 의 칸들이 공백만인 값을 거르지 않아 CHECK 위반이 500 으로 나가는 자리가 NC 로 나온다.
+tags: [recall, contract]
+context:
+  scaffold_script: fixture.sh

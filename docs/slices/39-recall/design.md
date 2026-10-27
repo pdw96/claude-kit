@@ -181,3 +181,27 @@ B 에 첫 케이스를 싣는 까닭 — 모양 검사와 그 변조본이 물 �
 - **「모든 회차에서 떨어짐」(종료 5)과 회수율** — 러너의 결과 정리는 결정론 그레이더가 모든 회차에서 떨어지면 종료 5 다. 회수율 폴더에서는
   `recall-found` 를 그 판정에서 뺀다 — 매번 놓친 것은 재려는 사실이고, ② N 의 「점수로 종료가 바뀌지 않는다」가 그것이다. `auditor-fired` 는
   그대로 둔다 — 감사자가 안 뜬 회차는 측정이 아니다. 놓친 회차의 트레이스는 실패 회차로 남아 무엇을 봤는지 읽을 수 있다.
+
+## PR C 에서 정한 것 (2026-10-27)
+
+④ 의 열어 둔 것 가운데 C 몫 — R4 ~ R6 의 B2 와, 케이스마다 픽스처의 도메인과 흔적 낱말이다.
+
+- **R4 ~ R6 은 B2 를 지났다 — 예비로 바꾸지 않는다.** ERP git 으로 담당 감사자가 감사한 커밋을 봤다.
+  - R4(NUL) — `b5af763` 의 `backend/app/api/schemas.py` 의 `_present` 가 공백만 거르고 NUL 을 보지 않는다. 그 커밋을 본
+    `audit-contract` ㊱ 의 절에 NUL 이 없다.
+  - R5(꺼진 공통코드) — 같은 커밋의 `backend/app/services/returns.py` 의 `_must_be_a_settle_type` 이 코드가 있는지만 묻는다.
+    `audit-data` ㊲ 의 절에 없다. 같은 파일의 모델이 「새 기록에서는 못 고르고 옛 기록에서는 읽힌다」고 적는다.
+  - R6(NC-62) — `audit-data` ⑦ 이 감사한 `97a06a7` 의 `65d31f8b7918_material_group_axis.py` 에 `NOT EXISTS` 로 넘어가는 upgrade 와
+    `IS DISTINCT FROM` 으로만 멈추는 downgrade 가 있다. ⑦ 은 같은 통찰을 다른 표에서 관찰(OB-17)로만 적었다.
+- **③ B 의 R4 · R5 「대장의 자리」를 바로잡는다.** 두 결함을 적은 문단(「같은 날 이 회차 뒤에 Codex 리뷰(PR #71, `b5af763`)가 둘을 냈고
+  `62d0030` 이 고쳤다」)은 ㊱ 절이 아니라 **㊲ 절 끝**에 있다. 케이스의 `출처:` 줄은 ㊲ 절 끝으로 적는다.
+- **도메인과 흔적 낱말** — 결함마다 다른 도메인으로 옮기고, 결함의 모양(같은 프레임워크 · 같은 호출 · 같은 경계)과 원본에 있던
+  말(R5 모델의 「새 기록에서는 못 고른다」, R6 주석의 「「심은 셋」인지는 위의 멈춤 검사가 지킨다」)은 그대로 둔다.
+
+  | # | 케이스 | 감사자 | 도메인 | `recall-found` 가 NC 절 하나 안에 요구하는 것 |
+  |---|---|---|---|---|
+  | R2 | `recall-blank-boundary` | `audit-contract` | 진료 예약 | `schemas.py` · 공백의 흔적 |
+  | R3 | `recall-expiry-from-processing` | `audit-data` | 회원권 | `memberships.py` · 만료일 · 기준 날짜(신청일 · 승인일 …) |
+  | R4 | `recall-nul-boundary` | `audit-contract` | 행사 신청 | `schemas.py` · NUL 의 흔적 |
+  | R5 | `recall-inactive-code` | `audit-data` | 환불 | `refunds.py` · 꺼짐의 흔적(`is_active` …) |
+  | R6 | `recall-downgrade-equal-rows` | `audit-data` | 배송 권역 | `0007_shipping_zone.py` · 지움 · 검사를 지나는 까닭(같은 값 · `NOT EXISTS` …) |
