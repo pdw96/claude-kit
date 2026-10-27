@@ -38,8 +38,8 @@ CI 는 ~2,000 tok 으로 쟀다. CI 쪽이 `문자/4`(영어용 어림)였고 �
 자라는 길을 막는 것이 이 장치의 전부다.
 
 **다른 하나는 천장이다.** 아래 상수가 벽이다. 이 숫자들은 **의도적으로 정한
-것이지 유도된 것이 아니다** — 주의가 언제 흩어지는지는 세어서 안 나온다. 지금
-값에서 한 기능치 여유를 두었고, 넘길 일이 생기면 숫자를 올리는 커밋으로 그
+것이지 유도된 것이 아니다** — 주의가 언제 흩어지는지는 세어서 안 나온다. 세울
+때의 값에서 한 기능치 여유를 두었고, 넘길 일이 생기면 숫자를 올리는 커밋으로 그
 판단을 남기라는 뜻이다.
 
 표준 라이브러리만 쓴다.
@@ -47,11 +47,11 @@ CI 는 ~2,000 tok 으로 쟀다. CI 쪽이 `문자/4`(영어용 어림)였고 �
 import pathlib
 import sys
 
-# 벽. 단위는 문자. 지금 값에서 약 15% 여유.
-ALWAYS_ON_TOTAL_MAX = 5_600      # 지금 4,810 — 감사를 안 돌리는 세션도 내는 값
-COMPONENT_ALWAYS_ON_MAX = 900    # 지금 최대 804
-AGENT_ON_INVOKE_MAX = 11_000     # 지금 최대 9,459 — 감사 대상 코드와 같은 창을 쓴다
-SKILL_ON_INVOKE_MAX = 4_500      # 지금 audit-brief 3,890 (ERP#13 의 결함 여덟을 받고 올렸다)
+# 벽. 단위는 문자. 세울 때의 값에서 약 15% 여유를 뒀다 — 지금 값은 스냅숏(SNAPSHOT)이 든다.
+ALWAYS_ON_TOTAL_MAX = 5_600      # 감사를 안 돌리는 세션도 내는 값
+COMPONENT_ALWAYS_ON_MAX = 900
+AGENT_ON_INVOKE_MAX = 11_000     # 감사 대상 코드와 같은 창을 쓴다
+SKILL_ON_INVOKE_MAX = 4_500      # ERP#13 의 결함 여덟을 받고 올렸다
 
 SNAPSHOT = pathlib.Path("vibe-audit/evals/budget.txt")
 SOURCES = (("agent", "agents/audit-*.md"), ("skill", "commands/*.md"), ("skill", "skills/*/SKILL.md"))
