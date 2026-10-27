@@ -522,6 +522,48 @@ if python3 scripts/verify-graders.py "$g/vibe-audit/evals" >/dev/null 2>&1; then
   echo "::error::verify-graders.py 가 pass-*.md 에서 떨어지는 그레이더를 통과시켰다"; exit 1
 fi
 
+# 회수율 케이스(조각 39 설계 ② M · ⑤ R1 · R2). 회수율 폴더의 사본에서 조건마다 한 자리를 흔들어 그 검사가 떨어져야 하고,
+# 고치지 않은 사본과 회수율 폴더가 없는 트리는 지나가야 한다. 흔드는 명령은 사본의 회수율 폴더에서 돈다($C 는 케이스 이름).
+C=recall-commit-after-response
+rn=0
+rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령
+  local s; s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
+  ( cd "$s/vibe-audit/recall" && eval "$3" )
+  if python3 "scripts/verify-$1.py" "$s/vibe-audit/recall" >/dev/null 2>&1; then
+    echo "::error::verify-$1.py 가 회수율 변조본 「$2」을 통과시켰다"; exit 1
+  fi
+  rn=$((rn + 1))
+}
+rbite evals   "이름이 recall- 가 아님(M1)"       'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml'
+rbite evals   "감사자를 지목하지 않음(M1)"        'sed -i "s/audit-data/감사자/" $C/prompt.md'
+rbite evals   "감사자 둘을 지목(M1)"              'echo "audit-secrets 도 함께" >> $C/prompt.md'
+rbite evals   "recall-found 없음(M2)"             'rm $C/graders/recall-found.md'
+rbite evals   "recall-found 가 심판(M2)"          'sed -i "s/^type: regex/type: llm/" $C/graders/recall-found.md'
+rbite evals   "recall-found 를 뒤집음(M2)"        'sed -i "s/^type: regex/type: regex\nmatch: not_contains/" $C/graders/recall-found.md'
+rbite evals   "목적 그레이더 둘(M2 · M4)"         'cp $C/graders/recall-found.md $C/graders/recall-found-2.md'
+rbite evals   "auditor-fired 없음(M3)"            'rm $C/graders/auditor-fired.md'
+rbite evals   "auditor-fired 가 점수에 듦(M3)"    'sed -i "/^arm: with-only/d" $C/graders/auditor-fired.md'
+rbite evals   "대조군을 더함(M4)"                 'cp ../evals/gate-own-not-pushed/graders/real-nc-found.md $C/graders/'
+rbite evals   "출처 줄 없음(M5)"                  'sed -i "/^  출처:/d" $C/case.yaml'
+rbite graders "fail 표본 없음(M6)"                'rm $C/samples/fail*.md'
+rbite graders "pass 표본 없음(M6)"                'rm $C/samples/pass.md'
+rbite graders "표본 폴더 없음(M6)"                'rm -r $C/samples'
+rbite graders "아무 NC 나 받는 정규식(M6)"        'python3 -c "import pathlib,re; p=pathlib.Path(\"$C/graders/recall-found.md\"); p.write_text(re.sub(r\"(?m)^pattern: .*$\", lambda m: \"pattern: \\\"### NC-\\\\\\\\d+\\\"\", p.read_text()))"'
+# 대조군 — 고치지 않은 회수율 사본은 두 검사를 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
+s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
+for chk in evals graders; do
+  if ! python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall" >/dev/null 2>&1; then
+    echo "::error::verify-$chk.py 가 고치지 않은 회수율 폴더를 떨어뜨렸다"; exit 1
+  fi
+done
+u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"; rm -rf "$u/vibe-audit/recall"
+for chk in evals graders; do
+  if ! out=$(python3 "$u/scripts/verify-$chk.py" 2>&1) || ! grep -q '^PASS 회수율 케이스 0개' <<<"$out"; then
+    echo "::error::verify-$chk.py 가 회수율 폴더 없는 트리를 「0개」로 지나보내지 않았다"; printf '%s\n' "$out" | tail -5; exit 1
+  fi
+done
+echo "회수율 케이스: 변조본 $rn 이 다 떨어지고(verify-evals.py 열하나 · verify-graders.py 넷), 고치지 않은 사본과 회수율 폴더 없는 트리가 지나감"
+
 # verify-budget.py — 문구가 자란 사본은 실패해야 한다
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
 python3 -c "
@@ -1197,7 +1239,16 @@ keyed diff scripts/run-evals.sh                           'chmod -x scripts/run-
 if [ "$(python3 scripts/eval-key.py full)" = "$k0" ]; then
   echo "::error::eval-key.py 의 지문에 모드가 안 들었다"; exit 1
 fi
-echo "수트 지문: 무관한 넷은 그대로, 관련된 여섯(실행 비트 포함)과 모드는 바뀐다"
+# 회수율 케이스는 두 모드 다 밖이다(조각 39 설계 ② K · ⑤ R4) — 전수가 돌리지 않으므로 full 도 그대로여야 한다.
+kf0=$(python3 scripts/eval-key.py full)
+keyed same vibe-audit/recall/recall-commit-after-response/fixture.sh 'echo "# x" >> vibe-audit/recall/recall-commit-after-response/fixture.sh'
+hold vibe-audit/recall/recall-commit-after-response/fixture.sh
+echo "# x" >> vibe-audit/recall/recall-commit-after-response/fixture.sh
+kf=$(python3 scripts/eval-key.py full); undo vibe-audit/recall/recall-commit-after-response/fixture.sh
+if [ "$kf" != "$kf0" ]; then
+  echo "::error::eval-key.py 가 회수율 케이스로 전수 지문을 바꿨다 — 전수는 그것을 돌리지 않는다"; exit 1
+fi
+echo "수트 지문: 무관한 다섯(회수율 케이스는 route · full 둘 다)은 그대로, 관련된 여섯(실행 비트 포함)과 모드는 바뀐다"
 
 # 변조본 파일이 수트 지문 밖인가(ADR 0020 의 6). eval-key.py 는 run-evals.sh 에 적힌 스크립트를 지문에 넣는다 —
 # 러너가 이 이름들을 적게 되면(주석이라도) 변조본을 고칠 때마다 수트가 다시 돈다. 판정은 안 틀리고 비용만

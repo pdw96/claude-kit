@@ -19,7 +19,9 @@
 수트가 읽지 않는다고 확인한 것뿐이다 — README 와 예산 스냅숏.
 
 지문에 드는 것:
-  - vibe-audit/ 아래 git 이 아는 파일 전부 (README.md · evals/budget.txt 제외)
+  - vibe-audit/ 아래 git 이 아는 파일 전부 (README.md · evals/budget.txt ·
+    recall/ 제외 — 회수율 케이스는 route 도 전수도 돌리지 않는다. 러너가
+    `--eval-dir recall` 로 따로 잰다. 조각 39 설계 ② K · ADR 0050 의 5)
   - scripts/run-evals.sh 와, 그 안에 적힌 scripts/*.py|sh 전부 — 러너가 새
     스크립트를 부르게 되면 따로 안 고쳐도 따라 들어온다
   - .github/workflows/eval.yml — 수트에 넘기는 깃발이 여기 있다
@@ -39,7 +41,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RUNNER = "scripts/run-evals.sh"
-SKIP = re.compile(r"(^|/)README\.md$|^vibe-audit/evals/budget\.txt$")
+SKIP = re.compile(r"(^|/)README\.md$|^vibe-audit/evals/budget\.txt$|^vibe-audit/recall/")
 MODES = ("route", "full")
 
 

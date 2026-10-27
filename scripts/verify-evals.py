@@ -3,7 +3,15 @@
 
   python3 scripts/verify-evals.py [수트 디렉터리]
 
-인자가 없으면 이 스크립트 옆의 vibe-audit/evals 다.
+인자가 없으면 이 스크립트 옆의 vibe-audit/evals 와 vibe-audit/recall 둘이다
+(recall 이 없으면 그쪽은 0 케이스로 지나간다). 인자로 폴더 하나를 주면 그
+하나다 — 이름이 `recall` 이면 회수율 규칙으로 본다.
+
+**회수율 케이스(`vibe-audit/recall/`)는 규칙이 다르다**(조각 39 설계 ② M · ADR 0050).
+담당 감사자가 실제로 놓친 결함을 픽스처로 옮긴 것이라, 심은 결함이 곧 진짜 NC 다.
+그래서 대조군 `real-nc-found` 를 두지 않고, 목적 그레이더 `recall-found`(정규식)
+하나와 `auditor-fired` 만 둔다. `case.yaml` 의 `description` 이 `출처:` 줄로 대장의
+자리를 든다. 표본은 `verify-graders.py` 가 필수로 본다.
 
 **이것이 없으면 수트가 조용히 썩는다.** `claude plugin eval` 은 케이스를 안
 찾으면 그냥 아무것도 안 돌리고 끝난다 — 그레이더 파일 이름을 잘못 쓰거나
@@ -56,6 +64,9 @@ GRADER_TYPES = {"regex", "tool_used", "tool_order", "file_exists", "llm", "basel
 CONTROL = "real-nc-found"
 PURPOSE_PREFIXES = ("trap-", "gate-")
 ROUTE_PREFIX = "route-"
+RECALL_DIR = "recall"
+RECALL_PREFIX = "recall-"
+RECALL_GRADER = "recall-found"
 
 # Agent 호출 입력은 공백 없는 JSON 으로 펴져서 input_match 에 닿는다.
 FIRED = re.compile(r'"subagent_type":"(?P<plugin>[\w.-]+):(?P<agent>audit-[a-z]+)"')
@@ -422,16 +433,147 @@ def check(suite, agents_dir):
     return bad
 
 
+def check_recall(suite, agents_dir):
+    """회수율 케이스의 모양 — 조각 39 설계 ② M1 ~ M5. 픽스처 · 감사자 지목 ·
+    `auditor-fired` 는 판정 케이스와 같은 규칙으로 본다."""
+    known = {p.stem for p in agents_dir.glob("audit-*.md")}
+    if not known:
+        return [f"감사자를 못 찾았다: {agents_dir}"], 0
+    import json
+    manifest = agents_dir.parent / ".claude-plugin" / "plugin.json"
+    try:
+        plugin = json.loads(manifest.read_text(encoding="utf-8"))["name"]
+    except (OSError, ValueError, KeyError):
+        return [f"플러그인 이름을 못 읽었다: {manifest}"], 0
+    cases = sorted(
+        d for d in suite.iterdir()
+        if d.is_dir() and d.name != "results" and not d.name.startswith(".")
+    )
+    bad = []
+    for case in cases:
+        name = case.name
+        cy, pm, gd = case / "case.yaml", case / "prompt.md", case / "graders"
+        # M1 이름
+        if not name.startswith(RECALL_PREFIX):
+            bad.append(f"{name}: 회수율 케이스의 이름은 {RECALL_PREFIX} 로 시작한다")
+        missing = [f.name for f in (cy, pm) if not f.exists()] + ([] if gd.is_dir() else ["graders/"])
+        if missing:
+            bad.append(f"{name}: {' · '.join(missing)} 가 없다")
+            continue
+        meta = yaml_shallow(cy)
+        if meta.get("schema_version") != "1.1":
+            bad.append(f"{name}: case.yaml 의 schema_version 이 \"1.1\" 이 아니다")
+        if meta.get("name") != name:
+            bad.append(f"{name}: case.yaml 의 name 이 디렉터리 이름과 다르다 ({meta.get('name')!r})")
+        # M5 출처 — description 블록 안에 `출처:` 줄
+        text = cy.read_text(encoding="utf-8")
+        desc = re.search(r"^description:\s*[|>]-?\s*\n((?:[ \t]+.*\n?|\n)*)", text, re.M)
+        if not desc or not re.search(r"^\s+출처:\s*\S", desc.group(1), re.M):
+            bad.append(f"{name}: case.yaml 의 description 에 「출처:」 줄이 없다 — 대장의 자리 · 감사한 커밋 · 찾은 쪽")
+        script = meta.get("context.scaffold_script")
+        if not script:
+            bad.append(f"{name}: case.yaml 에 context.scaffold_script 가 없다 — 빈 작업공간에서 돈다")
+        else:
+            f = case / script
+            if not f.exists():
+                bad.append(f"{name}: scaffold_script 가 가리키는 {script} 가 없다")
+            else:
+                import subprocess
+                if subprocess.run(["bash", "-n", str(f)]).returncode != 0:
+                    bad.append(f"{name}: {script} 가 bash 문법 검사에서 깨진다")
+                if not f.stat().st_mode & 0o111:
+                    bad.append(f"{name}: {script} 에 실행 비트가 없다 — 하네스가 직접 실행하면 빈 작업공간에서 돈다")
+        # M1 지목 — 감사자 하나
+        called = set(re.findall(r"audit-[a-z]+", pm.read_text(encoding="utf-8")))
+        for a in sorted(called - known):
+            bad.append(f"{name}: prompt.md 가 없는 감사자 {a} 를 부른다")
+        if len(called) != 1:
+            bad.append(f"{name}: prompt.md 가 감사자 하나를 지목해야 한다 — 지금 {sorted(called) or '없음'}")
+        graders = {g.stem: frontmatter(g) for g in sorted(gd.glob("*.md"))}
+        for gname, fm in graders.items():
+            if fm is None:
+                bad.append(f"{name}/{gname}: 프론트매터가 --- 로 닫히지 않았다")
+        # M4 다른 그레이더 없음
+        extra = sorted(set(graders) - {RECALL_GRADER, "auditor-fired"})
+        if extra:
+            bad.append(f"{name}: 회수율 케이스에는 {RECALL_GRADER} · auditor-fired 만 둔다 — 더 있는 것 {extra}")
+        # M2 목적 그레이더
+        fm = graders.get(RECALL_GRADER)
+        if fm is None:
+            bad.append(f"{name}: {RECALL_GRADER} 가 없다 — 무엇을 찾아야 하는지 없다")
+        elif fm:
+            if fm.get("type") != "regex":
+                bad.append(f"{name}/{RECALL_GRADER}: type 이 regex 여야 한다 — 찾는 것을 정확히 아는 판정이다(ADR 0050 의 6)")
+            if fm.get("target") != "last_message":
+                bad.append(f"{name}/{RECALL_GRADER}: target 이 last_message 여야 한다")
+            if fm.get("match") == "not_contains":
+                bad.append(f"{name}/{RECALL_GRADER}: match: not_contains 는 「찾았다」를 뒤집는다")
+            if fm.get("arm"):
+                bad.append(f"{name}/{RECALL_GRADER}: arm 이 붙어 점수에서 빠진다")
+            if not fm.get("pattern"):
+                bad.append(f"{name}/{RECALL_GRADER}: pattern 이 없다")
+        # M3 auditor-fired — 판정 케이스와 같은 규칙
+        af = graders.get("auditor-fired")
+        if af is None:
+            bad.append(f"{name}: auditor-fired 가 없다 — 감사자가 실제로 떴는지 알 수 없다")
+        elif af:
+            if af.get("arm") != "with-only":
+                bad.append(f"{name}/auditor-fired: arm 이 with-only 여야 한다 (점수가 아니라 표시)")
+            if af.get("type") != "tool_used" or af.get("tool") != "Agent":
+                bad.append(f"{name}/auditor-fired: type 은 tool_used, tool 은 Agent 여야 한다")
+            try:
+                lo = int(af.get("min", "1"))
+            except ValueError:
+                lo = 0
+            if lo < 1 or af.get("max") == "0":
+                bad.append(f"{name}/auditor-fired: min 이 1 이상이어야 한다 — 호출을 요구하지 않는다")
+            im = fired(af.get("input_match"), plugin)
+            if im is None:
+                bad.append(f"{name}/auditor-fired: {why_not_fired(af.get('input_match'), plugin)}")
+            elif im not in called:
+                bad.append(f"{name}/auditor-fired: {im} 를 요구하는데 prompt.md 는 {sorted(called)} 를 부른다")
+    return bad, len(cases)
+
+
 def main(argv):
     here = pathlib.Path(__file__).resolve().parent.parent
-    suite = pathlib.Path(argv[1]) if len(argv) == 2 else here / "vibe-audit" / "evals"
     if len(argv) > 2:
         print(__doc__)
         return 2
+    if len(argv) == 2:
+        suite = pathlib.Path(argv[1])
+        if not suite.is_dir():
+            print(f"FAIL 수트 디렉터리가 없다: {suite}")
+            return 1
+        if suite.name == RECALL_DIR:
+            return recall_main(suite)
+        return suite_main(suite)
+    suite = here / "vibe-audit" / "evals"
     if not suite.is_dir():
         print(f"FAIL 수트 디렉터리가 없다: {suite}")
         return 1
+    rc = suite_main(suite)
+    recall = here / "vibe-audit" / RECALL_DIR
+    if recall.is_dir():
+        rc = max(rc, recall_main(recall))
+    else:
+        print(f"PASS 회수율 케이스 0개 — {recall} 이 없다")
+    return rc
 
+
+def recall_main(suite):
+    bad, n = check_recall(suite, suite.parent / "agents")
+    if bad:
+        for line in bad:
+            print("FAIL " + line)
+        print(f"\n{len(bad)}건. 회수율: {suite}")
+        return 1
+    print(f"PASS 회수율 케이스 {n}개 — {RECALL_GRADER} 하나 · auditor-fired · 감사자 하나 지목 · 출처")
+    print(f"     회수율 {suite}")
+    return 0
+
+
+def suite_main(suite):
     agents = suite.parent / "agents"
     bad = check(suite, agents)
     if bad:
