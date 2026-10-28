@@ -1451,6 +1451,7 @@ PY
   bit 1 'bites 묶음' "'${mv%%|*}' 를 ${mv##*|} 로 옮긴 gates.sh" bunch "$gm/gates.sh"
 done
 sclose 2 1
+gbn=$SB  # 이 절의 끝 줄은 다음 절 뒤에 함께 찍는다 — 견준 수를 받아 둔다
 
 # gates.sh 의 인자 — 거절하는 꼴은 아무 검사도 돌리기 전에 종료 2(조각 35 설계 ② G3 · G5 의 나 · ③ A3 ~ A5 · ⑤ R3). 첫
 # 검사가 claude 라 가짜 claude 를 앞에 둔다 — 거절하지 않고 검사로 들어가면 PASS 를 찍고 97 로 끝나 바로 드러나고, 변조
@@ -1484,7 +1485,7 @@ if ! grep -q '^변조 시험 다섯을 건너뛴다 — 근거$' "$ga/out" || ! 
   echo "::error::gates.sh --skip-bite 가 근거를 먼저 찍지 않았거나 첫 검사에 닿지 않았다"; cat "$ga/out"; exit 1
 fi
 sclose 7 1
-echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 둘이 떨어짐), 거절 $SB 은 검사 전에 종료 2 와 거절 줄, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
+echo "gates.sh: bites 묶음은 변조 시험 다섯뿐(변조본 $gbn 이 떨어짐), 거절 $SB 은 검사 전에 종료 2 와 거절 줄, CI 의 --skip-bite 는 근거를 찍고 검사로 든다"
 
 # gates.sh 가 무엇을 실제로 부르는지 — test-gates.py 가 무는지(조각 35 닫기 전 감사 회차 NC-1 · 설계 끝 「닫기 전 감사 회차에서
 # 찾은 것」 T4). 감사가 든 셋(변조 시험 줄 지우기 · bites 호출 지우기 · 건너뛰는 분기 뒤집기)과 묶음을 넘나드는 둘을 gates.sh
@@ -1575,12 +1576,13 @@ gfree() {  # $1=이름  $2…=gcopy 의 바꿀 쌍
 gfree "검사 줄의 차례 바꾸기"  '  python3 scripts/verify-evals.py\n  python3 scripts/verify-graders.py\n' '  python3 scripts/verify-graders.py\n  python3 scripts/verify-evals.py\n'
 gfree "주석 바꾸기"            '  # 브리핑 검사기가 무는지' '  # 브리핑 검사기를 시험한다 — 무는지'
 sclose 0 2
+tgk=$SK  # 끝 줄은 다음 절 뒤에 함께 찍는다
 
 # R — 진짜 gates.sh 에 한 번. checks 에서 test-gates.py 줄이 빠지면 그 시험이 돌지 않아 제 줄을 못 보므로 여기서 문다
 sopen "test-gates.py(진짜 gates.sh)"
 keep '^PASS test-gates.py' "진짜 gates.sh — checks 에서 test-gates.py 줄이 빠졌는가" python3 scripts/test-gates.py
 sclose 0 1
-echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 태그마다 변조본이 있고, 대조군 둘(차례 · 주석)과 진짜 gates.sh 가 PASS 줄로 지나감"
+echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 태그마다 변조본이 있고, 대조군 $tgk(차례 · 주석)과 진짜 gates.sh 가 PASS 줄로 지나감"
 
 # eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지, 자유로운 칸만
 # 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지 않고 종료 2 인지 본다. 「물었다」는 종료 1 이고 기대한 번호의 `FAIL [번호]` 줄이
