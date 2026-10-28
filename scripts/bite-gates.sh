@@ -1411,7 +1411,7 @@ sclose 15 12
 echo "변조 시험 지문: 대조하는 기록 $SK 은 그대로, 넣는 쪽 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 파이썬과 git 의 판 · 지문 없는 종료의 $SB 은 바뀌거나 지문을 내지 않는다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
-# 실행이 변조 시험 아닌 검사까지 빼면 「스물하나 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
+# 실행이 변조 시험 아닌 검사까지 빼면 「스물둘 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
 sopen "gates.sh 의 bites 묶음"
 bunch() {  # $1=gates.sh — 모양이 맞으면 PASS 줄과 0, 아니면 까닭을 찍고 1
   python3 - "$1" <<'PY'
@@ -1692,8 +1692,120 @@ fi
 SB=$((SB + 1))
 sclose 1 1
 
+# 적힌 수 — verify-counts.py 가 무는지(조각 42 설계 ② D · S · L · E · N · ⑤ V3 · V6). 저장소의 사본 하나에 한 자리씩 흔들고 대어 본 뒤
+# 그 자리만 되돌린다. 「물었다」는 종료 1 이고 기대한 ID 의 `FAIL [ID]` 줄이 있을 때만이다(조각 41 설계 ② N1). 함께 찍히는 ID 는 막지
+# 않는다. 바꿀 글은 그 파일에 꼭 한 번이어야 한다 — 아니면 이 변조본을 그 파일에 맞춰 고친다. 바른 트리는 checks 에서 이미 지나갔다.
+sopen "verify-counts.py"
+VC=$(mktemp -d)
+git ls-files -co --exclude-standard -z | tar --null -T - -cf - | tar -xf - -C "$VC"
+vedit() {  # $1=파일(저장소 맨 위 기준)  $2…=바꿀 글 · 바꿀 것 쌍 — \n 은 줄바꿈. 사본의 그 파일을 앞의 바꿈 위에서 바꾼다
+  local f=$1; shift
+  python3 - "$VC/$f" "$@" <<'PY'
+import pathlib, sys
+p, *pairs = sys.argv[1:]
+t = pathlib.Path(p).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 {p} 에 한 번이 아니다 — 이 변조본을 그 파일에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(p).write_text(t, encoding="utf-8")
+PY
+}
+vback() {  # $@=저장소 맨 위 기준 경로 — 사본의 그 자리를 저장소의 것으로 되돌린다(저장소에 없으면 지운다)
+  local f
+  for f; do
+    rm -rf "${VC:?}/$f"
+    if [ -e "$R/$f" ]; then cp -pPR "$R/$f" "$VC/$f"; fi
+  done
+}
+vbite() {  # $1=기대한 ID  $2=이름
+  bit 1 "^FAIL \[$1\] " "$2" python3 scripts/verify-counts.py "$VC"
+}
+VPASS='^PASS verify-counts\.py — 닻 [0-9]+ 이 원천 [0-9]+ 과 맞고, 끝 줄 [0-9]+ 에'
+# D1 — 적힌 수가 원천과 다르다: 수 하나를 틀리게 · 원천을 하나 늘림 · gates.sh 의 검사 수를 되돌림(V6) · 닻을 가진 끝 줄의 낱말
+vedit README.md '문서 틀 여섯' '문서 틀 일곱'
+vbite D1 "적힌 수 하나를 틀리게"
+vback README.md
+mkdir "$VC/vibe-audit/evals/route-zz"; : > "$VC/vibe-audit/evals/route-zz/case.yaml"
+vbite D1 "케이스 폴더 하나 더하기"
+vback vibe-audit/evals/route-zz
+vedit scripts/gates.sh '# 스물일곱 — 로컬은' '# 스물여섯 — 로컬은'
+vbite D1 "gates.sh 의 검사 수를 새 검사 앞으로 되돌림"
+vback scripts/gates.sh
+vedit scripts/test-gates.py '변조 시험 다섯이 맨 뒤' '변조 시험 여섯이 맨 뒤'
+vbite D1 "닻을 가진 끝 줄의 낱말을 틀리게"
+vback scripts/test-gates.py
+# D2 — 닻이 낡았다: 문장을 지움 · 문장을 겹쳐 적음 · 닻의 파일이 없음
+vedit INTENT.md '감사자 여섯 · ' '감사자들 · '
+vbite D2 "닻이 가리키는 문장을 지움"
+vback INTENT.md
+vedit CLAUDE.md '- **감사자의 `tools`** — 읽기 전용 셋.' '- **감사자의 `tools`** — 읽기 전용 셋. 읽기 전용 셋.'
+vbite D2 "닻이 가리키는 문장을 겹쳐 적음"
+vback CLAUDE.md
+rm "$VC/docs/schema.md"
+vbite D2 "닻의 파일이 없음"
+vback docs/schema.md
+# S1 — 원천을 못 셈: 원천을 비움 · 원천의 읽는 자리를 못 찾음
+mv "$VC/vibe-audit/agents" "$VC/vibe-audit/agents-x"
+vbite S1 "원천을 비움(감사자 폴더가 없다)"
+vback vibe-audit/agents-x vibe-audit/agents
+vedit scripts/gates.sh 'bites() {' 'bites () {'
+vbite S1 "원천의 읽는 자리를 못 찾음"
+vback scripts/gates.sh
+# L1 — 수 낱말을 못 읽음
+vedit README.md '문서 틀 여섯' '문서 틀 스물스물'
+vbite L1 "읽을 수 없는 수 낱말"
+vback README.md
+# E1 — 끝 줄에 견준 값 밖의 수 낱말: 견준 값을 글자로 박음 · 갈래 수 낱말을 되살림(조각 42 PR B 가 뺀 꼴)
+vedit scripts/test-gates.py '대조군 {KEPT} 이 돌았다' '대조군 3 이 돌았다'
+vbite E1 "끝 줄에 견준 값을 아라비아 수로 박음"
+vback scripts/test-gates.py
+vedit scripts/bite-gates.sh '\necho "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 것' '\necho "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 둘'
+vbite E1 "끝 줄에 갈래 수 낱말을 되살림"
+vback scripts/bite-gates.sh
+# E2 — 끝 줄을 못 찾음: 끝 줄의 꼴이 바뀌어 훑기에서 빠짐
+vedit scripts/test-verify-feedback.py 'print(f"PASS verify-feedback.py' 'print(f"OK verify-feedback.py'
+vbite E2 "끝 줄의 꼴을 바꿈"
+vback scripts/test-verify-feedback.py
+# 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2 와 사용법 줄
+for args in "a b" "-x" "--help" "$VC/nope"; do
+  set +e
+  # shellcheck disable=SC2086
+  python3 scripts/verify-counts.py $args >"$BO" 2>&1; st=$?
+  set -e
+  if [ "$st" != 2 ] || grep -qE '^(PASS|FAIL)' "$BO" || ! grep -q '^사용법: verify-counts.py' "$BO" || crash; then
+    echo "::error::verify-counts.py 가 거절할 인자 '$args' 에 종료 2 · 사용법 줄이 아니거나 견주었다 (exit $st)"; cat "$BO"; exit 1
+  fi
+  SB=$((SB + 1))
+done
+# 대조군 — 고치지 않은 사본, 그리고 원천과 문장을 함께 바꾼 사본(판정 케이스 다섯을 더하고 그 수를 적은 문장을 합성 낱말로 고친다)
+keep "$VPASS" "고치지 않은 사본" python3 scripts/verify-counts.py "$VC"
+for i in 1 2 3 4 5; do mkdir "$VC/vibe-audit/evals/zz-$i"; : > "$VC/vibe-audit/evals/zz-$i/case.yaml"; done
+vedit vibe-audit/README.md '케이스 스물여섯이' '케이스 서른하나이' '인자 없이 스물여섯을' '인자 없이 서른하나를' '| 판정 | 열여섯 |' '| 판정 | 스물하나 |'
+vedit .github/workflows/eval.yml '케이스 스물여섯이다' '케이스 서른하나이다'
+keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
+vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
+sclose 17 2
+echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
+
+# ID 마다 변조본(조각 42 설계 ② R) — verify-counts.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 vbite 가 이 파일에 있다.
+# 변조본: E2 의 vbite 를 다 지운 이 파일은 E2 를 「변조본 없음」으로 찍는다.
+sopen "verify-counts.py 의 ID 마다 변조본"
+VCID='r\.fail\("([A-Z][0-9])"'
+VCWANT='^vbite ([A-Z][0-9]) '
+gap=$(rgap scripts/verify-counts.py "$VCID" "$R/scripts/bite-gates.sh" "$VCWANT")
+if [ -n "$gap" ]; then echo "::error::$SEC — 변조본이 없는 ID: $gap"; exit 1; fi
+SK=$((SK + 1))
+grep -vE '^vbite E2 ' "$R/scripts/bite-gates.sh" > "$VC/cut.sh"
+if [ "$(rgap scripts/verify-counts.py "$VCID" "$VC/cut.sh" "$VCWANT")" != E2 ]; then
+  echo "::error::$SEC — E2 의 변조본을 다 지운 목록이 「E2 변조본 없음」으로 떨어지지 않는다"; exit 1
+fi
+SB=$((SB + 1))
+sclose 1 1
+
 # 끝 — 절의 수(조각 41 설계 ② C). 절을 통째로 지운 사본은 여기서 떨어진다 — 절 안의 한 줄은 그 절의 sclose 가 본다.
-if [ "$NSEC" != 32 ]; then
-  echo "::error::변조본을 도는 절이 $NSEC 닫혔다 — 32 이어야 한다"; exit 1
+if [ "$NSEC" != 34 ]; then
+  echo "::error::변조본을 도는 절이 $NSEC 닫혔다 — 34 이어야 한다"; exit 1
 fi
 echo "변조 시험: 절 $NSEC 이 다 닫힘 — 절마다 센 수를 기대한 수와 견주고, 그 검사의 종료와 실패 줄(ID)로만 물었다고 세고, 대조군은 종료 0 과 PASS 줄을 봄"

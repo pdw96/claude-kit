@@ -24,8 +24,8 @@
   - T1′ 인자 없이 `GITHUB_ACTIONS=true` — T1 과 같다. CI 가 지문을 「물었다」로 적는 실행이 쓰는 꼴이다
   - T2 `GITHUB_ACTIONS=true --skip-bite 근거` — 종료 0, `CHECKS` 가 다 돌고, 다섯은 하나도 안 돈다
   - T3 변조 시험 다섯은 이 파일이 이름으로 든다 — `gates.sh` 에서 하나라도 안 불리면 떨어진다
-  - S1 목록의 스물여덟마다 그 하나만 1 로 끝나게 하고 T1 · T1′ 의 꼴로 부른다 — `gates.sh` 가 0 이 아닌 종료여야 한다
-  - S2 `CHECKS` 의 스물셋마다 같은 것을 T2 의 꼴로 — 건너뛰는 실행에서만 삼키는 꼴을 문다
+  - S1 목록의 스물아홉마다 그 하나만 1 로 끝나게 하고 T1 · T1′ 의 꼴로 부른다 — `gates.sh` 가 0 이 아닌 종료여야 한다
+  - S2 `CHECKS` 의 스물넷마다 같은 것을 T2 의 꼴로 — 건너뛰는 실행에서만 삼키는 꼴을 문다
 
 「부르는 것」은 `gates.sh` 의 주석 아닌 줄에서 `python3 scripts/…` · `./scripts/…` · `claude plugin validate …` 를 읽는다.
 그 줄이 어느 묶음에 있는지는 보지 않고 실제로 돌았는지만 본다 — 검사 줄을 지우거나 겹치거나 목록에 없는 것을 더하면 L2 에서,
@@ -55,7 +55,7 @@ USAGE = "사용법: test-gates.py [<gates.sh>]"
 TIMEOUT = 60
 KEPT = 3  # 대조군 — 인자 없이 부르는 꼴(T1 · T1′)과 --skip-bite(T2)
 
-# L1 — 늘 도는 스물셋(조각 38 설계 ③ L1-c). 검사를 더하거나 빼면 gates.sh 와 함께 고친다(ADR 0049).
+# L1 — 늘 도는 스물넷(조각 38 설계 ③ L1-c). 검사를 더하거나 빼면 gates.sh 와 함께 고친다(ADR 0049).
 CHECKS = (
     "claude:./vibe-audit", "claude:./vibe-slice",
     "verify-manifest.py", "test-verify-manifest.py",
@@ -65,7 +65,7 @@ CHECKS = (
     "verify-docs.py", "test-verify-docs.py", "test-sync-slice.py",
     "verify-slice-gate.py", "test-verify-slice-gate.py",
     "verify-map-pin.py", "test-verify-map-pin.py",
-    "test-eval-merged-pass.py", "verify-eval-gate.py", "test-gates.py",
+    "test-eval-merged-pass.py", "verify-eval-gate.py", "verify-counts.py", "test-gates.py",
 )
 # T3 · L1-b — 건너뛸 수 있는 것은 이 다섯뿐이다(조각 35 설계 ② G4).
 FIVE = ("bite-verify-docs.py", "bite-slice-gate.py", "bite-map-pin.py", "bite-eval-merged-pass.py", "bite-gates.sh")
