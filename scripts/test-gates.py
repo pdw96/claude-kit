@@ -33,6 +33,13 @@
 CI 에서만 건너뛰게 하면 T1′ 에서, 어느 줄의 실패를 삼키면(`|| true` · `set +e` · CI 에서만 · `--skip-bite` 에서만) S1 · S2 에서
 떨어진다. 검사의 인자는 보지 않는다(조각 38 설계 ② 「보장하지 않는 것」). 이것이 무는지는 `bite-gates.sh` 가 본다 — 이 줄이
 `checks` 에서 빠지는 것도 그 절이 진짜 `gates.sh` 에 이것을 불러 문다(설계 ② R).
+**세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — S 의 꼴이 변조본, T1 · T1′ · T2 가 대조군이다.
+  - (가) S 가 돈 수를 `2 × 목록 + CHECKS` 와 견주고, 대조군 셋이 다 돌았는지 본다 — 고리가 일찍 끝나거나 꼴을 거르면 S1 에서 떨어진다.
+    목록 자체는 L2 가 `gates.sh` 와 견준다
+  - (나) S 는 `gates.sh` 가 가짜의 종료(1)를 그대로 내고, 그 검사가 실제로 불렸고, `gates.sh` 자신의 셸 오류 줄이 없을 때만 「물었다」다
+    — 0 이 아닌 아무 종료(셸 오류 · 시간 넘김)를 세지 않는다
+  - (다) 대조군은 종료 0 과 돈 목록 · 차례에 더해 `gates.sh` 의 끝 줄(「… 다 통과」 · 「… 건너뛰었다 — <근거>」)을 본다
+새 실패 줄도 다 위의 태그로 연다 — 태그마다 변조본은 `bite-gates.sh` 가 본다(설계 ② R).
 수트 지문 밖이다(`run-evals.sh` 가 부르지 않는다). 표준 라이브러리만 쓴다.
 """
 import collections
@@ -69,6 +76,10 @@ CALL = re.compile(r"^\s*(?:python3 scripts/(?P<py>[\w.-]+\.py)|\./scripts/(?P<sh
 PY_FAKE = ('#!/bin/sh\nn=${1##*/}\nprintf "%s\\n" "$n" >> "$GATES_RAN"\n'
            '[ "${GATES_FAIL:-}" = "$n" ] && exit 1\nexit 0\n')
 SH_STUB = '#!/bin/sh\nprintf "%s\\n" {name} >> "$GATES_RAN"\n[ "${{GATES_FAIL:-}}" = {name} ] && exit 1\nexit 0\n'
+# (다) gates.sh 의 끝 줄 — 인자 없이(T1 · T1′)와 --skip-bite(T2)
+DONE = re.compile(r"^\S+ 다 통과 — 키 없이 볼 수 있는 것은 여기까지다\.$", re.M)
+SKIPPED = re.compile(r"^\S+ 통과 · 변조 시험 다섯은 건너뛰었다 — 근거$", re.M)
+SHELL_ERR = re.compile(r"gates\.sh: line [0-9]+: ")
 CLAUDE_FAKE = ('#!/bin/sh\nprintf "claude:%s\\n" "$3" >> "$GATES_RAN"\n'
                '[ "${GATES_FAIL:-}" = "claude:$3" ] && exit 1\nexit 0\n')
 
@@ -129,12 +140,16 @@ def judge(gates):
         ran = pathlib.Path(tmp, "ran.txt")
 
         forms = (("T1", {}, []), ("T1′", {"GITHUB_ACTIONS": "true"}, []))
+        kept = 0
         # T1 · T1′ 인자 없이 — 목록의 것이 다 한 번씩, 변조 시험은 맨 뒤에. T1′ 은 CI 의 꼴(GITHUB_ACTIONS=true)이다
         for tag, extra, args in forms:
             st, out, got = run(repo, bindir, ran, extra, args)
+            kept += 1
             if st != 0:
                 bad.append(f"{tag} 인자 없이 부른 gates.sh 가 종료 {st} 다 — 0 이어야 한다\n{out[-600:]}")
                 continue
+            if not DONE.search(out):
+                bad.append(f"{tag} 인자 없이 부른 gates.sh 가 「… 다 통과」 끝 줄을 찍지 않았다\n{out[-600:]}")
             missing = [c for c in ALL if got.count(c) != 1]
             if missing:
                 bad.append(f"{tag} 인자 없이 불렀는데 돌지 않았거나 한 번이 아니다: {missing}")
@@ -146,9 +161,12 @@ def judge(gates):
         # T2 CI 의 --skip-bite — 다섯만 빠진다
         skip = ({"GITHUB_ACTIONS": "true"}, ["--skip-bite", "근거"])
         st, out, got = run(repo, bindir, ran, *skip)
+        kept += 1
         if st != 0:
             bad.append(f"T2 --skip-bite 로 부른 gates.sh 가 종료 {st} 다 — 0 이어야 한다\n{out[-600:]}")
         else:
+            if not SKIPPED.search(out):
+                bad.append(f"T2 --skip-bite 로 부른 gates.sh 가 「… 건너뛰었다 — 근거」 끝 줄을 찍지 않았다\n{out[-600:]}")
             ran_five = [c for c in got if c in FIVE]
             if ran_five:
                 bad.append(f"T2 --skip-bite 인데 변조 시험이 돌았다: {ran_five}")
@@ -159,12 +177,21 @@ def judge(gates):
         # S1 · S2 하나가 떨어지면 gates.sh 도 떨어진다 — 실패를 삼키면 그 검사는 게이트가 아니고, 변조 시험이면 거짓 근거가 적힌다
         cases = [("S1", tag, extra, args, name) for tag, extra, args in forms for name in ALL]
         cases += [("S2", "T2", skip[0], skip[1], name) for name in CHECKS]
+        bitten = 0
         for s, tag, extra, args, name in cases:
-            st, _, _ = run(repo, bindir, ran, {**extra, "GATES_FAIL": name}, args)
+            st, out, got = run(repo, bindir, ran, {**extra, "GATES_FAIL": name}, args)
+            bitten += 1
             if st == 0:
                 bad.append(f"{s} {tag} 의 꼴에서 {name} 이 1 로 끝났는데 gates.sh 가 종료 0 이다 — 실패를 삼켰다")
             elif st is None:
                 bad.append(f"{s} {tag} 의 꼴에서 {name} 이 1 로 끝났는데 gates.sh 가 {TIMEOUT}초 안에 끝나지 않았다")
+            elif st != 1 or name not in got or SHELL_ERR.search(out):
+                # (나) 다른 까닭의 실패 — 셸 오류 · 그 검사를 부르지도 않고 떨어짐 · 가짜의 종료가 아닌 종료
+                bad.append(f"{s} {tag} 의 꼴에서 {name} 이 1 로 끝났는데 gates.sh 가 그 실패로 떨어지지 않았다 "
+                           f"(종료 {st} · 불림 {name in got}){chr(10)}{out[-600:]}")
+        want = 2 * len(ALL) + len(CHECKS)
+        if (bitten, kept) != (want, 3):
+            bad.append(f"S1 꼴이 {bitten} · 대조군이 {kept} 돌았다 — {want} · 3 이어야 한다(고리가 일찍 끝났거나 꼴을 걸렀다)")
     return bad
 
 
@@ -181,7 +208,7 @@ def main(argv):
         for b in bad:
             print(f"FAIL {b}")
         return 1
-    print(f"PASS test-gates.py — 부르는 것이 고정 목록 {len(ALL)} 그대로(L2), 인자 없이 다 돌고 변조 시험 다섯이 맨 뒤"
+    print(f"PASS test-gates.py — 변조본(S) {2 * len(ALL) + len(CHECKS)} · 대조군 3 이 돌았다, 부르는 것이 고정 목록 {len(ALL)} 그대로(L2), 인자 없이 다 돌고 변조 시험 다섯이 맨 뒤"
           f"(T1 · CI 의 꼴 T1′), --skip-bite 는 {len(CHECKS)} 만 돈다(T2), 다섯을 이름으로 든다(T3), "
           f"하나가 떨어지면 세 꼴 다 떨어진다(S1 · S2)")
     return 0

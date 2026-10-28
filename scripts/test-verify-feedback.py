@@ -14,6 +14,10 @@
   3. 검사기 이름(`verify-brief.py`)을 `seen[].files` 에 든 성한 후보는 통과한다(조각 15 설계 ② F2).
      폴더가 붙은 이름 · 다른 확장자가 떨어지는 것은 `bite-gates.sh` 가 변조한 대장으로 본다
 
+**세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — 떨어져야 하는 대장이 변조본, 통과해야 하는 대장이 대조군이다. 돈 수를 `WANT` 와
+견주고, 변조본은 종료 1 · 「FAIL 」 줄 · 트레이스백 없음일 때만, 대조군은 종료 0 과 「PASS 후보 」 줄일 때만 센다. 검사기는
+규칙 ID 를 찍지 않는다.
+
 표준 라이브러리만 쓴다.
 """
 import json
@@ -25,6 +29,8 @@ import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+WANT = (4, 4)  # (가) 변조본 · 대조군
+TB = "Traceback (most recent call last)"
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
 
@@ -64,6 +70,18 @@ def main():
                                capture_output=True, text=True, env=ENV)
             return p.returncode, p.stdout + p.stderr
 
+        ran = [0, 0]
+
+        def bit(rc, out):
+            """(나) 종료 1 · 「FAIL 」 줄 · 트레이스백 없음."""
+            ran[0] += 1
+            return rc == 1 and any(ln.startswith("FAIL ") for ln in out.splitlines()) and TB not in out
+
+        def kept(rc, out):
+            """(다) 종료 0 · 「PASS 후보 」 줄 · 트레이스백 없음."""
+            ran[1] += 1
+            return rc == 0 and any(ln.startswith("PASS 후보 ") for ln in out.splitlines()) and TB not in out
+
         def expect(name, ok, detail=""):
             nonlocal passes
             if ok:
@@ -76,21 +94,21 @@ def main():
         sh(repo, "git", "add", "-A")
         sh(repo, "git", "commit", "-q", "-m", "대장")
         rc, out = check()
-        expect("커밋한 성한 대장이 떨어졌다", rc == 0, out)
+        expect("커밋한 성한 대장이 떨어졌다", kept(rc, out), out)
 
         # 1. 번호가 사라지거나 주인이 바뀐다
         write(three[:2])
         rc, out = check()
-        expect("끝 후보를 지운 대장이 통과했다", rc == 1, out)
+        expect("끝 후보를 지운 대장이 통과했다", bit(rc, out), out)
         write([three[0], {**three[2], "id": "FB-2"}])
         rc, out = check()
-        expect("가운데를 지우고 당긴 대장이 통과했다", rc == 1, out)
+        expect("가운데를 지우고 당긴 대장이 통과했다", bit(rc, out), out)
         write([three[0], {**three[1], "hash": three[2]["hash"]}, {**three[2], "hash": three[1]["hash"]}])
         rc, out = check()
-        expect("두 번호의 hash 를 바꾼 대장이 통과했다", rc == 1, out)
+        expect("두 번호의 hash 를 바꾼 대장이 통과했다", bit(rc, out), out)
         write([three[0], {**three[1], "status": "specific"}, three[2], row(4, "d")])
         rc, out = check()
-        expect("상태를 바꾸고 새 후보를 더한 대장이 떨어졌다", rc == 0, out)
+        expect("상태를 바꾸고 새 후보를 더한 대장이 떨어졌다", kept(rc, out), out)
 
         # 2. 되먹임 완료의 케이스는 그 커밋에 있어야 한다
         before = sh(repo, "git", "rev-parse", "HEAD")
@@ -105,10 +123,10 @@ def main():
                               "feedback": {"commit": commit, "cases": ["gate-x"], "budget_delta": 0}}
         write([three[0], fed(before), three[2]])
         rc, out = check()
-        expect("케이스보다 앞선 커밋을 적은 되먹임이 통과했다", rc == 1, out)
+        expect("케이스보다 앞선 커밋을 적은 되먹임이 통과했다", bit(rc, out), out)
         write([three[0], fed(after), three[2]])
         rc, out = check()
-        expect("케이스가 든 커밋을 적은 되먹임이 떨어졌다", rc == 0, out)
+        expect("케이스가 든 커밋을 적은 되먹임이 떨어졌다", kept(rc, out), out)
 
         # 3. 검사기 · 커맨드 후보 — 새 번호로 더한다
         py = row(4, "d")
@@ -117,13 +135,15 @@ def main():
         md["seen"][0]["files"] = ["audit-brief.md"]
         write(three + [py, md])
         rc, out = check()
-        expect("files 에 verify-brief.py · audit-brief.md 를 든 성한 대장이 떨어졌다", rc == 0, out)
+        expect("files 에 verify-brief.py · audit-brief.md 를 든 성한 대장이 떨어졌다", kept(rc, out), out)
 
+    if tuple(ran) != WANT:
+        fails.append(f"변조본 {ran[0]} · 대조군 {ran[1]} 이 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — 꼴을 지웠거나 더하고 WANT 를 따라 고치지 않았다")
     if fails:
         for f in fails:
             print(f"FAIL {f}")
         return 1
-    print(f"PASS verify-feedback.py 역사 규칙 — 기대 {passes} 개 모두 맞다")
+    print(f"PASS verify-feedback.py 역사 규칙 — 변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다 — 기대 {passes} 개 모두 맞다")
     return 0
 
 

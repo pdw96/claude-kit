@@ -21,10 +21,17 @@
 
 비교기를 고치고 이것이 안 돌면, 멈춰야 할 것이 견주고 지나가도 아무도 모른다.
 
+**세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — 멈춰야 하는 실행이 변조본, 견줘야 하는 실행이 대조군이다.
+- (가) 비교기를 돈 수를 `WANT` 와 견준다 — 꼴을 지웠거나 조건(`if both:`) 때문에 건너뛰면 떨어진다.
+- (나) 멈춤은 종료 1 · 「STOP 」 줄 · 「아무것도 견주지 않았다.」 줄 · 트레이스백 없음일 때만 센다(`stopped`). 까닭의 글을 아는
+  꼴은 그 글이 STOP 줄에 있어야 한다. 비교기는 규칙 ID 를 찍지 않는다.
+- (다) 견줌은 종료 0 과 그 길의 끝 — `--json` 은 `compared` 를 든 JSON, 글 출력은 「후보 N — 미판정 」 줄 — 을 함께 본다(`compared`).
+
 표준 라이브러리만 쓴다.
 """
 import json
 import os
+import re
 import pathlib
 import shutil
 import subprocess
@@ -36,6 +43,8 @@ ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
 FRONT = "---\nname: {n}\ndescription: x\ntools: [\"Read\", \"Grep\", \"Glob\"]\n---\n"
 BODY = "".join(f"원본 문장 {i} 입니다.\n" for i in range(20))
+WANT = (10, 15)  # (가) 멈춤 · 견줌
+TB = "Traceback (most recent call last)"
 
 
 def sh(cwd, *args):
@@ -111,6 +120,21 @@ def main():
             data = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip().startswith("{") else None
             return p.returncode, data, p.stdout + p.stderr
 
+        ran = [0, 0]
+
+        def stopped(rc, out, why=""):
+            """(나) 멈춤 — 종료 1 · 그 까닭을 든 STOP 줄 · 「아무것도 견주지 않았다.」 · 트레이스백 없음."""
+            ran[0] += 1
+            ls = out.splitlines()
+            return (rc == 1 and any(ln.startswith("STOP ") and why in ln for ln in ls)
+                    and "아무것도 견주지 않았다." in ls and TB not in out)
+
+        def compared(rc, d, out, text=False):
+            """(다) 견줌 — 종료 0 과 끝(JSON 의 compared · 글의 「후보 N — 미판정 」 줄) · 트레이스백 없음."""
+            ran[1] += 1
+            end = re.search(r"^후보 [0-9]+ — 미판정 ", out, re.M) if text else (d is not None and "compared" in d)
+            return rc == 0 and bool(end) and TB not in out
+
         def expect(name, ok, detail=""):
             nonlocal passes
             if ok:
@@ -121,7 +145,7 @@ def main():
         # 1. 출처 주석 · 공백만 다르면 후보 0
         rc, d, out = compare()
         expect("출처 주석 · 공백만 다른 사본에서 후보가 나왔다",
-               rc == 0 and d is not None and d["candidates"] == [], out[-400:])
+               compared(rc, d, out) and d["candidates"] == [], out[-400:])
 
         # 2. 고친 자리는 후보, 같은 문구는 둘에 걸쳐 하나
         same = "이 레포가 따로 둔 대장은 docs/audit/ 입니다.\n"
@@ -133,7 +157,7 @@ def main():
         rc, d, out = compare()
         cands = d["candidates"] if d else []
         shared = [c for c in cands if any(same.strip() in ln for ln in c["copy"])]
-        expect("고친 자리 둘(같은 문구 · 지운 줄)이 후보 둘로 안 나왔다", rc == 0 and len(cands) == 2, out[-400:])
+        expect("고친 자리 둘(같은 문구 · 지운 줄)이 후보 둘로 안 나왔다", compared(rc, d, out) and len(cands) == 2, out[-400:])
         expect("감사자 둘에 같은 문구가 후보 하나로 안 묶였다",
                len(shared) == 1 and sorted(shared[0]["seen"][0]["files"]) == ["audit-a.md", "audit-b.md"], out[-400:])
         expect("지운 줄이 후보로 안 나왔다",
@@ -153,15 +177,16 @@ def main():
         sh(copy, "git", "push", "-q")
         rc, d, out = compare()
         hashes = [c["hash"] for c in (d["candidates"] if d else [])]
+        k = compared(rc, d, out)
         expect("판정한 후보가 줄이 옮겨진 뒤 다시 나왔다",
-               rc == 0 and shared and shared[0]["hash"] not in hashes, out[-400:])
+               k and shared and shared[0]["hash"] not in hashes, out[-400:])
         expect("새 문단이 미판정 후보로 안 나왔다",
-               rc == 0 and any("새 문단 첫 줄." in ln for c in d["candidates"] for ln in c["copy"]), out[-400:])
+               k and any("새 문단 첫 줄." in ln for c in d["candidates"] for ln in c["copy"]), out[-400:])
         expect("미판정 후보의 judged 가 null 이 아니다",
-               rc == 0 and all(c["judged"] is None for c in d["candidates"]), out[-400:])
+               k and all(c["judged"] is None for c in d["candidates"]), out[-400:])
         rc, d, out = compare("--all")
         expect("--all 이 판정한 후보를 안 찍었다",
-               rc == 0 and any((c.get("judged") or {}).get("id") == "FB-1" for c in d["candidates"]), out[-400:])
+               compared(rc, d, out) and any((c.get("judged") or {}).get("id") == "FB-1" for c in d["candidates"]), out[-400:])
 
         # 4. 멈출 자리들
         # 원격보다 뒤 — 다른 클론에서 하나 올린다
@@ -171,28 +196,28 @@ def main():
         commit(other, "앞선 커밋")
         sh(other, "git", "push", "-q")
         rc, _, out = compare()
-        expect("원격보다 뒤인 사본에서 안 멈췄다", rc == 1 and "뒤" in out, out[-400:])
+        expect("원격보다 뒤인 사본에서 안 멈췄다", stopped(rc, out, "뒤"), out[-400:])
         sh(copy, "git", "pull", "-q", "--ff-only")
-        rc, _, out = compare()
-        expect("받은 뒤에도 멈췄다", rc == 0, out[-400:])
+        rc, d, out = compare()
+        expect("받은 뒤에도 멈췄다", compared(rc, d, out), out[-400:])
 
         # 사본 자리에 커밋 안 된 변경
         keep = (agents / "audit-a.md").read_text(encoding="utf-8")
         edit(agents / "audit-a.md", lambda s: s + "고치던 중\n")
         rc, _, out = compare()
-        expect("커밋 안 된 변경이 있는 사본에서 안 멈췄다", rc == 1, out[-400:])
+        expect("커밋 안 된 변경이 있는 사본에서 안 멈췄다", stopped(rc, out), out[-400:])
         (agents / "audit-a.md").write_text(keep, encoding="utf-8")
 
         # 추적 안 된 파일
         (agents / "audit-new.md").write_text("x\n")
         rc, _, out = compare()
-        expect("추적 안 된 파일이 있는 사본에서 안 멈췄다", rc == 1, out[-400:])
+        expect("추적 안 된 파일이 있는 사본에서 안 멈췄다", stopped(rc, out), out[-400:])
         (agents / "audit-new.md").unlink()
 
         # 원격이 없다 — 최신인지 모르면 멈춘다
         sh(copy, "git", "remote", "rename", "origin", "away")
         rc, _, out = compare()
-        expect("원격 origin 이 없는 사본에서 안 멈췄다", rc == 1, out[-400:])
+        expect("원격 origin 이 없는 사본에서 안 멈췄다", stopped(rc, out), out[-400:])
         sh(copy, "git", "remote", "rename", "away", "origin")
 
         # 무시된 파일 — 디스크에는 있는데 HEAD 에 없다(Codex 리뷰)
@@ -201,20 +226,20 @@ def main():
         commit(copy, "감사자 하나를 무시")
         sh(copy, "git", "push", "-q")
         rc, _, out = compare()
-        expect("무시돼 HEAD 에 없는 감사자 파일이 있는데 안 멈췄다", rc == 1 and "HEAD 에 없다" in out, out[-400:])
+        expect("무시돼 HEAD 에 없는 감사자 파일이 있는데 안 멈췄다", stopped(rc, out, "HEAD 에 없다"), out[-400:])
         (copy / ".gitignore").unlink()
         sh(copy, "git", "add", "-A")
         commit(copy, "되돌림")
         sh(copy, "git", "push", "-q")
-        rc, _, out = compare()
-        expect("무시를 푼 뒤에도 멈췄다", rc == 0, out[-400:])
+        rc, d, out = compare()
+        expect("무시를 푼 뒤에도 멈췄다", compared(rc, d, out), out[-400:])
 
         # 원본에 없는 커밋
         bad = t / "bad.json"
         bad.write_text(json.dumps({"copies": [{"repo": "x", "agents_path": str(agents),
                                                "synced_commit": "0" * 40, "synced_at": "2026-01-01"}]}))
         rc, _, out = compare(reg_path=bad)
-        expect("원본에 없는 커밋을 적은 대장에서 안 멈췄다", rc == 1, out[-400:])
+        expect("원본에 없는 커밋을 적은 대장에서 안 멈췄다", stopped(rc, out), out[-400:])
 
         # 성하지 않은 후보 대장 — 해시가 겹친다
         good = ledger.read_text(encoding="utf-8")
@@ -223,11 +248,11 @@ def main():
             j["candidates"].append({**j["candidates"][0], "id": "FB-2"})
         ledger.write_text(json.dumps(j, ensure_ascii=False))
         rc, _, out = compare()
-        expect("해시가 겹친 후보 대장에서 안 멈췄다", rc == 1, out[-400:])
+        expect("해시가 겹친 후보 대장에서 안 멈췄다", stopped(rc, out), out[-400:])
         ledger.write_text(good)
 
-        rc, _, out = compare()
-        expect("되돌린 뒤에도 멈췄다", rc == 0, out[-400:])
+        rc, d, out = compare()
+        expect("되돌린 뒤에도 멈췄다", compared(rc, d, out), out[-400:])
 
         # 5. 새 레포 — 같은 고침을 담은 사본 둘. 레포마다 원격을 따로 둔다
         fix = "두 레포가 따로 쓴 같은 문장입니다.\n"
@@ -254,7 +279,7 @@ def main():
         rc, d, out = compare(reg_path=reg2, ledger_path=led2)
         both = d["candidates"] if d else []
         expect("같은 고침을 담은 사본 둘이 후보 하나로 안 묶였다",
-               rc == 0 and len(both) == 1 and sorted(x["repo"] for x in both[0]["seen"]) == ["a", "b"], out[-400:])
+               compared(rc, d, out) and len(both) == 1 and sorted(x["repo"] for x in both[0]["seen"]) == ["a", "b"], out[-400:])
 
         def judge(repos):
             led2.write_text(json.dumps({"candidates": [{
@@ -268,11 +293,11 @@ def main():
             judge(["a"])
             rc, d, out = compare(reg_path=reg2, ledger_path=led2)
             got = [x for x in (d["candidates"] if d else []) if x["hash"] == both[0]["hash"]]
-            expect("seen 밖의 레포에서 나온 판정된 후보가 기본 실행에 안 나왔다", rc == 0 and len(got) == 1, out[-400:])
+            expect("seen 밖의 레포에서 나온 판정된 후보가 기본 실행에 안 나왔다", compared(rc, d, out) and len(got) == 1, out[-400:])
             expect("새 레포에서 나온 후보의 judged.new_repos 가 [\"b\"] 가 아니다",
                    len(got) == 1 and (got[0]["judged"] or {}).get("new_repos") == ["b"], out[-400:])
             rc, _, out = compare(reg_path=reg2, ledger_path=led2, text=True)
-            expect("새 레포 꼬리표가 안 찍혔다", rc == 0 and "FB-1 특화 · 새 레포 b  sha256:" in out, out[-400:])
+            expect("새 레포 꼬리표가 안 찍혔다", compared(rc, None, out, text=True) and "FB-1 특화 · 새 레포 b  sha256:" in out, out[-400:])
             expect("끝 줄의 새 레포 셈이나 seen 안내가 없다",
                    "미판정 0 · 판정됨 1(새 레포 1)" in out and "seen 은 저자가 더한다" in out, out[-400:])
 
@@ -280,14 +305,14 @@ def main():
             judge(["a", "b"])
             rc, d, out = compare(reg_path=reg2, ledger_path=led2)
             expect("seen 안의 레포에서만 나온 판정된 후보가 기본 실행에 나왔다",
-                   rc == 0 and d is not None and d["candidates"] == [], out[-400:])
+                   compared(rc, d, out) and d["candidates"] == [], out[-400:])
             rc, d, out = compare("--all", reg_path=reg2, ledger_path=led2)
             got = [x for x in (d["candidates"] if d else []) if x["hash"] == both[0]["hash"]]
             expect("--all 에서 seen 안의 후보의 judged.new_repos 가 [] 가 아니다",
-                   rc == 0 and len(got) == 1 and (got[0]["judged"] or {}).get("new_repos") == [], out[-400:])
+                   compared(rc, d, out) and len(got) == 1 and (got[0]["judged"] or {}).get("new_repos") == [], out[-400:])
             rc, _, out = compare("--all", reg_path=reg2, ledger_path=led2, text=True)
             expect("seen 안의 후보에 새 레포 꼬리표가 붙었다",
-                   rc == 0 and "FB-1 특화  sha256:" in out and "새 레포 b" not in out
+                   compared(rc, None, out, text=True) and "FB-1 특화  sha256:" in out and "새 레포 b" not in out
                    and "미판정 0 · 판정됨 1(새 레포 0)" in out and "seen 은 저자가 더한다" not in out, out[-400:])
 
         # 6. 커맨드 · 검사기 — 원본에 둘을 더한 커밋을 심은 사본을 따로 둔다. 1 ~ 5 의 사본은 그 앞 커밋을
@@ -324,7 +349,7 @@ def main():
         # (가) 출처 줄만 다른 커맨드 · 바이트 그대로인 검사기
         rc, d, out = compare(reg_path=reg6, ledger_path=led6)
         expect("출처 줄만 다른 커맨드 · 바이트 그대로인 검사기에서 후보가 나왔다",
-               rc == 0 and d is not None and d["candidates"] == [], out[-400:])
+               compared(rc, d, out) and d["candidates"] == [], out[-400:])
 
         # (나) 고친 줄 — 커맨드 하나 · 검사기 하나
         edit(cm6 / "c.md", lambda s: s.replace("커맨드 문장 6 입니다.", "이 레포는 커맨드를 고쳤습니다."))
@@ -334,7 +359,7 @@ def main():
         rc, d, out = compare(reg_path=reg6, ledger_path=led6)
         got = d["candidates"] if d else []
         where = sorted(w for c in got for w in c["where"])
-        expect("커맨드 · 검사기의 고친 줄이 후보 둘로 안 나왔다", rc == 0 and len(got) == 2, out[-400:])
+        expect("커맨드 · 검사기의 고친 줄이 후보 둘로 안 나왔다", compared(rc, d, out) and len(got) == 2, out[-400:])
         expect("커맨드 · 검사기 후보의 자리 줄이 c.md · v.py 가 아니다",
                len(where) == 2 and where[0].startswith("y · c.md:") and where[1].startswith("y · v.py:"), out[-400:])
         expect("커맨드 · 검사기 후보의 seen.files 가 이름 하나가 아니다",
@@ -345,11 +370,11 @@ def main():
         keep6 = (cm6 / "c.md").read_text(encoding="utf-8")
         edit(cm6 / "c.md", lambda s: s + "고치던 중\n")
         rc, _, out = compare(reg_path=reg6, ledger_path=led6)
-        expect("사본 commands/ 에 커밋 안 된 변경이 있는데 안 멈췄다", rc == 1, out[-400:])
+        expect("사본 commands/ 에 커밋 안 된 변경이 있는데 안 멈췄다", stopped(rc, out), out[-400:])
         (cm6 / "c.md").write_text(keep6, encoding="utf-8")
         (sc6 / "new.py").write_text("x\n")
         rc, _, out = compare(reg_path=reg6, ledger_path=led6)
-        expect("사본 scripts/ 에 추적 안 된 파일이 있는데 안 멈췄다", rc == 1, out[-400:])
+        expect("사본 scripts/ 에 추적 안 된 파일이 있는데 안 멈췄다", stopped(rc, out), out[-400:])
         (sc6 / "new.py").unlink()
 
         # (라) 무시돼 HEAD 에 없는 사본 커맨드
@@ -358,7 +383,10 @@ def main():
         commit(c6, "커맨드를 무시")
         sh(c6, "git", "push", "-q")
         rc, _, out = compare(reg_path=reg6, ledger_path=led6)
-        expect("무시돼 HEAD 에 없는 사본 커맨드가 있는데 안 멈췄다", rc == 1 and "HEAD 에 없다" in out, out[-400:])
+        expect("무시돼 HEAD 에 없는 사본 커맨드가 있는데 안 멈췄다", stopped(rc, out, "HEAD 에 없다"), out[-400:])
+
+        expect(f"비교기가 멈춤 {ran[0]} · 견줌 {ran[1]} 으로 돌았다 — {WANT[0]} · {WANT[1]} 이어야 한다(꼴을 지웠거나 건너뛰었다)",
+               tuple(ran) == WANT)
 
     # 뜻이 바뀐 줄 옆에 공백만 바뀐 줄이 붙어도 같은 후보다(Codex 리뷰) — 함수로 직접 본다
     import importlib.util
@@ -376,7 +404,7 @@ def main():
         for f in fails:
             print(f"FAIL {f}")
         return 1
-    print(f"PASS compare-copies.py — 기대 {passes} 개 모두 맞다")
+    print(f"PASS compare-copies.py — 멈춤 {WANT[0]} · 견줌 {WANT[1]} 이 돌았다 — 기대 {passes} 개 모두 맞다")
     return 0
 
 

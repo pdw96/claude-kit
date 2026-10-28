@@ -23,6 +23,10 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MARKET = ".claude-plugin/marketplace.json"
+# 세 규칙(조각 41 설계 ② C · N · K · ADR 0054) — (가) 돈 변조본 · 대조군의 수를 WANT 와 견준다. (나) 변조본은 종료 1 · 「FAIL」 줄 ·
+# 기대한 글로 여는 까닭 줄(「  - 」) · 트레이스백 없음일 때만 센다. (다) 대조군은 종료 0 과 「PASS 플러그인 」 줄을 함께 본다.
+WANT = (4, 1)
+TB = "Traceback (most recent call last)"
 
 
 def copy(dst):
@@ -84,8 +88,9 @@ def main():
         t = tmp / "base"
         copy(t)
         rc, out = run(t)
-        if rc != 0:
-            fails.append(f"손대지 않은 트리가 떨어졌다\n{out}")
+        ran = [0, 1]
+        if rc != 0 or TB in out or not any(ln.startswith("PASS 플러그인 ") for ln in out.splitlines()):
+            fails.append(f"손대지 않은 트리가 종료 0 과 PASS 줄로 지나가지 않았다(종료 {rc})\n{out}")
         else:
             passes += 1
         for i, (name, mutate, want) in enumerate(CASES):
@@ -93,15 +98,19 @@ def main():
             copy(t)
             mutate(t)
             rc, out = run(t)
-            if rc == 1 and want in out:
+            ran[0] += 1
+            ls = out.splitlines()
+            if rc == 1 and "FAIL" in ls and TB not in out and any(ln.startswith(f"  - {want}") for ln in ls):
                 passes += 1
             else:
                 fails.append(f"{name} — 종료 {rc}, 기대한 줄 {want!r} 이 없다\n{out}")
+        if tuple(ran) != WANT:
+            fails.append(f"변조본 {ran[0]} · 대조군 {ran[1]} 이 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다")
     if fails:
         for f in fails:
             print(f"FAIL {f}")
         return 1
-    print(f"PASS verify-manifest.py 가 문다 — 변조본 {len(CASES)} · 정상 1, 기대 {passes} 개 모두 맞다")
+    print(f"PASS verify-manifest.py 가 문다 — 변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다, 기대 {passes} 개 모두 맞다")
     return 0
 
 

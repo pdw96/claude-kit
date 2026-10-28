@@ -36,6 +36,15 @@
 - 거절 꼴은 exit 1 · 기대한 줄이 다 있고 · 출력의 번호가 기대한 번호뿐임을 본다 — 서지 않아야 할 번호(읽지 못한 가져오는
   파일의 P1 따위)가 서면 떨어진다. 성공 꼴은 exit 0 이다.
 
+**세 규칙** (조각 41 설계 ② C · N · K · ADR 0054) — 종료 0 이 아닌 꼴이 변조본, 0 인 꼴이 대조군이다.
+
+- (가) 돈 변조본 · 대조군의 수를 끝에서 모드마다의 기대 수(`WANT_BOTH` · `WANT_REPO`)와 견준다 — 꼴 한 줄을 지운 시험이
+  지나가지 않게. `PASS` 줄의 수는 목록의 길이가 아니라 돈 수다.
+- (나) 변조본은 종료 1 · `FAIL` 줄 · 기대한 글마다 그 글로 여는 실패 줄(`  - <경로>: [번호]`)이 있고 트레이스백이 없을 때만
+  지나간다(`bit`). 사용법 거절은 종료 2 와 사용법 줄을 본다.
+- (다) 대조군은 종료 0 과 검사의 `PASS 문서의 모양` 줄을 함께 본다(`kept`). 다른 레포 모드는 원천을 든 그 줄이다.
+- 검사가 낼 수 있는 번호마다 변조본이 있는지(설계 ② R)는 `bite-verify-docs.py` 가 이 파일의 목록을 읽어 본다.
+
 표준 라이브러리만 쓴다.
 """
 import os
@@ -413,13 +422,46 @@ PROFILE_CONTROLS = [
 ]
 
 ID = re.compile(r"\[([A-Z]\d+)\]")
+PASS_LINE = "PASS 문서의 모양"
+RAN = {"bite": 0, "keep": 0}
+WANT_BOTH = (195, 30)  # 두 모드 — (변조본, 대조군)
+WANT_REPO = (70, 10)  # --repo-only
+
+
+def bit(rc, out, need):
+    """(나) 변조본 — 종료 1 · `FAIL` 줄 · 기대한 글마다 그 글로 여는 실패 줄 · 트레이스백 없음. 돈 수를 센다."""
+    RAN["bite"] += 1
+    ls = out.splitlines()
+    items = [ln[4:] for ln in ls if ln.startswith("  - ")]
+    return (rc == 1 and "FAIL" in ls and "Traceback" not in out
+            and bool(need) and all(any(i.startswith(w) for i in items) for w in need))
+
+
+def kept(rc, out, line=PASS_LINE):
+    """(다) 대조군 — 종료 0 과 검사의 PASS 줄 · 트레이스백 없음. 돈 수를 센다."""
+    RAN["keep"] += 1
+    return rc == 0 and "Traceback" not in out and any(ln.startswith(line) for ln in out.splitlines())
+
+
+def refused_usage(rc, out):
+    """사용법 거절 — 종료 2 와 사용법 줄. 거절을 재는 꼴이라 변조본으로 센다."""
+    RAN["bite"] += 1
+    return rc == 2 and "Traceback" not in out and any(ln.startswith("사용법: ") for ln in out.splitlines())
+
+
+def ran_as(want, mode):
+    """(가) 돈 수를 기대한 수와 — 다르면 실패 줄."""
+    got = (RAN["bite"], RAN["keep"])
+    if got != want:
+        return [f"{mode}: 변조본 {got[0]} · 대조군 {got[1]} 이 돌았다, {want[0]} · {want[1]} 이어야 한다 — 꼴을 지웠거나 더하고 기대 수를 따라 고치지 않았다"]
+    return []
 
 
 def judged(rc, out, need):
     """거절 꼴의 판정 — exit 1 · 예외 없음 · 기대한 줄이 다 있고 · 번호는 그 줄들의 번호뿐(조각 31 설계 ⑤ V2)."""
     seen = {m for ln in out.splitlines() if ln.startswith("  - ") for m in ID.findall(ln)}
     want = {m for w in need for m in ID.findall(w)}
-    return rc == 1 and "Traceback" not in out and all(w in out for w in need) and seen == want, seen
+    return bit(rc, out, need) and seen == want, seen
 
 
 # ── 다른 레포 모드(설계 ② A) ─────────────────────────────────────────
@@ -560,7 +602,7 @@ def repo_mode(checker, tmp):
             continue
         rc, out = run_repo(c, "--repo", t)
         need = [w.format(tpl=tpl.as_posix()) for w in want]
-        if rc == 1 and "Traceback" not in out and all(w in out for w in need):
+        if bit(rc, out, need):
             passes += 1
         else:
             fails.append(f"다른 레포 {name}: {' · '.join(need)} 로 떨어지지 않았다 (종료코드 {rc}) — {out[-300:]}")
@@ -573,7 +615,7 @@ def repo_mode(checker, tmp):
             fails.append(f"다른 레포 대조 {name}: 준비 실패 — {e}")
             continue
         rc, out = run_repo(c, "--repo", t)
-        if rc == 0 and f"(다른 레포 — 원천 {tpl.as_posix()})" in out:
+        if kept(rc, out, f"{PASS_LINE}(다른 레포 — 원천 {tpl.as_posix()})"):
             passes += 1
         else:
             fails.append(f"다른 레포 대조 {name}: 원천을 찍고 통과해야 하는데 아니다 (종료코드 {rc}) — {out[-300:]}")
@@ -601,7 +643,7 @@ def repo_mode(checker, tmp):
             fails.append(f"다른 레포 대조 {name}: 준비 실패 — {e}")
             continue
         rc, out = run_repo(c, "--repo", t)
-        if rc == 0:
+        if kept(rc, out, f"{PASS_LINE}(다른 레포 — 원천 {tpl.as_posix()})"):
             passes += 1
         else:
             fails.append(f"다른 레포 대조 {name}: 통과해야 하는데 떨어졌다 — {out[-300:]}")
@@ -617,7 +659,7 @@ def repo_mode(checker, tmp):
             fails.append(f"다른 레포 E1 {name}: 준비 실패 — {e}")
             continue
         rc, out = run_repo(c, "--repo", t, env=NON_UTF8)
-        if rc == want_rc and "Traceback" not in out and want in out:
+        if kept(rc, out, want) if want_rc == 0 else bit(rc, out, [want]):
             passes += 1
         else:
             fails.append(f"다른 레포 E1 {name}: UTF-8 이 아닌 로케일에서 {want} 를 예외 없이 찍어야 한다 (종료코드 {rc}) — {out[-300:]}")
@@ -629,7 +671,7 @@ def repo_mode(checker, tmp):
         return passes, fails
     for args in R_USAGE:
         rc, out = run_repo(c, *(a.format(root=t) for a in args))
-        if rc == 2 and "사용법" in out:
+        if refused_usage(rc, out):
             passes += 1
         else:
             fails.append(f"다른 레포 사용법 {args}: exit 2 여야 한다 (종료코드 {rc}) — {out[-200:]}")
@@ -710,12 +752,14 @@ def only_repo(checker):
     """`--repo-only` — 다른 레포 모드의 꼴만. 이 저장소 모드의 바탕을 베끼지 않는다."""
     with tempfile.TemporaryDirectory() as tmp:
         passes, fails = repo_mode(checker, pathlib.Path(tmp))
+    fails += ran_as(WANT_REPO, "다른 레포 모드만")
     if fails:
         print(f"FAIL — 문서 대조 검사의 자체 시험(다른 레포 모드) {len(fails)} 개가 어긋났다")
         for f in fails:
             print(f"  - {f}")
         return 1
-    print(f"PASS 문서 대조 검사가 문다(다른 레포 모드만) — 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · "
+    print(f"PASS 문서 대조 검사가 문다(다른 레포 모드만) — 변조본 {RAN['bite']} · 대조군 {RAN['keep']} 이 돌았다(기대한 수) — "
+          f"변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · "
           f"로케일 2 · 프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)}, 모두 {passes}")
     return 0
 
@@ -724,7 +768,7 @@ def both(checker):
     fails, passes = Fails(), 0
 
     rc, out = run(checker, ROOT)
-    if rc == 0:
+    if kept(rc, out):
         passes += 1
     else:
         fails.append(f"C0 저장소 그대로가 떨어졌다 — {out[-400:]}")
@@ -745,7 +789,7 @@ def both(checker):
             return t
 
         rc, out = run(checker, bed)
-        if rc == 0:
+        if kept(rc, out):
             passes += 1
         else:
             fails.append(f"C0 과녁 줄 둘을 더한 트리가 떨어졌다 — {out[-400:]}")
@@ -758,7 +802,7 @@ def both(checker):
                 fails.append(f"{name}: 준비 실패 — {e}")
                 continue
             rc, out = run(checker, t)
-            if rc == 1 and "Traceback" not in out and f"{rel}: [{gid}]" in out:
+            if bit(rc, out, [f"{rel}: [{gid}]"]):
                 passes += 1
             else:
                 fails.append(f"{name}: `{rel}: [{gid}]` 로 떨어지지 않았다 (종료코드 {rc}) — {out[-300:]}")
@@ -767,7 +811,7 @@ def both(checker):
         sub(t, PROC, "| `## ⑥ PR 나눔` |", "| `## ⑦ 덤` | x |\n| `## ⑥ PR 나눔` |")
         rc, out = run(checker, t)
         want = f"{TEST}/design.md: [F3]"
-        if want in out and "docs/slices/2-procedure-map/design.md" not in out:
+        if bit(rc, out, [want]) and "docs/slices/2-procedure-map/design.md" not in out:
             passes += 1
         else:
             fails.append(f"원천 표에 제목을 더하면 진행 조각의 설계만 떨어져야 한다 — {out[-300:]}")
@@ -781,7 +825,7 @@ def both(checker):
                 continue
             rc, out = run(checker, t)
             seen = [x for x in never if x in out]
-            if rc == 1 and "Traceback" not in out and need in out and not seen:
+            if bit(rc, out, [need]) and not seen:
                 passes += 1
             else:
                 fails.append(f"{name}: `{need}` 만 서고 {' · '.join(never) or '—'} 는 서지 않아야 한다 "
@@ -810,7 +854,7 @@ def both(checker):
                 fails.append(f"대조 {name}: 준비 실패 — {e}")
                 continue
             rc, out = run(checker, t)
-            if rc == 0:
+            if kept(rc, out):
                 passes += 1
             else:
                 fails.append(f"대조 {name}: 통과해야 하는데 떨어졌다 — {out[-300:]}")
@@ -819,18 +863,18 @@ def both(checker):
         t = fresh()
         write(t / "vibe-slice/skills/slice-docs/scripts/verify-docs.py", checker.read_text(encoding="utf-8"))
         rc, out = run_repo(t / "scripts" / "verify-docs.py")
-        if rc == 0:
+        if kept(rc, out):
             passes += 1
         else:
             fails.append(f"W3 링크로 인자 없이 부르면 그 트리에서 통과해야 한다 (종료코드 {rc}) — {out[-300:]}")
         rc, out = run_repo(t / "vibe-slice/skills/slice-docs/scripts/verify-docs.py")
-        if rc == 1 and "docs/procedure.md: [O3]" in out:
+        if bit(rc, out, ["docs/procedure.md: [O3]"]):
             passes += 1
         else:
             fails.append(f"W3 실물 경로로 인자 없이 부르면 O3 이어야 한다 (종료코드 {rc}) — {out[-300:]}")
 
         rc, out = run(checker, bed)
-        if rc == 0:
+        if kept(rc, out):
             passes += 1
         else:
             fails.append(f"바탕이 변조본에 물들었다 — 어느 변조가 파일을 제자리에서 고쳤다 — {out[-300:]}")
@@ -838,13 +882,14 @@ def both(checker):
         got, bad = repo_mode(checker, tmp)
         passes += got
         fails += bad
+    fails += ran_as(WANT_BOTH, "두 모드")
 
     if fails:
         print(f"FAIL — 문서 대조 검사의 자체 시험 {len(fails)} 개가 어긋났다")
         for f in fails:
             print(f"  - {f}")
         return 1
-    print(f"PASS 문서 대조 검사가 문다 — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
+    print(f"PASS 문서 대조 검사가 문다 — 변조본 {RAN['bite']} · 대조군 {RAN['keep']} 이 돌았다(기대한 수) — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
           f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, "
           f"프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)} 두 모드, 모두 {passes}")
     return 0

@@ -25,6 +25,13 @@
   Y2 심은 verify-docs.py --repo 가 틀로 세운 대상에서 통과하고 한 자리를 어긋내면 떨어진다. 심은 verify-slice-gate.py 가
      착공 + 구현을 한 diff 로 둔 대상(원격 origin · main 을 갖춘)에서 G1 로 떨어진다
 
+**세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — 심지 않아야 하는 실행과 떨어져야 하는 심은 검사가 변조본, 심어야 하는 실행과
+통과해야 하는 심은 검사가 대조군이다.
+  (가) 돈 수를 `WANT` 와 견준다 — 꼴을 지웠거나 조건 때문에 건너뛰면 떨어진다
+  (나) 거절은 그 종료(1 · 쓰는 법은 2)와 거절 줄(「… 심지 않는다 · 심지 않았다」 · 「그런 디렉터리가 없다」 · 「사용법: 」)이 있고
+       트레이스백 · `sync-slice.sh` 자신의 셸 오류 줄이 없을 때만 센다(`refused`). 심은 검사는 그 검사의 실패 머리 줄과 번호 줄을 본다
+  (다) 심기는 종료 0 과 「→ 」 줄, 심은 검사의 통과는 종료 0 과 그 검사의 PASS 줄을 함께 본다(`sown` · `passed`)
+
 표준 라이브러리만 쓴다.
 """
 import os
@@ -47,6 +54,10 @@ HDR = ('HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에서만 참인 �
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
 CHECKS = ("verify-docs.py", "verify-slice-gate.py")
+WANT = (25, 10)  # (가) 변조본 · 대조군
+TB = "Traceback (most recent call last)"
+SH_ERR = re.compile(r"sync-slice\.sh: line [0-9]+: ")
+REFUSE = {1: re.compile(r"심지 않(는다|았다)|^그런 디렉터리가 없다: ", re.M), 2: re.compile(r"^사용법: ", re.M)}
 
 
 def sh(cwd, *args):
@@ -165,6 +176,31 @@ def main():
         else:
             fails.append(f"{what}\n{out}")
 
+    ran = [0, 0]
+
+    def refused(rc, out, code=1):
+        """(나) sync-slice.sh 의 거절 — 그 종료 · 거절 줄 · 트레이스백과 셸 오류 없음."""
+        ran[0] += 1
+        return rc == code and bool(REFUSE[code].search(out)) and TB not in out and not SH_ERR.search(out)
+
+    def sown(rc, out):
+        """(다) sync-slice.sh 의 심기 — 종료 0 · 「→ 」 줄 · 트레이스백과 셸 오류 없음."""
+        ran[1] += 1
+        return (rc == 0 and any(ln.startswith("→ ") for ln in out.splitlines())
+                and TB not in out and not SH_ERR.search(out))
+
+    def failed(rc, out, head, lines):
+        """(나) 심은 검사의 실패 — 종료 1 · 실패 머리 줄 · 그 글로 여는 번호 줄 · 트레이스백 없음."""
+        ran[0] += 1
+        ls = out.splitlines()
+        return (rc == 1 and TB not in out and any(ln.startswith(head) for ln in ls)
+                and all(any(ln.startswith(w) for ln in ls) for w in lines))
+
+    def passed(rc, out, head):
+        """(다) 심은 검사의 통과 — 종료 0 · 그 검사의 PASS 줄 · 트레이스백 없음."""
+        ran[1] += 1
+        return rc == 0 and TB not in out and any(ln.startswith(head) for ln in out.splitlines())
+
     def planted_as(what, src, base):
         """심은 사본 base 가 원본 src 의 HEAD 와 출처 두 줄 · L1 의 바꿈 말고는 같은지 본다(C1 · H1 · L1).
         원본의 L1 링크 수를 돌려준다."""
@@ -211,7 +247,7 @@ def main():
         head_before = sh(t, "git", "rev-parse", "HEAD")
         rc, out = run(src, t)
         base = t / ".claude/skills"
-        expect("빈 대상에 심지 못했다", rc == 0, out)
+        expect("빈 대상에 심지 못했다", sown(rc, out), out)
         links = planted_as("", src, base)
         expect(f"시험 준비 — 원본 스킬에 L1 이 받는 링크가 없어 L1 을 잴 수 없다", links > 0)
         expect("원본의 copies.json 이 바뀌었다", (src / "copies.json").read_bytes() == ledger)
@@ -227,16 +263,16 @@ def main():
         docs_tree(t, tpl)
         rc, out = check(planted / "verify-docs.py", t, "--repo", t)
         expect("[Y2] 심은 verify-docs.py --repo 가 틀로 세운 대상에서 심은 틀을 원천으로 통과하지 않았다",
-               rc == 0 and f"(다른 레포 — 원천 {tpl.as_posix()})" in out, out)
+               passed(rc, out, f"PASS 문서의 모양(다른 레포 — 원천 {tpl.as_posix()})"), out)
         mp = t / "docs/master-plan.md"
         mp.write_text(mp.read_text(encoding="utf-8").replace("\n## 범위 변경\n", "\n"), encoding="utf-8")
         rc, out = check(planted / "verify-docs.py", t, "--repo", t)
         expect("[Y2] 심은 verify-docs.py --repo 가 「범위 변경」을 지운 대상에서 M1 로 떨어지지 않았다",
-               rc == 1 and "docs/master-plan.md: [M1]" in out, out)
+               failed(rc, out, "FAIL", ["  - docs/master-plan.md: [M1] "]), out)
 
         tg = target(tmp / "t-gate")
         rc, out = run(src, tg)
-        expect("[Y2] 관문을 볼 대상에 심지 못했다", rc == 0, out)
+        expect("[Y2] 관문을 볼 대상에 심지 못했다", sown(rc, out), out)
         docs_tree(tg, (tg / ".claude/skills/slice-docs/templates"))
         sh(tg, "git", "add", "-A")
         sh(tg, "git", "commit", "-q", "-m", "착공 머지")
@@ -249,12 +285,12 @@ def main():
             shutil.copy(tg / ".claude/skills/slice-docs/templates" / f, tg / "docs/slices/2-next" / f)
         gate = tg / ".claude/skills/slice-docs/scripts/verify-slice-gate.py"
         rc, out = check(gate, tg)
-        expect("[Y2] 심은 verify-slice-gate.py 가 착공 문서만 둔 대상에서 통과하지 않았다", rc == 0, out)
+        expect("[Y2] 심은 verify-slice-gate.py 가 착공 문서만 둔 대상에서 통과하지 않았다", passed(rc, out, "PASS 설계 → 구현 관문"), out)
         (tg / "src").mkdir()
         (tg / "src/impl.py").write_text("x = 1\n", encoding="utf-8")
         rc, out = check(gate, tg)
         expect("[Y2] 심은 verify-slice-gate.py 가 착공 + 구현을 한 diff 로 둔 대상에서 G1 로 떨어지지 않았다",
-               rc == 1 and "[G1]" in out and "src/impl.py" in out, out)
+               failed(rc, out, "FAIL 설계 → 구현 관문", ["[G1] "]) and "src/impl.py" in out, out)
 
         # C3 — 스킬 하나만 있어도 다시 심기는 멈추고, --force 는 스킬 폴더를 다 덮되 다른 스킬은 둔다
         t3 = target(tmp / "t3")
@@ -266,9 +302,9 @@ def main():
         (mine / "SKILL.md").write_text("그 레포의 스킬\n", encoding="utf-8")
         before = snapshot(t3)
         rc, out = run(src, t3)
-        expect(f"스킬 하나({last})만 있는 사본을 --force 없이 덮었다", rc != 0 and snapshot(t3) == before, out)
+        expect(f"스킬 하나({last})만 있는 사본을 --force 없이 덮었다", refused(rc, out) and snapshot(t3) == before, out)
         rc, out = run(src, t3, "--force")
-        expect("--force 가 덮지 못했다", rc == 0 and all((t3 / ".claude/skills" / k / "SKILL.md").is_file()
+        expect("--force 가 덮지 못했다", sown(rc, out) and all((t3 / ".claude/skills" / k / "SKILL.md").is_file()
                                                          for k in skills)
                and (t3 / ".claude/skills" / last / "SKILL.md").read_text(encoding="utf-8") != "특화\n", out)
         expect("--force 가 폴더째 덮지 않았다 — 사본에만 있던 파일이 남았다",
@@ -302,7 +338,7 @@ def main():
             make(t)
             before, outside_before = snapshot(t), snapshot(outside)
             rc, out = run(src, t, "--force")
-            expect(f"{what} — --force 로 심었다", rc != 0 and snapshot(t) == before
+            expect(f"{what} — --force 로 심었다", refused(rc, out) and snapshot(t) == before
                    and snapshot(outside) == outside_before, out)
 
         # L1 — 한 줄에 링크 둘, 틀 파일에 링크 하나
@@ -315,7 +351,7 @@ def main():
         got = (t / ".claude/skills/slice-docs/SKILL.md").read_text(encoding="utf-8")
         tpl_got = (t / ".claude/skills/slice-docs/templates/design.md").read_text(encoding="utf-8")
         expect("[L1] 한 줄의 링크 둘 · 틀 파일의 링크를 다 바꾸지 못했다",
-               rc == 0 and two.replace(LINK, f"github.com/pdw96/claude-kit/blob/{fullm}/") in got
+               sown(rc, out) and two.replace(LINK, f"github.com/pdw96/claude-kit/blob/{fullm}/") in got
                and f"blob/{fullm}/c.md" in tpl_got and LINK not in got + tpl_got, out)
 
         # L1 — 원본이 스킬마다 blob/<전체 sha>/ 를 박았다(PR C 뒤의 꼴) — 사본은 출처 커밋으로 다시 박는다
@@ -326,7 +362,7 @@ def main():
                len(own) == len(skills) and all(LINK not in f.read_text(encoding="utf-8") for f in own))
         t = target(tmp / "t-pinned")
         rc, out = run(srcp, t)
-        expect("[L1] 원본이 blob/<전체 sha>/ 를 박은 꼴을 심지 못했다", rc == 0, out)
+        expect("[L1] 원본이 blob/<전체 sha>/ 를 박은 꼴을 심지 못했다", sown(rc, out), out)
         if rc == 0:
             planted_as("원본이 박은 꼴 — ", srcp, t / ".claude/skills")
             for k in skills:
@@ -345,7 +381,7 @@ def main():
         got = (t / ".claude/skills/slice-review/SKILL.md").read_text(encoding="utf-8") if rc == 0 else ""
         tpl_got = (t / ".claude/skills/slice-docs/templates/requirements.md").read_text(encoding="utf-8") if rc == 0 else ""
         expect("[L1] 한 줄에 섞인 두 꼴 · 틀 파일의 blob/<전체 sha>/ 를 다 출처로 바꾸지 못했다",
-               rc == 0 and f"blob/{fullx}/d.md · https://github.com/pdw96/claude-kit/blob/{fullx}/e.md" in got
+               sown(rc, out) and f"blob/{fullx}/d.md · https://github.com/pdw96/claude-kit/blob/{fullx}/e.md" in got
                and f"blob/{fullx}/f.md" in tpl_got and OLD not in got + tpl_got and LINK not in got + tpl_got, out)
         if rc == 0:
             planted_as("섞인 꼴 — ", srcx, t / ".claude/skills")
@@ -353,13 +389,14 @@ def main():
         # L3 — 손으로 옛 커밋을 박은 사본도 --force 면 새 출처로
         t = target(tmp / "t-pin")
         rc, out = run(src, t)
+        expect("시험 준비 — 손으로 박을 사본을 심지 못했다", sown(rc, out), out)
         hand = t / ".claude/skills/slice-review/SKILL.md"
         hand.write_text(hand.read_text(encoding="utf-8").replace(f"blob/{full}/", "blob/55a8a79/"), encoding="utf-8")
         expect("시험 준비 — 손으로 박은 링크가 서지 않았다", "blob/55a8a79/" in hand.read_text(encoding="utf-8"))
         rc, out = run(src, t, "--force")
         now = hand.read_text(encoding="utf-8")
         expect("[L3] --force 가 손으로 박은 옛 링크를 새 출처로 바꾸지 못했다",
-               rc == 0 and "blob/55a8a79/" not in now and f"blob/{full}/" in now, out)
+               sown(rc, out) and "blob/55a8a79/" not in now and f"blob/{full}/" in now, out)
 
         # L2 — 받지 않는 claude-kit 링크 꼴은 아무것도 쓰지 않는다
         for i, form in enumerate([
@@ -374,14 +411,14 @@ def main():
             before = snapshot(t)
             rc, out = run(srcb, t)
             expect(f"[L2] {form} 이 든 원본을 심었다",
-                   rc != 0 and snapshot(t) == before and "slice-review/SKILL.md" in out, out)
+                   refused(rc, out) and snapshot(t) == before and "slice-review/SKILL.md" in out, out)
 
         # P1 — 원격 가지에 없는 원본
         srcn = source(tmp / "src-noremote", remote=False)
         t = target(tmp / "t-noremote")
         before = snapshot(t)
         rc, out = run(srcn, t)
-        expect("[P1] 원격 없는 원본을 심었다", rc != 0 and snapshot(t) == before and "원격 가지 어디에도 없다" in out, out)
+        expect("[P1] 원격 없는 원본을 심었다", refused(rc, out) and snapshot(t) == before and "원격 가지 어디에도 없다" in out, out)
         srcu = source(tmp / "src-unpushed")
         (srcu / "copies.json").write_text('{"copies": [] }\n', encoding="utf-8")
         sh(srcu, "git", "commit", "-q", "-am", "푸시 안 함")
@@ -389,7 +426,7 @@ def main():
         before = snapshot(t)
         rc, out = run(srcu, t)
         expect("[P1] 푸시하지 않은 커밋이 HEAD 인 원본을 심었다",
-               rc != 0 and snapshot(t) == before and "원격 가지 어디에도 없다" in out, out)
+               refused(rc, out) and snapshot(t) == before and "원격 가지 어디에도 없다" in out, out)
 
         # H2 · H3 — 두 스크립트의 출처 줄과 감사자 사본 README 의 방향
         agents_sh = (ROOT / "scripts" / "sync-agents.sh").read_text(encoding="utf-8")
@@ -422,7 +459,7 @@ def main():
                        sh(src, "git", "status", "--porcelain", "--", REL) == "")
             before = snapshot(t)
             rc, out = run(src, t)
-            expect(f"{what} — 심었다", rc != 0 and snapshot(t) == before, out)
+            expect(f"{what} — 심었다", refused(rc, out) and snapshot(t) == before, out)
             undo()
 
         # 인자
@@ -433,14 +470,16 @@ def main():
             ("없는 경로", [tmp / "없는"], 1),
         ]:
             rc, out = run(src, *args)
-            expect(f"{what} — 종료 {rc}, 기대 {code}", rc == code, out)
+            expect(f"{what} — 종료 {rc}, 기대 {code}", refused(rc, out, code), out)
 
+    expect(f"변조본 {ran[0]} · 대조군 {ran[1]} 이 돌았다, {WANT[0]} · {WANT[1]} 이어야 한다 — 꼴을 지웠거나 건너뛰었다",
+           tuple(ran) == WANT)
     if fails:
         for f in fails:
             print(f"FAIL {f}")
         return 1
     print(f"PASS sync-slice.sh 가 C1 ~ C5 · P1 · L1 ~ L3 · H1 ~ H3 을 스킬마다 지키고, 심은 검사가 돈다(Y1 · Y2) — "
-          f"기대 {passes} 개 모두 맞다")
+          f"변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다, 기대 {passes} 개 모두 맞다")
     return 0
 
 
