@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 키 없이 도는 게이트를 전부 돌린다. 모델도 API 도 안 쓴다.
 #
-#   ./scripts/gates.sh                       # 스물여섯 — 로컬은 늘 이것
-#   ./scripts/gates.sh --skip-bite <근거>    # CI 만 — 스물하나만 돌리고 변조 시험 다섯은 건너뛴다
+#   ./scripts/gates.sh                       # 스물일곱 — 로컬은 늘 이것
+#   ./scripts/gates.sh --skip-bite <근거>    # CI 만 — 스물둘만 돌리고 변조 시험 다섯은 건너뛴다
 #
 # **한 군데에만 적는 이유.** 이 목록이 CI 워크플로와 문서에 각각 있으면
 # 갈린다 — 한쪽만 고쳐도 아무도 안 알려 준다. 그 결함을 매니페스트에서
@@ -19,7 +19,7 @@
 # `bite-verify-docs.py`, 절차 지도 판의 `bite-map-pin.py`, `main` 푸시가 머지된 PR 의 통과를 읽는 판정의 `bite-eval-merged-pass.py`.
 # 다 수트 지문 밖이라 고쳐도 수트가 다시 돌지 않는다(ADR 0016 의 6 · ADR 0018 의 6 · ADR 0019 의 5 · ADR 0020 의 1 · ADR 0021 의 3).
 #
-# **두 묶음.** 검사와 자체 시험 스물하나(와 `claude plugin validate` 둘)는 `checks`, 변조 시험 다섯은 `bites` 에 둔다.
+# **두 묶음.** 검사와 자체 시험 스물둘(와 `claude plugin validate` 둘)는 `checks`, 변조 시험 다섯은 `bites` 에 둔다.
 # 인자 없이는 `checks` 를 다 돌린 뒤 `bites` 를 돌린다 — 변조 시험은 자체 시험의 결과를 읽지 않고 제 사본에서 따로 돈다.
 # `--skip-bite <근거>` 는 `checks` 만 돌린다. 변조 시험이 보는 것 — 검사 코드가 무는지 — 은 검사 코드와 그것이 규칙으로
 # 읽는 파일의 지문(`gate-key.py`)이 같으면 같으므로, CI 가 같은 지문이 이미 물었던 근거를 찾았을 때만 이것으로 부른다.
@@ -28,7 +28,7 @@
 # 줄 말고 아무 명령도 두지 않는다 — 건너뛰는 것이 변조 시험뿐인지 `bite-gates.sh` 가 그 모양으로 문다(조각 35 설계 ② G4 · G5).
 set -euo pipefail
 
-# 늘 도는 것 — 검사와 자체 시험 스물하나, `claude plugin validate` 둘. 건너뛰는 실행에서도 다 돈다(ADR 0046 의 4).
+# 늘 도는 것 — 검사와 자체 시험 스물둘, `claude plugin validate` 둘. 건너뛰는 실행에서도 다 돈다(ADR 0046 의 4).
 checks() {
   claude plugin validate ./vibe-audit
   claude plugin validate ./vibe-slice
@@ -83,6 +83,10 @@ checks() {
   # eval.yml gate 잡이 변조 시험의 지문을 「물었다」로 적는 조건과 건너뛰는 조건 — 첫 열한 스텝의 판정에 드는 칸이 닫힌 목록 그대로다.
   # 건너뛰는 실행에서도 돌아야 건너뛰는 조건까지 물므로 여기 둔다(조각 37 · ADR 0048 의 2).
   python3 scripts/verify-eval-gate.py
+
+  # 살아 있는 문서와 스크립트에 적힌 수가 원천과 같은지 — 닫힌 닻 목록과 변조 시험 · 자체 시험의 끝 줄(조각 42 · ADR 0055).
+  # 그 문서는 변조 시험 지문 밖이라 문서만 고친 PR 에서도 돌아야 하므로 여기 둔다(ADR 0055 의 4).
+  python3 scripts/verify-counts.py
 
   # 이 파일이 무엇을 실제로 부르는지 — 인자 없이는 변조 시험 다섯까지 다, --skip-bite 는 다섯만 빼고. 변조 시험이 안 돌아도
   # 돌아야 하므로 여기 둔다(조각 35 닫기 전 감사 회차 NC-1 · 설계 끝 「닫기 전 감사 회차에서 찾은 것」).
@@ -141,7 +145,7 @@ main() {
 
   if [ -n "$skip" ]; then
     echo
-    echo "스물하나 통과 · 변조 시험 다섯은 건너뛰었다 — $skip"
+    echo "스물둘 통과 · 변조 시험 다섯은 건너뛰었다 — $skip"
     echo "변조 시험까지 보려면 로컬에서 인자 없이 부르거나 CI 의 workflow_dispatch 를 부른다."
     return 0
   fi
@@ -149,7 +153,7 @@ main() {
   bites
 
   echo
-  echo "스물여섯 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
+  echo "스물일곱 다 통과 — 키 없이 볼 수 있는 것은 여기까지다."
   echo "감사자가 실제로 무엇을 판정하는지는 ./scripts/run-evals.sh 가 본다."
 }
 
