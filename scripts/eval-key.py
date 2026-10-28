@@ -5,9 +5,10 @@
   python3 scripts/eval-key.py full     # workflow_dispatch 가 돌리는 전수
   python3 scripts/eval-key.py route --list   # 무엇을 넣었는지 찍는다
 
-**왜 있나.** 구독 토큰으로 CI 를 돌리게 되면서 한 번에 24회(route-* 여덟 × 3회)가
-사용량에서 나간다. 그런데 이 PR 의 커밋 쉰하나 가운데 열둘은 evals/README.md
-**하나만** 고쳤다 — 수트 결과를 바꿀 수 없는 변경에 매번 24회를 썼다.
+**왜 있나.** 구독 토큰으로 CI 를 돌리게 되면서 route 수트 한 번이 사용량에서 나간다.
+이 파일을 세운 PR(#1, 2026-09-23)에서는 한 번에 24회(그때 route-* 여덟 × 3회)였고,
+그 PR 의 커밋 쉰하나 가운데 열둘은 evals/README.md **하나만** 고쳤다 — 수트 결과를
+바꿀 수 없는 변경에 매번 24회를 썼다.
 
 **경로가 아니라 내용으로 가르는 이유.** 「직전 커밋과의 차이가 README 뿐이면
 건너뛴다」로 하면 직전 커밋이 빨갰을 때 README 한 줄로 PR 이 초록(Skipped)이

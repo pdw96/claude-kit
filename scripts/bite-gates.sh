@@ -5,15 +5,15 @@
 #
 # **왜 여기 있나.** 이 본문은 CI 「게이트가 무는가」 스텝(`eval.yml`)이었다. `eval.yml` 은 수트에 깃발을 넘겨
 # 통째로 수트 지문(`eval-key.py`)에 들어, 변조본만 고쳐도 route 수트가 다시 돌았다. 그래서 스텝의 본문을 글자
-# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 스텝과 다른 자리는 여섯뿐이다 — 이 머리, 저장소 맨 위를
+# 그대로 옮기고 `gates.sh` 가 부른다(ADR 0020 의 1 · 2). 옮길 때(조각 11, 2026-10-12) 스텝과 다른 자리는 여섯이었다 — 이 머리, 저장소 맨 위를
 # git 에서 읽는 것(CI 의 `$GITHUB_WORKSPACE` 대신), 임시 폴더를 한 폴더에 모아 끝날 때 지우는 것, 제자리 변조를
 # 백업에서 되돌리는 것(ADR 0020 의 3), 수트 모델 id 를 `run-evals.sh` 에서 읽는 것(ADR 0020 의 4), 끝의 「변조본
 # 파일이 수트 지문 밖인가」(ADR 0020 의 6).
 #
-# 끝의 네 절은 조각 35 가 더했다 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
+# 조각 35 가 더한 절 — 변조 시험의 지문(`gate-key.py`)이 대조하는 기록에 그대로이고 넣는 쪽에 바뀌는지,
 # `gates.sh` 의 건너뛰는 묶음(`bites`)에 변조 시험 다섯만 있는지, 거절하는 인자가 검사 전에 종료 2 인지(설계 ② K6 · G5),
 # `gates.sh` 가 무엇을 실제로 부르는지 보는 자체 시험(`test-gates.py`)이 무는지(설계 끝 「닫기 전 감사 회차에서 찾은 것」).
-# 맨 끝 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
+# `verify-eval-gate.py` 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
 # `test-gates.py` 절의 끝은 조각 38 이 더했다 — 고정 목록과 실패 전파가 무는지, 진짜 `gates.sh` 가 지나가는지(조각 38 설계 ② R · V).
 # 절마다의 세 규칙(센 수 · 좁힌 「물었다」 · 대조군의 PASS 줄)과 규칙마다 변조본의 대조 둘은 조각 41 이 더했다 — 아래 sopen · bit · keep · sclose · rgap.
 #
@@ -533,12 +533,13 @@ fi
 # 센 수(조각 41 설계 ② C) — 고정 꼴 MFIXED 와, 사본 파일마다 도는 T5c · T5d · T5e 셋. 꼴 한 줄을 지운 절은 여기서 떨어진다.
 # 파일마다의 몫은 사본 파일의 수(MNAMES)로 센다 — 플러그인에 파일이 늘면 그 꼴도 함께 는다.
 MFIXED=54
+MPER=3   # 사본 파일마다 도는 꼴 — T5c · T5d · T5e
 mn=$(grep -c . <<<"$MNAMES")
-if [ "$mpass" != $((MFIXED + 3 * mn)) ]; then
-  echo "::error::sync-agents.sh --merge 의 꼴이 $mpass 돌았다 — $((MFIXED + 3 * mn))(고정 $MFIXED · 사본 파일 $mn 마다 셋) 이어야 한다"; exit 1
+if [ "$mpass" != $((MFIXED + MPER * mn)) ]; then
+  echo "::error::sync-agents.sh --merge 의 꼴이 $mpass 돌았다 — $((MFIXED + MPER * mn))(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 이어야 한다"; exit 1
 fi
 NSEC=$((NSEC + 1))
-echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 셋) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
+echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
 
 # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(수트)"
@@ -1018,7 +1019,7 @@ bit 5 "$RVF" "감사자가 안 뜬 회차" env FAKE_RESULT="$h/r-one.json" PATH=
 # 거절을 재는 꼴이라 종료 2 와 그 거절 줄을 본다
 bit 2 '문턱을 받지 않는다' "부른 쪽의 --threshold" env FAKE_RESULT="$h/r-all.json" PATH="$h:$PATH" ./scripts/run-evals.sh --eval-dir recall --case recall-commit-after-response --threshold 0.5
 sclose 2 1
-echo "run-evals.sh --eval-dir recall: 문턱 1.0 하네스에서 놓친 세 회차가 종료 0 · 회수율 0/3(대조군 $SK), 감사자가 안 뜬 회차는 종료 5, --threshold 는 종료 2(변조본 $SB)"
+echo "run-evals.sh --eval-dir recall: 문턱이 기본값인 하네스에서 다 놓친 회차가 종료 0 과 회수율 줄(대조군 $SK), 감사자가 안 뜬 회차는 종료 5, --threshold 는 종료 2(변조본 $SB)"
 
 # run-evals.sh — 감사자가 한 회차라도 안 떴으면 실패해야 한다. 두 팔로 돌면
 # auditor-fired 는 with-only 라 점수에서 빠지므로(scored: false) 흉내 낸 답이
@@ -1245,7 +1246,7 @@ sed -i 's/"license": "MIT"/"license": "GPL-3.0"/' "$m/vibe-audit/.claude-plugin/
 bit 1 "$PYF" "견줄 수 없는 라이선스 선언" python3 "$m/scripts/verify-manifest.py"
 sclose 4 0
 
-echo "검사의 변조본 절 $NSEC 이 센 수 · 실패 줄 · 대조군의 PASS 줄로 닫힘 — manifest · copies · copy · evals · graders · budget · feedback · sync-agents · run-evals 와 자체 시험 셋(brief 는 test-verify-brief.py 가, docs 는 bite-verify-docs.py 가 스스로 변조본을 돈다)"
+echo "검사의 변조본 절 $NSEC 이 센 수 · 실패 줄 · 대조군의 PASS 줄로 닫힘 — manifest · copies · copy · evals · graders · budget · feedback · sync-agents · run-evals 와 자체 시험 compare-copies · verify-feedback · verify-docs(brief 는 test-verify-brief.py 가, docs 는 bite-verify-docs.py 가 스스로 변조본을 돈다)"
 
 # eval-key.py — 수트가 안 읽는 것은 지문을 그대로 두고, 읽는 것은 바꿔야 한다.
 # 앞쪽이 깨지면 낭비로 끝나지만 뒤쪽이 깨지면 **문구를 고친 PR 이 수트 없이
@@ -1290,7 +1291,7 @@ if [ "$kf" != "$kf0" ]; then
 fi
 SK=$((SK + 1))
 sclose 7 6
-echo "수트 지문: 무관한 것 $SK(회수율 케이스는 route · full 둘 다)은 그대로, 관련된 것과 모드 $SB(실행 비트 포함)은 바뀐다"
+echo "수트 지문: 무관한 것 $SK(회수율 케이스는 route · full 다)은 그대로, 관련된 것과 모드 $SB(실행 비트 포함)은 바뀐다"
 
 # 변조본 파일이 수트 지문 밖인가(ADR 0020 의 6). eval-key.py 는 run-evals.sh 에 적힌 스크립트를 지문에 넣는다 —
 # 러너가 이 이름들을 적게 되면(주석이라도) 변조본을 고칠 때마다 수트가 다시 돈다. 판정은 안 틀리고 비용만
@@ -1407,7 +1408,7 @@ if [ "$(git status --porcelain)" != "$gst0" ]; then
   echo "::error::지문 시험이 작업트리를 흔든 채로 남겼다"; git status --porcelain; exit 1
 fi
 sclose 15 12
-echo "변조 시험 지문: 대조하는 기록 $SK 은 그대로, 넣는 쪽 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 두 판 · 지문 없는 종료 둘의 $SB 은 바뀌거나 지문을 내지 않는다"
+echo "변조 시험 지문: 대조하는 기록 $SK 은 그대로, 넣는 쪽 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 파이썬과 git 의 판 · 지문 없는 종료의 $SB 은 바뀌거나 지문을 내지 않는다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
 # 실행이 변조 시험 아닌 검사까지 빼면 「스물하나 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
@@ -1582,7 +1583,7 @@ tgk=$SK  # 끝 줄은 다음 절 뒤에 함께 찍는다
 sopen "test-gates.py(진짜 gates.sh)"
 keep '^PASS test-gates.py' "진짜 gates.sh — checks 에서 test-gates.py 줄이 빠졌는가" python3 scripts/test-gates.py
 sclose 0 1
-echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 둘 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 넷 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 태그마다 변조본이 있고, 대조군 $tgk(차례 · 주석)과 진짜 gates.sh 가 PASS 줄로 지나감"
+echo "test-gates.py: 고정 목록 · 실패 전파 변조본 $tgn(감사가 든 것 · 지우기 · 주석 · 겹침 · 새 이름 · claude · 자기 줄 · 삼키기 · --skip-bite 에서만)이 기대한 번호로 떨어지고, 태그마다 변조본이 있고, 대조군 $tgk(차례 · 주석)과 진짜 gates.sh 가 PASS 줄로 지나감"
 
 # eval.yml 적기 조건 — verify-eval-gate.py 가 무는지(조각 37 설계 ② V · ⑤ R1 ~ R4). eval.yml 사본의 자리를 바꿔 떨어지는지, 자유로운 칸만
 # 바꾼 대조군이 지나가는지, 거절하는 인자가 아무것도 견주지 않고 종료 2 인지 본다. 「물었다」는 종료 1 이고 기대한 번호의 `FAIL [번호]` 줄이
@@ -1674,7 +1675,7 @@ for args in "a b" "-x" "--help"; do
   SB=$((SB + 1))
 done
 sclose 39 3
-echo "verify-eval-gate.py: eval.yml 변조본(감사가 든 둘 · 읽는 꼴 · 머리 · 차례 · 칸 · 글 · 알림 줄의 경계 · 갇힘 · 읽지 못함)과 거절 인자 셋, 합 $SB 이 기대한 번호 · 종료로 떨어지고, 자유로운 칸의 대조군 $SK 이 PASS 줄로 지나감"
+echo "verify-eval-gate.py: eval.yml 변조본(감사가 든 것 · 읽는 꼴 · 머리 · 차례 · 칸 · 글 · 알림 줄의 경계 · 갇힘 · 읽지 못함)과 거절 인자, 합 $SB 이 기대한 번호 · 종료로 떨어지고, 자유로운 칸의 대조군 $SK 이 PASS 줄로 지나감"
 
 # 번호마다 변조본(조각 41 설계 ② R) — verify-eval-gate.py 가 찍을 수 있는 번호(fail(…) · 일찍 돌려주는 [("…") · 「FAIL [A2]」)마다
 # 그 번호를 기대하는 emut · eraw 가 이 파일에 있다. 변조본: A2 의 변조본을 다 지운 이 파일은 A2 를 「변조본 없음」으로 찍는다.
