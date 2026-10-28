@@ -760,7 +760,7 @@ def only_repo(checker):
         return 1
     print(f"PASS 문서 대조 검사가 문다(다른 레포 모드만) — 변조본 {RAN['bite']} · 대조군 {RAN['keep']} 이 돌았다(기대한 수) — "
           f"변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · "
-          f"로케일 2 · 프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)}, 모두 {passes}")
+          f"로케일 · 프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)}, 모두 {passes}")
     return 0
 
 
@@ -889,9 +889,9 @@ def both(checker):
         for f in fails:
             print(f"  - {f}")
         return 1
-    print(f"PASS 문서 대조 검사가 문다 — 변조본 {RAN['bite']} · 대조군 {RAN['keep']} 이 돌았다(기대한 수) — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 1 · 지금 모양 3 · 링크 2, "
-          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일 2, "
-          f"프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)} 두 모드, 모두 {passes}")
+    print(f"PASS 문서 대조 검사가 문다 — 변조본 {RAN['bite']} · 대조군 {RAN['keep']} 이 돌았다(기대한 수) — 변조본 {len(CASES)} · 묻지 않음 {len(QUIET)} · 대조 {len(CONTROLS)} · 원천 · 지금 모양 · 링크, "
+          f"다른 레포 변조본 {len(R_CASES)} · 대조 {len(R_CONTROLS)} · 사용법 {len(R_USAGE)} · 로케일, "
+          f"프로필 거절 {len(PROFILE_CASES)} · 대조 {len(PROFILE_CONTROLS)} 를 이 저장소 · 다른 레포 모드에서, 모두 {passes}")
     return 0
 
 

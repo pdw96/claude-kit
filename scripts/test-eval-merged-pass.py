@@ -204,7 +204,7 @@ def main():
         for b in bad:
             print(f"  {b}")
         return 1
-    print(f"PASS eval-merged-pass.py — 변조본 {got[0]} · 대조군 {got[1]} — H1 · M1 ~ M11 · 인자 · probe 정상 · 403")
+    print(f"PASS eval-merged-pass.py — 변조본 {got[0]} · 대조군 {got[1]} — H1 · M1 ~ M11 · 인자 · probe 의 정상 · 권한 거절")
     return 0
 
 

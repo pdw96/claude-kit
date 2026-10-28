@@ -389,7 +389,7 @@ def main():
         for b in bad:
             print("  - " + b.replace("\n", "\n    "))
         return 1
-    print(f"PASS verify-brief.py — 변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다 — 통과 {len(ok)} · 떨어짐 {len(fail)} · 쓰는 법 3 모양 모두 맞다")
+    print(f"PASS verify-brief.py — 변조본 {WANT[0]} · 대조군 {WANT[1]} 이 돌았다 — 통과 {len(ok)} · 떨어짐 {len(fail)} · 쓰는 법 오류 모양 모두 맞다")
     return 0
 
 

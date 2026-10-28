@@ -53,6 +53,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 USAGE = "사용법: test-gates.py [<gates.sh>]"
 TIMEOUT = 60
+KEPT = 3  # 대조군 — 인자 없이 부르는 꼴(T1 · T1′)과 --skip-bite(T2)
 
 # L1 — 늘 도는 스물셋(조각 38 설계 ③ L1-c). 검사를 더하거나 빼면 gates.sh 와 함께 고친다(ADR 0049).
 CHECKS = (
@@ -190,8 +191,8 @@ def judge(gates):
                 bad.append(f"{s} {tag} 의 꼴에서 {name} 이 1 로 끝났는데 gates.sh 가 그 실패로 떨어지지 않았다 "
                            f"(종료 {st} · 불림 {name in got}){chr(10)}{out[-600:]}")
         want = 2 * len(ALL) + len(CHECKS)
-        if (bitten, kept) != (want, 3):
-            bad.append(f"S1 꼴이 {bitten} · 대조군이 {kept} 돌았다 — {want} · 3 이어야 한다(고리가 일찍 끝났거나 꼴을 걸렀다)")
+        if (bitten, kept) != (want, KEPT):
+            bad.append(f"S1 꼴이 {bitten} · 대조군이 {kept} 돌았다 — {want} · {KEPT} 이어야 한다(고리가 일찍 끝났거나 꼴을 걸렀다)")
     return bad
 
 
@@ -208,9 +209,9 @@ def main(argv):
         for b in bad:
             print(f"FAIL {b}")
         return 1
-    print(f"PASS test-gates.py — 변조본(S) {2 * len(ALL) + len(CHECKS)} · 대조군 3 이 돌았다, 부르는 것이 고정 목록 {len(ALL)} 그대로(L2), 인자 없이 다 돌고 변조 시험 다섯이 맨 뒤"
+    print(f"PASS test-gates.py — 변조본(S) {2 * len(ALL) + len(CHECKS)} · 대조군 {KEPT} 이 돌았다, 부르는 것이 고정 목록 {len(ALL)} 그대로(L2), 인자 없이 다 돌고 변조 시험 다섯이 맨 뒤"
           f"(T1 · CI 의 꼴 T1′), --skip-bite 는 {len(CHECKS)} 만 돈다(T2), 다섯을 이름으로 든다(T3), "
-          f"하나가 떨어지면 세 꼴 다 떨어진다(S1 · S2)")
+          f"어느 것이 떨어져도 꼴마다 떨어진다(S1 · S2)")
     return 0
 
 
