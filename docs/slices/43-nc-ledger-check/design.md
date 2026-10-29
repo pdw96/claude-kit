@@ -192,3 +192,6 @@ B 를 나누지 않는 까닭 — 새 검사를 `slice-docs/scripts/` 에 두는
 
 **틀 머리 주석의 글.** `nc-ledger.md` 머리 주석에 한 줄 — 「머리 문단의 지나간 쪽 경로는 저장소 맨 위에서부터 적는다. 스킬의 대장 검사
 (`scripts/verify-ledger.py`)가 출처 줄로 이 파일을, 그 경로로 지나간 쪽을 찾는다 — 출처 줄을 지우면 검사 밖이다.」 규칙 본문은 그대로다.
+
+**① 의 고침.** `.claude-plugin/marketplace.json` 은 판을 들지 않는다 — 판은 `vibe-slice/.claude-plugin/plugin.json` 하나에 있어 B 는 그것만
+올린다. 장터의 설명은 플러그인의 설명과 같아야 하고(`verify-manifest.py`) 둘 다 그대로다.

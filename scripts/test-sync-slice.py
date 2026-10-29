@@ -21,9 +21,10 @@
      쓰지 않는다
   L3 손으로 blob/<옛 커밋>/ 을 박은 사본도 --force 면 새 출처로
   H1 출처 줄의 글자 · H2 sync-agents.sh 의 HDR 과 같은 글자 · H3 sync-agents.sh 의 사본 README 가 같은 방향
-  Y1 심은 slice-docs/scripts/ 의 두 검사가 원본과 바이트 그대로(조각 9 설계 ②)
+  Y1 심은 slice-docs/scripts/ 의 세 검사가 원본과 바이트 그대로(조각 9 설계 ② · 조각 43 설계 ② S)
   Y2 심은 verify-docs.py --repo 가 틀로 세운 대상에서 통과하고 한 자리를 어긋내면 떨어진다. 심은 verify-slice-gate.py 가
-     착공 + 구현을 한 diff 로 둔 대상(원격 origin · main 을 갖춘)에서 G1 로 떨어진다
+     착공 + 구현을 한 diff 로 둔 대상(원격 origin · main 을 갖춘)에서 G1 로 떨어진다. 심은 verify-ledger.py --repo 가 대장 없는
+     대상에서 「대장 없음」으로, 심은 틀로 처음 베낀 대장에서 통과하고, 상태 칸 하나를 굵게 하지 않으면 K1 로 떨어진다(조각 43 설계 ② S)
 
 **세 규칙**(조각 41 설계 ② C · N · K · ADR 0054) — 심지 않아야 하는 실행과 떨어져야 하는 심은 검사가 변조본, 심어야 하는 실행과
 통과해야 하는 심은 검사가 대조군이다.
@@ -53,8 +54,8 @@ HDR = ('HDR="<!-- pdw96/claude-kit@$SHA 에서 옴. 이 레포에서만 참인 �
        '다른 레포에서도 같은 말이면 원본으로 넘긴다. -->"')
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull}
-CHECKS = ("verify-docs.py", "verify-slice-gate.py")
-WANT = (25, 10)  # (가) 변조본 · 대조군
+CHECKS = ("verify-docs.py", "verify-slice-gate.py", "verify-ledger.py")
+WANT = (26, 12)  # (가) 변조본 · 대조군
 TB = "Traceback (most recent call last)"
 SH_ERR = re.compile(r"sync-slice\.sh: line [0-9]+: ")
 REFUSE = {1: re.compile(r"심지 않(는다|았다)|^그런 디렉터리가 없다: ", re.M), 2: re.compile(r"^사용법: ", re.M)}
@@ -135,6 +136,27 @@ def docs_tree(t, tpl):
     (t / "docs/master-plan.md").write_text(mp, encoding="utf-8")
     for f in ("requirements.md", "design.md"):
         shutil.copy(tpl / f, t / "docs/slices/1-first" / f)
+
+
+def ledger_tree(t, tpl):
+    """심은 틀 둘을 틀 머리가 시키는 대로 처음 베낀 대장 — 주석과 <…> 를 지우고 표의 자리표시 줄을 줄째 지운다(조각 43 설계 ② S).
+    살아 있는 쪽 표에 열린 줄 하나를 둔다 — 변조본이 그 상태 칸을 흔든다."""
+    def body(name):
+        s = (tpl / name).read_text(encoding="utf-8")
+        if not s.startswith("<!--") or "-->\n" not in s:
+            sys.exit(f"준비 실패: 심은 틀 {name} 이 머리 주석으로 열지 않는다 — 이 시험을 맞춰 고쳐라")
+        return s.split("-->\n", 1)[1].lstrip("\n")
+    live, hist = body("nc-ledger.md"), body("nc-ledger-history.md")
+    head = "| NC | 무엇 | 낸 회차 | 담당 | 심각도 | 상태 | 판정과 근거 |\n|---|---|---|---|---|---|---|\n"
+    marks = ("`<지나간 쪽의 경로>`", "@ `<커밋>` (<YYYY-MM-DD>)", "**다음 번호: NC-1 · U-1**", head)
+    if any(live.count(m) != 1 for m in marks) or hist.count("`<살아 있는 쪽의 경로>`") != 1:
+        sys.exit("준비 실패: 심은 틀 nc-ledger*.md 의 자리표시자가 바뀌었다 — 이 시험을 맞춰 고쳐라")
+    live = "\n".join(ln for ln in live.split("\n") if not re.match(r"^\| <[nm]> \|", ln))
+    live = (live.replace(marks[0], "`docs/audit/nc-ledger-history.md`").replace(marks[1], f"@ `{OLD[:7]}` (2026-10-29)")
+                .replace(marks[2], "**다음 번호: NC-2 · U-1**").replace(head, head + "| 1 | 첫 지적 | 회차 1 | `audit-quality` | 높음 | **고침** | 재감사를 기다린다 |\n"))
+    (t / "docs/audit").mkdir(parents=True)
+    (t / "docs/audit/nc-ledger.md").write_text(live, encoding="utf-8")
+    (t / "docs/audit/nc-ledger-history.md").write_text(hist.replace("`<살아 있는 쪽의 경로>`", "`docs/audit/nc-ledger.md`"), encoding="utf-8")
 
 
 def check(script, cwd, *args):
@@ -269,6 +291,18 @@ def main():
         rc, out = check(planted / "verify-docs.py", t, "--repo", t)
         expect("[Y2] 심은 verify-docs.py --repo 가 「범위 변경」을 지운 대상에서 M1 로 떨어지지 않았다",
                failed(rc, out, "FAIL", ["  - docs/master-plan.md: [M1] "]), out)
+        rc, out = check(planted / "verify-ledger.py", t, "--repo", t)
+        expect("[Y2] 심은 verify-ledger.py --repo 가 대장 없는 대상에서 「대장 없음」으로 지나가지 않았다",
+               passed(rc, out, "PASS verify-ledger.py — 대장 없음"), out)
+        ledger_tree(t, tpl)
+        rc, out = check(planted / "verify-ledger.py", t, "--repo", t)
+        expect("[Y2] 심은 verify-ledger.py --repo 가 심은 틀로 처음 베낀 대장에서 통과하지 않았다",
+               passed(rc, out, "PASS verify-ledger.py — 대장 docs/audit/nc-ledger.md · docs/audit/nc-ledger-history.md 에서 NC 1 "), out)
+        led = t / "docs/audit/nc-ledger.md"
+        led.write_text(led.read_text(encoding="utf-8").replace("| 높음 | **고침** |", "| 높음 | 고침 |"), encoding="utf-8")
+        rc, out = check(planted / "verify-ledger.py", t, "--repo", t)
+        expect("[Y2] 심은 verify-ledger.py --repo 가 상태 칸을 굵게 하지 않은 대장에서 K1 로 떨어지지 않았다",
+               failed(rc, out, "FAIL [K1] docs/audit/nc-ledger.md:", []), out)
 
         tg = target(tmp / "t-gate")
         rc, out = run(src, tg)

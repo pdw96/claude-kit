@@ -16,6 +16,7 @@
 # `verify-eval-gate.py` 절은 조각 37 이 더했다 — 늘 도는 `verify-eval-gate.py` 가 `eval.yml` 의 적기 · 건너뛰기 조건을 무는지(조각 37 설계 ② V).
 # `test-gates.py` 절의 끝은 조각 38 이 더했다 — 고정 목록과 실패 전파가 무는지, 진짜 `gates.sh` 가 지나가는지(조각 38 설계 ② R · V).
 # 절마다의 세 규칙(센 수 · 좁힌 「물었다」 · 대조군의 PASS 줄)과 규칙마다 변조본의 대조 둘은 조각 41 이 더했다 — 아래 sopen · bit · keep · sclose · rgap.
+# `verify-ledger.py` 의 두 절은 조각 43 이 더했다 — 변조본은 틀에서 세운 고정 대장에서 돈다(조각 43 설계 ② B · 끝 「PR B 에서 정한 것」).
 #
 # **제자리에서 흔드는 파일.** `copies.json` 과 두 지문 시험의 파일은 사본이 아니라 제자리에서 흔든다. 흔들기 전에
 # 실행 비트까지 임시 폴더로 베끼고 거기서 되돌린다 — 변조본이 떨어져 끝나도 · INT · TERM 으로 끊겨도 trap 이
@@ -1411,7 +1412,7 @@ sclose 15 12
 echo "변조 시험 지문: 대조하는 기록 $SK 은 그대로, 넣는 쪽 · 실행 비트 · 지운 파일 · 새 파일 · \\r 이 든 경로 · 파이썬과 git 의 판 · 지문 없는 종료의 $SB 은 바뀌거나 지문을 내지 않는다"
 
 # gates.sh — 건너뛰는 묶음(bites)에 변조 시험 다섯만 있고 그 밖에는 없다(조각 35 설계 ② G4 · G5 의 가 · ⑤ R4). 건너뛰는
-# 실행이 변조 시험 아닌 검사까지 빼면 「스물둘 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
+# 실행이 변조 시험 아닌 검사까지 빼면 「스물셋 통과」가 거짓이 된다. 묶음 시험의 실패 줄은 까닭(「bites」를 든다), PASS 줄은 「PASS bites 묶음」.
 sopen "gates.sh 의 bites 묶음"
 bunch() {  # $1=gates.sh — 모양이 맞으면 PASS 줄과 0, 아니면 까닭을 찍고 1
   python3 - "$1" <<'PY'
@@ -1730,7 +1731,7 @@ vback README.md
 mkdir "$VC/vibe-audit/evals/route-zz"; : > "$VC/vibe-audit/evals/route-zz/case.yaml"
 vbite D1 "케이스 폴더 하나 더하기"
 vback vibe-audit/evals/route-zz
-vedit scripts/gates.sh '# 스물일곱 — 로컬은' '# 스물여섯 — 로컬은'
+vedit scripts/gates.sh '# 스물여덟 — 로컬은' '# 스물일곱 — 로컬은'
 vbite D1 "gates.sh 의 검사 수를 새 검사 앞으로 되돌림"
 vback scripts/gates.sh
 vedit scripts/test-gates.py '변조 시험 다섯이 맨 뒤' '변조 시험 여섯이 맨 뒤'
@@ -1804,8 +1805,175 @@ fi
 SB=$((SB + 1))
 sclose 1 1
 
+# 부적합 대장 — verify-ledger.py 가 무는지(조각 43 설계 ② F · R · K1 ~ K4 · N · B · ⑤ V2). 변조본은 저장소의 대장이 아니라 틀에서 세운
+# 고정 대장(lmake rows)에 한 자리씩 흔들고 대어 본 뒤 그 대장으로 되돌린다 — 저장소의 대장은 회차마다 줄이 옮겨 가 변조본이 낡는다.
+# 「물었다」는 종료 1 이고 기대한 ID 의 `FAIL [ID]` 줄이 있을 때만이다(ADR 0054 의 나). 함께 찍히는 ID 는 막지 않는다. 바꿀 글은 그 파일에
+# 꼭 한 번이어야 한다. 대조군은 저장소의 사본 · 고정 대장 · 틀을 처음 베낀 대장(--repo) · 대장 없는 레포(--repo)다.
+sopen "verify-ledger.py"
+lmake() {  # $1=만들 루트(git 저장소로 연다)  $2=fresh(틀을 처음 베낀 대장) | rows(줄과 회차를 채운 고정 대장)
+  mkdir -p "$1/docs/audit"; git -C "$1" init -q
+  python3 - "$R/vibe-slice/skills/slice-docs/templates" "$1/docs/audit" "$2" <<'PY'
+import pathlib, re, sys
+tpl, out, kind = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
+def sub(t, a, b):
+    if t.count(a) != 1:
+        sys.exit(f"틀에 {a!r} 이 한 번이 아니다 — bite-gates.sh 의 lmake 를 틀에 맞춰 고쳐라")
+    return t.replace(a, b)
+def body(name):  # 틀 머리의 주석을 지운다(틀 머리가 시키는 대로)
+    t = (tpl / name).read_text(encoding="utf-8")
+    if not t.startswith("<!--") or "-->\n" not in t:
+        sys.exit(f"틀 {name} 이 머리 주석으로 열지 않는다 — bite-gates.sh 의 lmake 를 틀에 맞춰 고쳐라")
+    return t.split("-->\n", 1)[1].lstrip("\n")
+NC = "| NC | 무엇 | 낸 회차 | 담당 | 심각도 | 상태 | 판정과 근거 |\n|---|---|---|---|---|---|---|\n"
+U = "| U | 무엇 | 낸 회차 | 담당 | 판정하려면 | 누가 줄 수 있나 | 멈춘 회차 | 상태 |\n|---|---|---|---|---|---|---|---|\n"
+live = body("nc-ledger.md")
+live = sub(live, "`<지나간 쪽의 경로>`", "`docs/audit/nc-ledger-history.md`")
+live = sub(live, "@ `<커밋>` (<YYYY-MM-DD>)", "@ `7414914` (2026-10-29)")
+ls = live.split("\n")
+keep = [l for l in ls if not re.match(r"^\| <[nm]> \|", l)]
+if len(ls) - len(keep) != 2:
+    sys.exit("틀의 자리표시 줄이 둘이 아니다 — bite-gates.sh 의 lmake 를 틀에 맞춰 고쳐라")
+live = "\n".join(keep)
+hist = sub(body("nc-ledger-history.md"), "`<살아 있는 쪽의 경로>`", "`docs/audit/nc-ledger.md`")
+if kind == "rows":
+    live = sub(live, "**다음 번호: NC-1 · U-1**", "**다음 번호: NC-4 · U-3**")
+    live = sub(live, NC, NC + "| 3 | 셋째 지적 | 회차 2 | `audit-quality` | 높음 | **고침** — 회차 2 에서 고쳤다 | 재감사를 기다린다 |\n")
+    live = sub(live, U, U + "| 1 | 첫 확인불가 | 회차 1 | `audit-quality` | 실행 로그 | 저자 | 0 | **닫힘** — 근거를 받았다 |\n"
+                            "| 2 | 둘째 확인불가 | 회차 2 | `audit-internal` | PR 본문 \\| 로그 | 저자 | 1 | **열림** |\n")
+    hist = sub(hist, NC, NC + "| 1 | 첫 지적 | 회차 1 | `audit-quality` | 높음 | **닫힘** — 회차 2 가 닫았다 | 고침 |\n"
+                              "| 2 | 둘째 지적 | 회차 1 | `audit-quality` | 중간 | **닫힘** | 반박 |\n")
+    hist = sub(hist, "## 회차 <n> — `<감사자>` · <범위> (<YYYY-MM-DD>)", "## 회차 1 — `audit-quality` · 시험 (2026-10-29)")
+    hist = sub(hist, "- **감사한 커밋**: `<sha>`", "- **감사한 커밋**: `abc1234`")
+    hist += "\n## 회차 2 — `audit-quality` · 시험, 재감사 (2026-10-29)\n\n- **감사한 커밋**: 모름 · **감사자**: `audit-quality`\n- 기록: 시험\n"
+(out / "nc-ledger.md").write_text(live, encoding="utf-8")
+(out / "nc-ledger-history.md").write_text(hist, encoding="utf-8")
+PY
+}
+LP=$(mktemp -d); lmake "$LP" rows
+LF=$(mktemp -d); lmake "$LF" rows
+LL=docs/audit/nc-ledger.md
+LH=docs/audit/nc-ledger-history.md
+ledit() {  # $1=파일(대장 루트 기준)  $2…=바꿀 글 · 바꿀 것 쌍 — \n 은 줄바꿈
+  local f=$1; shift
+  python3 - "$LF/$f" "$@" <<'PY'
+import pathlib, sys
+p, *pairs = sys.argv[1:]
+t = pathlib.Path(p).read_text(encoding="utf-8")
+for a, b in zip(pairs[::2], pairs[1::2]):
+    a, b = a.replace("\\n", "\n"), b.replace("\\n", "\n")
+    if t.count(a) != 1:
+        sys.exit(f"바꿀 글 {a!r} 이 {p} 에 한 번이 아니다 — 이 변조본을 lmake 의 대장에 맞춰 고쳐라")
+    t = t.replace(a, b)
+pathlib.Path(p).write_text(t, encoding="utf-8")
+PY
+}
+lback() { rm -rf "${LF:?}/docs"; cp -R "$LP/docs" "$LF/docs"; }
+lbite() {  # $1=기대한 ID  $2=이름  [$3=루트 — 없으면 고정 대장]
+  bit 1 "^FAIL \[$1\] " "$2" python3 scripts/verify-ledger.py "${3:-$LF}"
+  lback
+}
+LPASS='^PASS verify-ledger\.py — 대장 docs/audit/nc-ledger\.md · docs/audit/nc-ledger-history\.md 에서 NC [0-9]+ · 확인불가 [0-9]+ · 회차 절 [0-9]+ 을 읽었다$'
+R3='| 3 | 셋째 지적 | 회차 2 | `audit-quality` | 높음 | **고침** — 회차 2 에서 고쳤다 | 재감사를 기다린다 |'
+# F — 대장을 못 찾음: 출처 줄이 둘 · 지나간 쪽이 없음 · 출처 줄을 지움(이 저장소 모드) · 경로가 자리표시 그대로 · 루트가 git 맨 위가 아님
+cp "$LF/$LL" "$LF/docs/audit/copy.md"
+lbite F "출처 줄이 있는 파일이 둘(추적 안 된 사본)"
+rm "$LF/$LH"
+lbite F "지나간 쪽이 없음"
+ledit "$LL" '- 베낀 틀: claude-kit' '- 베낀 틀: kit'
+lbite F "출처 줄을 지움 — 이 저장소 모드는 대장이 있어야 한다"
+ledit "$LL" '`docs/audit/nc-ledger-history.md` 가 든다' '`<지나간 쪽의 경로>` 가 든다'
+lbite F "지나간 쪽의 경로가 틀의 자리표시 그대로"
+lbite F "루트가 git 맨 위가 아님" "$LF/docs"
+# R — 못 읽음: 자리표시 줄 · 상태 낱말 문장 · 문장의 「닫힘」 · 다음 번호 줄의 꼴 · 표 머리 · 칸 수 · 끊긴 표 · 절
+ledit "$LL" "$R3" "$R3"'\n| <n> | <원 지적 — 기록이다> | <회차> | `<감사자>` | <기록의 심각도> | **<상태>** | <판정> |'
+lbite R "틀의 자리표시 줄을 남김"
+ledit "$LL" '**상태 칸은 이 절이 정한 말로 연다** — ' '상태 칸은 이 절이 정한 말로 연다 — '
+lbite R "상태 낱말 문장을 지움"
+ledit "$LL" ' · 부분 닫힘 · 닫힘. ' ' · 부분 닫힘. '
+lbite R "상태 낱말 문장에서 「닫힘」을 뺌"
+ledit "$LL" '**다음 번호: NC-4 · U-3**' '**다음 번호: NC-4**'
+lbite R "다음 번호 줄의 꼴이 틀림"
+ledit "$LH" '| NC | 무엇 | 낸 회차 | 담당 | 심각도 | 상태 | 판정과 근거 |' '| NC | 무엇 | 낸 회차 | 담당 | 상태 | 판정과 근거 |'
+lbite R "지나간 쪽의 표 머리에서 칸 하나를 뺌"
+ledit "$LL" "$R3" "$R3"' 덧붙인 칸 |'
+lbite R "표 줄의 칸 수가 머리와 다름"
+ledit "$LH" '| 고침 |\n| 2 |' '| 고침 |\n\n| 2 |'
+lbite R "빈 줄로 표가 끊김"
+ledit "$LL" '## 확인불가' '## 확인 불가'
+lbite R "절의 제목을 바꿈"
+# K1 — 상태 낱말: 굵게 하지 않은 「열림 — 저자 판정 대기」(7a6f3e6 의 꼴) · 문장에 없는 말 · 낱말 뒤에 붙은 글 · 지나간 쪽의 굵지 않은 칸
+ledit "$LL" '**고침** — 회차 2 에서 고쳤다' '열림 — 저자 판정 대기'
+lbite K1 "굵게 하지 않은 「열림 — 저자 판정 대기」"
+ledit "$LL" '**고침** — 회차 2 에서' '**판정 대기** — 회차 2 에서'
+lbite K1 "문장에 없는 상태 말"
+ledit "$LL" '**고침** — 회차 2 에서' '**고침됨** — 회차 2 에서'
+lbite K1 "낱말 뒤에 붙은 글"
+ledit "$LH" '| **닫힘** | 반박 |' '| 닫힘 | 반박 |'
+lbite K1 "지나간 쪽의 굵게 하지 않은 상태"
+# K2 — 줄이 사는 표: 「닫힘」 줄을 살아 있는 쪽에 · 「닫힘」 아닌 줄(부분 닫힘 — 「닫힘」으로 읽히지 않는다)을 지나간 쪽에
+ledit "$LL" '**고침** — 회차 2 에서' '**닫힘** — 회차 2 에서'
+lbite K2 "「닫힘」 줄을 살아 있는 쪽에 둠"
+ledit "$LH" '**닫힘** — 회차 2 가' '**부분 닫힘** — 회차 2 가'
+lbite K2 "「부분 닫힘」 줄을 지나간 쪽에 둠"
+# K3 — 번호: 다음 번호를 올리지 않음 · 겹침 · 가장 큰 줄을 잃음 · U 번호를 잃음 · 다음 번호 줄이 둘
+ledit "$LL" "$R3" "$R3"'\n| 4 | 넷째 지적 | 회차 3 | `audit-quality` | 낮음 | **등록** — 다음 조각 | 등록 |'
+lbite K3 "줄을 더하고 다음 번호를 올리지 않음"
+ledit "$LH" '| 2 | 둘째 지적 |' '| 3 | 둘째 지적 |'
+lbite K3 "번호가 두 표를 가로질러 겹침"
+ledit "$LL" "$R3"'\n' ''
+lbite K3 "가장 큰 줄을 잃음"
+ledit "$LL" '\n| 2 | 둘째 확인불가 | 회차 2 | `audit-internal` | PR 본문 \| 로그 | 저자 | 1 | **열림** |' ''
+lbite K3 "가장 큰 U 줄을 잃음"
+ledit "$LL" '**다음 번호: NC-4 · U-3**' '**다음 번호: NC-4 · U-3**\n\n**다음 번호: NC-4 · U-3**'
+lbite K3 "다음 번호 줄이 둘"
+# K4 — 회차 절: 살아 있는 쪽의 회차 절 · 감사한 커밋 줄이 없는 회차 절 · 커밋 자리를 자리표시로 둔 회차 절
+printf '\n## 회차 3 — `audit-quality` · 시험 (2026-10-29)\n\n- **감사한 커밋**: `abc1234`\n' >> "$LF/$LL"
+lbite K4 "살아 있는 쪽의 회차 절"
+ledit "$LH" '- **감사한 커밋**: 모름 · ' '- **감사자**: 모름 · '
+lbite K4 "감사한 커밋 줄이 없는 회차 절"
+ledit "$LH" '- **감사한 커밋**: `abc1234`' '- **감사한 커밋**: `<sha>`'
+lbite K4 "번호를 채운 회차 절의 커밋 자리가 자리표시"
+# 인자 — 거절하는 꼴은 아무것도 읽지 않고 종료 2 와 사용법 줄
+for args in "a b" "-x" "--repo" "$LF/nope"; do
+  set +e
+  # shellcheck disable=SC2086
+  python3 scripts/verify-ledger.py $args >"$BO" 2>&1; st=$?
+  set -e
+  if [ "$st" != 2 ] || grep -qE '^(PASS|FAIL)' "$BO" || ! grep -q '^사용법: python3 verify-ledger.py' "$BO" || crash; then
+    echo "::error::verify-ledger.py 가 거절할 인자 '$args' 에 종료 2 · 사용법 줄이 아니거나 읽었다 (exit $st)"; cat "$BO"; exit 1
+  fi
+  SB=$((SB + 1))
+done
+# 대조군 — 저장소의 사본(이 저장소 모드) · 고정 대장 · 틀을 처음 베낀 대장(--repo) · 대장 없는 레포(--repo, 「대장 없음」)
+LC=$(mktemp -d)
+git ls-files -co --exclude-standard -z | tar --null -T - -cf - | tar -xf - -C "$LC"
+git -C "$LC" init -q
+keep "$LPASS" "저장소의 사본" python3 scripts/verify-ledger.py "$LC"
+keep "${LPASS%NC*}NC 3 · 확인불가 2 · 회차 절 2 을 읽었다\$" "고정 대장" python3 scripts/verify-ledger.py "$LF"
+LT=$(mktemp -d); lmake "$LT" fresh
+keep "${LPASS%NC*}NC 0 · 확인불가 0 · 회차 절 0 을 읽었다\$" "틀을 처음 베낀 대장(--repo)" python3 scripts/verify-ledger.py --repo "$LT"
+LN=$(mktemp -d); git -C "$LN" init -q; echo "대장 없음" > "$LN/README.md"
+keep '^PASS verify-ledger\.py — 대장 없음' "대장 없는 레포(--repo)" python3 scripts/verify-ledger.py --repo "$LN"
+sclose 31 4
+echo "verify-ledger.py: 고정 대장의 변조본(찾기 · 읽기 · 상태 낱말 · 줄이 사는 표 · 번호 · 회차 절)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
+
+# ID 마다 변조본(조각 43 설계 ② B) — verify-ledger.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 lbite 가 이 파일에 있다.
+# 변조본: K4 의 lbite 를 다 지운 이 파일은 K4 를 「변조본 없음」으로 찍는다.
+sopen "verify-ledger.py 의 ID 마다 변조본"
+VLID='r\.fail\("([A-Z][0-9]?)"'
+VLWANT='^lbite ([A-Z][0-9]?) '
+gap=$(rgap scripts/verify-ledger.py "$VLID" "$R/scripts/bite-gates.sh" "$VLWANT")
+if [ -n "$gap" ]; then echo "::error::$SEC — 변조본이 없는 ID: $gap"; exit 1; fi
+SK=$((SK + 1))
+grep -vE '^lbite K4 ' "$R/scripts/bite-gates.sh" > "$LF/cut.sh"
+if [ "$(rgap scripts/verify-ledger.py "$VLID" "$LF/cut.sh" "$VLWANT")" != K4 ]; then
+  echo "::error::$SEC — K4 의 변조본을 다 지운 목록이 「K4 변조본 없음」으로 떨어지지 않는다"; exit 1
+fi
+SB=$((SB + 1))
+sclose 1 1
+
 # 끝 — 절의 수(조각 41 설계 ② C). 절을 통째로 지운 사본은 여기서 떨어진다 — 절 안의 한 줄은 그 절의 sclose 가 본다.
-if [ "$NSEC" != 34 ]; then
-  echo "::error::변조본을 도는 절이 $NSEC 닫혔다 — 34 이어야 한다"; exit 1
+if [ "$NSEC" != 36 ]; then
+  echo "::error::변조본을 도는 절이 $NSEC 닫혔다 — 36 이어야 한다"; exit 1
 fi
 echo "변조 시험: 절 $NSEC 이 다 닫힘 — 절마다 센 수를 기대한 수와 견주고, 그 검사의 종료와 실패 줄(ID)로만 물었다고 세고, 대조군은 종료 0 과 PASS 줄을 봄"
