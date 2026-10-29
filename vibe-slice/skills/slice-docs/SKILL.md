@@ -5,7 +5,7 @@ description: 프로젝트를 조각으로 나눠 진행할 때 의도 · 마스�
 
 # 조각 문서
 
-절차는 claude-kit 의 절차 지도가 든다 — https://github.com/pdw96/claude-kit/blob/6c79d8e16dbfffa21f8fd0b00d9078fc1239c033/docs/procedure.md .
+절차는 claude-kit 의 절차 지도가 든다 — https://github.com/pdw96/claude-kit/blob/2e60e97b7d58a1f24410000dc620de2780979273/docs/procedure.md .
 단계마다 들어가고 나가는 조건, 문서의 칸, 살아 있는 문서와 기록의 규칙은 거기서 읽는다. 여기에 옮겨 적지 않는다.
 
 ## 틀
@@ -46,7 +46,7 @@ description: 프로젝트를 조각으로 나눠 진행할 때 의도 · 마스�
   요구사항과 설계는 한 PR(착공 PR)로 낸다. 착공 PR 에 싣는 것은 결정 문서 — 요구사항 · 설계 · ADR · 마스터플랜, 그 레포에
   절차 지도(`docs/procedure.md`)가 있으면 그것, 범위를 고쳤으면 의도 — 뿐이다. 구현은 착공 PR 이 기본 가지에 머지된 뒤다 — 착공 가지에 쌓지 않는다.
 - **조각을 닫을 때** — 요구사항 끝에 `## 닫으며 (<YYYY-MM-DD>)` 를 덧붙이고, 조각 나눔의 상태를 `닫힘` 으로 바꾼다.
-- **PR 을 내기 전에** — 레포 맨 위에서 `git fetch origin` 뒤 `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-docs.py" --repo .` 와 `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-slice-gate.py"` 가 둘 다 0 인지 본다. 1 이면 찍힌 줄을 고치고 다시 돌린다. `python3` 가 없거나 3.9 보다 낮으면 그렇다고 말하고, 검사를 지났다고 하지 않는다.
+- **PR 을 내기 전에** — 레포 맨 위에서 `git fetch origin` 뒤 `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-docs.py" --repo .` · `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-slice-gate.py"` · `python3 "${CLAUDE_SKILL_DIR}/scripts/verify-ledger.py" --repo .` 가 셋 다 0 인지 본다. 대장 검사는 틀을 베낀 부적합 대장이 없으면 「대장 없음」으로 지나간다. 1 이면 찍힌 줄을 고치고 다시 돌린다. `python3` 가 없거나 3.9 보다 낮으면 그렇다고 말하고, 검사를 지났다고 하지 않는다.
 
 ## 이 스킬의 일이 아닌 것
 

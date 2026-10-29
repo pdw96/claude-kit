@@ -1,0 +1,1 @@
+../vibe-slice/skills/slice-docs/scripts/verify-ledger.py

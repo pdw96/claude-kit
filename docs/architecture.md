@@ -9,7 +9,7 @@
 |---|---|---|
 | 원본 감사자 여섯 | `vibe-audit/agents/` | 목적별로 좁힌 읽기 전용 감사자. 공통 절은 여섯이 글자 그대로 같다 |
 | 브리핑 커맨드 · 검사기 | `vibe-audit/commands/audit-brief.md` · `vibe-audit/scripts/verify-brief.py` | 부르는 세션이 diff 를 브리핑으로 싣고, 검사기가 그것을 git 과 대조한 뒤 감사자를 부른다 |
-| 조각 문서 스킬 | `vibe-slice/skills/slice-docs/` | 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 요구사항 · 설계 틀 여섯(`templates/`)과 쓰는 법, 부적합 대장의 틀 둘(`templates/nc-ledger*.md` — 레포가 처음 한 번 베껴 세운다. 사본 대장에 적지 않고 견주지 않는다), 그리고 검사 둘(`scripts/` — 문서 대조 검사 `verify-docs.py` · 설계 → 구현 관문 `verify-slice-gate.py`). 절차는 `docs/procedure.md` 를 가리키기만 한다 |
+| 조각 문서 스킬 | `vibe-slice/skills/slice-docs/` | 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 요구사항 · 설계 틀 여섯(`templates/`)과 쓰는 법, 부적합 대장의 틀 둘(`templates/nc-ledger*.md` — 레포가 처음 한 번 베껴 세운다. 사본 대장에 적지 않고 견주지 않는다), 그리고 검사 셋(`scripts/` — 문서 대조 검사 `verify-docs.py` · 설계 → 구현 관문 `verify-slice-gate.py` · 부적합 대장 검사 `verify-ledger.py`). 절차는 `docs/procedure.md` 를 가리키기만 한다 |
 | 리뷰 가르기 스킬 | `vibe-slice/skills/slice-review/` | 리뷰 지적을 그 조각의 기준에 비춰 가르는 규칙과 답글 · 회차 표의 꼴. 틀은 옆의 `slice-docs` 에서 읽는다 |
 | 매니페스트 셋 | `.claude-plugin/marketplace.json` · `vibe-audit/.claude-plugin/plugin.json` · `vibe-slice/.claude-plugin/plugin.json` | 마켓플레이스와 플러그인 둘. 두 군데 적힌 이름 · 설명과, 플러그인 폴더마다 장터에 줄이 하나인지를 `verify-manifest.py` 가 본다 |
 | 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` · `.claude/skills/<스킬>/` | 클라우드 레인에서 뜨는 쪽. 그 레포에 맞게 갈린다 |
@@ -17,7 +17,7 @@
 | 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |
 | 회수율 | `vibe-audit/recall/` | 담당 감사자가 놓친 실제 결함을 옮긴 케이스. 수트와 따로 `run-evals.sh --eval-dir recall` 로 재기만 한다 — CI 는 돌리지 않고 수트 지문 밖이다(ADR 0050) |
-| 키 없는 게이트 | `scripts/gates.sh` 가 부르는 것 | 모델 없이 도는 검사 전부. 목록은 그 파일에 있고, 그 이름을 `scripts/test-gates.py` 가 고정 목록으로 들어 갈리면 떨어진다(ADR 0049) — 늘 도는 검사와 자체 시험 스물둘(`checks`)과 건너뛸 수 있는 변조 시험 다섯(`bites`) 두 묶음이다. `--skip-bite <근거>` 는 `checks` 만 돌리고 CI(`GITHUB_ACTIONS=true`)에서만 받는다. 변조 시험의 지문은 `scripts/gate-key.py` 가 낸다 — 검사가 대조하는 문서와 기록을 뺀 파일 전부와 파이썬 · git 판(ADR 0046). 조각 문서 스킬의 검사 둘은 `scripts/` 의 같은 이름 링크로 부른다(ADR 0018 의 3). `scripts/verify-map-pin.py` 는 원본 스킬의 절차 지도 링크가 커밋으로 박혔고 그 지도가 `vibe-slice/` 를 마지막으로 고친 커밋의 것인지 본다 — claude-kit 의 역사를 읽으므로 플러그인에 싣지 않는다(ADR 0019 의 5). `scripts/verify-counts.py` 는 살아 있는 문서와 스크립트에 적힌 수를 닫힌 닻 목록으로 그 원천(파일 수 · 코드의 목록 길이와 상수 · 표의 줄 수)과 견주고, 변조 시험 · 자체 시험의 끝 줄에 견준 값 밖의 수 낱말이 없는지 본다 — 이 저장소의 원천을 세므로 플러그인에 싣지 않고, 대조하는 문서가 변조 시험 지문 밖이라 `checks` 에 둔다(ADR 0055) |
+| 키 없는 게이트 | `scripts/gates.sh` 가 부르는 것 | 모델 없이 도는 검사 전부. 목록은 그 파일에 있고, 그 이름을 `scripts/test-gates.py` 가 고정 목록으로 들어 갈리면 떨어진다(ADR 0049) — 늘 도는 검사와 자체 시험 스물셋(`checks`)과 건너뛸 수 있는 변조 시험 다섯(`bites`) 두 묶음이다. `--skip-bite <근거>` 는 `checks` 만 돌리고 CI(`GITHUB_ACTIONS=true`)에서만 받는다. 변조 시험의 지문은 `scripts/gate-key.py` 가 낸다 — 검사가 대조하는 문서와 기록을 뺀 파일 전부와 파이썬 · git 판(ADR 0046). 조각 문서 스킬의 검사 셋은 `scripts/` 의 같은 이름 링크로 부른다(ADR 0018 의 3). `scripts/verify-map-pin.py` 는 원본 스킬의 절차 지도 링크가 커밋으로 박혔고 그 지도가 `vibe-slice/` 를 마지막으로 고친 커밋의 것인지 본다 — claude-kit 의 역사를 읽으므로 플러그인에 싣지 않는다(ADR 0019 의 5). `scripts/verify-counts.py` 는 살아 있는 문서와 스크립트에 적힌 수를 닫힌 닻 목록으로 그 원천(파일 수 · 코드의 목록 길이와 상수 · 표의 줄 수)과 견주고, 변조 시험 · 자체 시험의 끝 줄에 견준 값 밖의 수 낱말이 없는지 본다 — 이 저장소의 원천을 세므로 플러그인에 싣지 않고, 대조하는 문서가 변조 시험 지문 밖이라 `checks` 에 둔다(ADR 0055) |
 | CI | `.github/workflows/eval.yml` | 키 없는 게이트(`gates.sh` 하나 — 변조본도 거기서 돈다. 변조 시험의 지문이 이미 물었으면 `--skip-bite` 로 부른다), 수트, 그리고 판정. 잡의 이름과 설정은 그 파일이 들고, 어느 체크를 필수로 거는지는 저장소 설정(브랜치 보호 · ruleset)이 든다 |
 
 대장 둘의 모양은 앵커볼트다(`CLAUDE.md`). 스크립트는 다 파일 머리에 쓰는 법과 까닭을 적는다.
@@ -98,8 +98,8 @@ ref 범위에 캐시로 적혀, PR 은 제 merge ref 와 `main` 범위를 읽는
 `--first`(첫 어긋난 꼴에서 멈춘다)로 부르고 CPU 수만큼 함께 돌린다 — 바꾸지 않은 검사를 같은 길로 돌린 대조군이 먼저 지나가야 한다(ADR 0047).
 
 변조 시험이 보는 것 — 검사 코드가 무는지 — 은 검사 코드와 그것이 규칙으로 읽는 파일이 그대로면 같다. 그래서 `gates.sh` 는
-검사와 자체 시험 스물둘(`checks`)과 변조 시험 다섯(`bites`)을 두 묶음으로 두고, `--skip-bite <근거>` 로 부르면 `checks` 만 돌려
-끝 줄에 「스물둘 통과 · 변조 시험 다섯은 건너뛰었다 — <근거>」를 찍는다. 인자 없이는 늘 스물일곱이고, `--skip-bite` 는 CI 에서만
+검사와 자체 시험 스물셋(`checks`)과 변조 시험 다섯(`bites`)을 두 묶음으로 두고, `--skip-bite <근거>` 로 부르면 `checks` 만 돌려
+끝 줄에 「스물셋 통과 · 변조 시험 다섯은 건너뛰었다 — <근거>」를 찍는다. 인자 없이는 늘 스물여덟이고, `--skip-bite` 는 CI 에서만
 받는다 — 로컬은 늘 다 돈다(ADR 0046 의 3 · 4 · 7). 같은 입력인지는 `scripts/gate-key.py` 의 지문이 가른다 — `git ls-files` 가
 아는 파일에서 검사가 대조하는 문서와 기록(조각 폴더 · ADR · 작업 기록 · 마스터플랜 · 이 문서 · 스키마 · 의도 · 입구 문서 ·
 README · 부적합 대장)만 빼고, 파이썬 · git 판을 키 머리에 넣는다(ADR 0046 의 2). 빼는 쪽만 적어 새 파일은 저절로 든다.
@@ -114,7 +114,7 @@ CI 의 gate 잡이 이것을 잇는다 — `gates.sh` 앞에서 `gate-key.py` �
 같은 키를 찾는다. PR 은 제 범위와 `main` 범위를, `main` 푸시는 `main` 범위를 읽고, `main` 푸시가 못 찾으면 수트와 같은 판정
 (`scripts/eval-merged-pass.py`)으로 그 푸시를 머지 커밋으로 가진 PR 하나의 merge ref 를 보고 찾으면 `main` 범위에도 적는다.
 찾았으면 근거(통과한 실행의 URL · 커밋과 지문)를 notice 로 찍고 `gates.sh --skip-bite "<근거>"` 를 부른다. 못 찾았으면 인자 없이
-스물일곱을 돌리고, 그 실행이 통과했을 때만 키를 적는다 — 건너뛴 실행은 적지 않는다. 사람이 부른 `workflow_dispatch` 는 찾지 않고
+스물여덟을 돌리고, 그 실행이 통과했을 때만 키를 적는다 — 건너뛴 실행은 적지 않는다. 사람이 부른 `workflow_dispatch` 는 찾지 않고
 다 돈다. 지문을 못 내거나 근거 파일이 비었으면 경고하고 다 돈다(ADR 0046 · 조각 35 설계 ② E). 이 적기 · 건너뛰기 조건 — gate 잡의 첫 열한
 스텝의 판정에 드는 칸(`id` · `if` · `env` · `with` · `run` 의 명령 줄) — 은 늘 도는 `scripts/verify-eval-gate.py` 가 닫힌 목록과 글자 그대로
 견준다. 알림 글 · 주석 · 스텝 이름 · 액션의 판은 자유다(ADR 0048). 수트 캐시(`.eval-pass` ·
@@ -125,8 +125,11 @@ CI 의 gate 잡이 이것을 잇는다 — `gates.sh` 앞에서 `gate-key.py` �
 의도(`INTENT.md`) · 마스터플랜(`docs/master-plan.md`) · 절차와 문서의 모양(`docs/procedure.md`) · 틀
 (`vibe-slice/skills/slice-docs/templates/`) · 조각(`docs/slices/`) · 결정(`docs/adr/`). 문서의 모양은
 `scripts/verify-docs.py` 가, 착공 PR 에 구현이 없고 구현이 기준 가지에 머지된 설계 위에 서는지는
-`scripts/verify-slice-gate.py` 가 본다(ADR 0016). 두 검사의 실물은 조각 문서 스킬의 `scripts/` 에 있어 플러그인 · 사본과 함께
-다른 레포에 가고, 다른 레포에서는 `verify-docs.py --repo <루트>` 가 지도 대신 검사 옆의 틀 여섯을 원천으로 읽는다(ADR 0018 의 2). 입구 `CLAUDE.md` 는
+`scripts/verify-slice-gate.py` 가 본다(ADR 0016). 부적합 대장(`docs/audit/`)의 모양 — 상태 낱말 · 줄이 사는 표 · 번호 · 회차 절 — 은
+`scripts/verify-ledger.py` 가 틀의 출처 줄로 대장을 찾아 본다 — 대장이 변조 시험 지문 밖이라 `gates.sh` 의 `checks` 에 둔다(ADR 0056).
+세 검사의 실물은 조각 문서 스킬의 `scripts/` 에 있어 플러그인 · 사본과 함께
+다른 레포에 가고, 다른 레포에서는 `verify-docs.py --repo <루트>` 가 지도 대신 검사 옆의 틀 여섯을 원천으로 읽고(ADR 0018 의 2),
+`verify-ledger.py --repo <루트>` 는 틀을 베낀 대장이 없으면 「대장 없음」으로 지나간다(ADR 0056 의 3). 입구 `CLAUDE.md` 는
 절 제목을 묻지 않고 의도와 마스터플랜을 가리키는지만 본다(ADR 0041 의 6). 프로필 `Profile.md` 도 절 제목을 묻지 않고, 있으면
 `CLAUDE.md` 나 `CLAUDE.local.md` 가 가져오는지만 본다(ADR 0042 의 6).
 살아 있는 문서와 기록의 구분은 `docs/procedure.md` 「살아 있는 문서와 기록」.
