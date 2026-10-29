@@ -276,7 +276,13 @@ def judge(root, repo):
     # K3 — 번호
     if len(nexts) > 1:
         r.fail("K3", live, nexts[1][0], f"다음 번호 줄이 {len(nexts)} 이다(줄 {' · '.join(str(n[0]) for n in nexts)}) — 하나여야 한다")
-    elif len(nexts) == 1 and nc_live is not None and nc_past is not None and u_rows is not None:
+    elif len(nexts) == 1:
+        at, nn, un = nexts[0]
+        # 번호는 1 부터다 — 빈 표에서 0 을 받으면 다음 등록이 NC-0 · U-0 을 준다(조각 43 설계 끝 「경계를 정했다」).
+        for kind, upto in (("NC", nn), ("U", un)):
+            if upto < 1:
+                r.fail("K3", live, at, f"다음 번호 {kind}-{upto} 이 1 보다 작다 — 번호는 1 부터다")
+    if len(nexts) == 1 and nc_live is not None and nc_past is not None and u_rows is not None:
         at, nn, un = nexts[0]
         for kind, rows, upto in (("NC", [(live, i, cs) for i, cs in nc_live] + [(hp, i, cs) for i, cs in nc_past], nn),
                                  ("U", [(live, i, cs) for i, cs in u_rows], un)):

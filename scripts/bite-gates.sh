@@ -1926,6 +1926,11 @@ ledit "$LL" '\n| 2 | 둘째 확인불가 | 회차 2 | `audit-internal` | PR 본�
 lbite K3 "가장 큰 U 줄을 잃음"
 ledit "$LL" '**다음 번호: NC-4 · U-3**' '**다음 번호: NC-4 · U-3**\n\n**다음 번호: NC-4 · U-3**'
 lbite K3 "다음 번호 줄이 둘"
+LZ=$(mktemp -d); lmake "$LZ" fresh
+sed -i 's/^\*\*다음 번호: NC-1 · U-1\*\*$/**다음 번호: NC-0 · U-1**/' "$LZ/$LL"
+lbite K3 "빈 표에서 다음 번호 NC 가 0" "$LZ"
+sed -i 's/^\*\*다음 번호: NC-0 · U-1\*\*$/**다음 번호: NC-1 · U-0**/' "$LZ/$LL"
+lbite K3 "빈 표에서 다음 번호 U 가 0" "$LZ"
 # K4 — 회차 절: 살아 있는 쪽의 회차 절 · 감사한 커밋 줄이 없는 회차 절 · 커밋 자리를 자리표시로 둔 회차 절
 printf '\n## 회차 3 — `audit-quality` · 시험 (2026-10-29)\n\n- **감사한 커밋**: `abc1234`\n' >> "$LF/$LL"
 lbite K4 "살아 있는 쪽의 회차 절"
@@ -1954,7 +1959,7 @@ LT=$(mktemp -d); lmake "$LT" fresh
 keep "${LPASS%NC*}NC 0 · 확인불가 0 · 회차 절 0 을 읽었다\$" "틀을 처음 베낀 대장(--repo)" python3 scripts/verify-ledger.py --repo "$LT"
 LN=$(mktemp -d); git -C "$LN" init -q; echo "대장 없음" > "$LN/README.md"
 keep '^PASS verify-ledger\.py — 대장 없음' "대장 없는 레포(--repo)" python3 scripts/verify-ledger.py --repo "$LN"
-sclose 31 4
+sclose 33 4
 echo "verify-ledger.py: 고정 대장의 변조본(찾기 · 읽기 · 상태 낱말 · 줄이 사는 표 · 번호 · 회차 절)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
 
 # ID 마다 변조본(조각 43 설계 ② B) — verify-ledger.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 lbite 가 이 파일에 있다.
