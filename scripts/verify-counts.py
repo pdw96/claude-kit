@@ -247,6 +247,7 @@ ANCHORS = [
     ('docs/procedure.md', r'저자의 결정만 든다\. {N} 절 다 필수이고', 1, 'CLAUDE.md 칸'),
     ('docs/procedure.md', r'ADR\. {N} 절은 필수이고', 1, '요구사항 칸'),
     ('docs/procedure.md', r'^{N} 다 \*\*필수\*\*다', 1, '설계 칸'),
+    ('docs/procedure.md', r'{N} 검사는 `vibe-slice`', 1, '조각 문서 검사'),
     # docs/schema.md
     ('docs/schema.md', r'감사자 {N}에 다 있으면', 1, '감사자'),
     ('docs/schema.md', r'변조한 대장 {N}와', 1, '후보 대장 변조'),
