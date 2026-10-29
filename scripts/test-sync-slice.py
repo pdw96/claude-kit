@@ -276,7 +276,7 @@ def main():
         expect("대상의 다른 파일이 바뀌었다", (t / "README.md").read_text(encoding="utf-8") == "대상\n")
         expect("대상에 커밋했다", sh(t, "git", "rev-parse", "HEAD") == head_before)
 
-        # Y1 · Y2 — 심은 두 검사가 대상 레포에서 돈다
+        # Y1 · Y2 — 심은 세 검사가 대상 레포에서 돈다
         planted = base / "slice-docs" / "scripts"
         for n in CHECKS:
             expect(f"[Y1] 심은 {n} 이 원본과 바이트 그대로가 아니다",
