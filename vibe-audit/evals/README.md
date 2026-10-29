@@ -60,6 +60,10 @@
   표본(`pass.md` · `fail*.md`)은 필수다.
 - **재지 않는 것** — 정밀도(엉뚱한 NC 를 함께 내도 떨어지지 않는다), 원래 저장소에서의 회수율(픽스처가 몇 파일이라 볼 것이
   적다), 놓친 증거가 없는 감사자(`audit-secrets` · `audit-ops` · `audit-quality` · `audit-internal`).
+- **수트 모델이 바뀌면 다시 잰다** — `recall-commit-after-response` 의 남은 놓침은 수트 모델이 고정 판의 동작을 모르는 데서
+  온다(아래 조각 40 B 뒤의 수). 감사자 문구로 풀지 않는다(ADR 0058). 수트 모델(`scripts/run-evals.sh` 의 `DEFAULT_MODEL=`)을
+  바꾸는 PR 은 위 명령으로 다시 재고, 이 케이스는 `--eval-dir recall --case recall-commit-after-response --ablation none --runs 3`
+  으로 한 번 더 재 아래 기준선과 같은 줄로 견준 뒤, 그 수를 새 수트 모델의 기준선으로 적는다(`CHECKLIST.md` 「수트 모델을 바꿨다면」).
 
 | 케이스 | 감사자 | 놓친 결함 |
 |---|---|---|
