@@ -319,7 +319,7 @@ ANCHORS = [
     # vibe-audit/README.md
     ('vibe-audit/README.md', r'^{N}이 보는 범위', 1, '감사자'),
     ('vibe-audit/README.md', r'{N}을 한꺼번에', 1, '감사자'),
-    ('vibe-audit/README.md', r'케이스 {N}이 셋을', 1, '케이스'),
+    ('vibe-audit/README.md', r'케이스 {N}이 재는 것은', 1, '케이스'),
     ('vibe-audit/README.md', r'\| 판정 \| {N} \|', 1, '판정 케이스'),
     ('vibe-audit/README.md', r'\| 트리거 \| {N} \|', 1, '트리거 케이스'),
     ('vibe-audit/README.md', r'인자 없이 {N}을 다', 1, '케이스'),
