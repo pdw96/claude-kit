@@ -262,6 +262,7 @@ ANCHORS = [
     ('scripts/gates.sh', r'첫 {N} 스텝', 1, '적기 조건 스텝'),
     ('scripts/gates.sh', r'echo "{N} 통과', 1, '늘 도는 검사'),
     ('scripts/gates.sh', r'echo "{N} 다 통과', 1, '게이트'),
+    ('scripts/gates.sh', r'심은 {N} 검사가 대상에서', 1, '조각 문서 검사'),
     # scripts/test-gates.py
     ('scripts/test-gates.py', r'변조 시험 {N}(?=까지|이 돈다|은 다른|은 이 파일|은 건너뛰었다)', 5, '변조 시험'),
     ('scripts/test-gates.py', r'그 {N}만 빼고', 1, '변조 시험'),
@@ -353,6 +354,9 @@ ANCHORS = [
     ('scripts/sync-agents.sh', r'^{N} 다 \\`tools: \[', 1, '감사자'),
     # scripts/sync-slice.sh
     ('scripts/sync-slice.sh', r'README 의 이슈 {N}\)', 1, '열린 버그'),
+    # scripts/test-sync-slice.py
+    ('scripts/test-sync-slice.py', r'slice-docs/scripts/ 의 {N} 검사가 원본과', 1, '조각 문서 검사'),
+    ('scripts/test-sync-slice.py', r'심은 {N} 검사가 대상 레포에서', 1, '조각 문서 검사'),
     # scripts/verify-copy.py
     ('scripts/verify-copy.py', r'감사자 {N}만 둔다', 1, '감사자'),
     ('scripts/verify-copy.py', r'들어가 {N}이 다르므로', 1, '감사자'),
