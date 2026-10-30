@@ -1816,12 +1816,16 @@ for args in "a b" "-x" "--help" "$VC/nope"; do
 done
 # 대조군 — 고치지 않은 사본, 그리고 원천과 문장을 함께 바꾼 사본(판정 케이스 다섯을 더하고 그 수를 적은 문장을 합성 낱말로 고친다)
 keep "$VPASS" "고치지 않은 사본" python3 scripts/verify-counts.py "$VC"
+# 커밋하지 않는 브리핑 작업본에 같은 원천 문장이 있어도 지나간다 — 로컬과 CI 의 판정이 갈리지 않게(감사 회차 18 NC-18)
+mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+keep "$VPASS" "브리핑 작업본을 심은 사본" python3 "$VC/scripts/verify-counts.py" "$VC"
+rm "$VC/.claude/audit-brief.md"
 for i in 1 2 3 4 5; do mkdir "$VC/vibe-audit/evals/zz-$i"; : > "$VC/vibe-audit/evals/zz-$i/case.yaml"; done
 vedit vibe-audit/README.md '케이스 스물여섯이' '케이스 서른하나이' '인자 없이 스물여섯을' '인자 없이 서른하나를' '| 판정 | 열여섯 |' '| 판정 | 스물하나 |'
 vedit .github/workflows/eval.yml '케이스 스물여섯이다' '케이스 서른하나이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
-sclose 27 2
+sclose 27 3
 echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴 · 닻 없는 같은 원천 문장과 감사가 짚은 자리 · 예외 낡음 · 명사 목록 · 훑을 파일)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
 
 # ID 마다 변조본(조각 42 설계 ② R) — verify-counts.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 vbite 가 이 파일에 있다.
