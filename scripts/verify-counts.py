@@ -19,12 +19,17 @@
   - E 끝 줄 — `bite-gates.sh` · `bite-*.py` · `test-*.py` 의 끝 줄(조각 42 설계 끝 「PR B 에서 정한 것」의 꼴)에 견준 값 밖의 수
     낱말이 있으면 E1. 닻이 잡은 한글 수 낱말은 뺀다 — 아라비아 수는 닻이 잡아도 E1 이다(끝 줄의 수는 견준 값으로 찍는다).
     훑을 파일이 없거나 끝 줄을 하나도 못 찾은 파일이 있으면 E2(읽는 법이 낡았다)
+  - U 같은 원천 훑기(조각 46 · ADR 0059) — 아래 `NOUNS` 가 원천마다 그 원천을 가리키는 명사를 든다. 살아 있는 파일(`SCAN_*`)에서
+    명사 바로 앞이나 뒤의 수 낱말이 그 원천의 지금 값과 같고, 닻이 잡은 자리도 원천을 읽는 자리(`const`)도 `EXEMPT` 의 예외도
+    아니면 U1(닻 없는 같은 원천 문장). 예외의 꼴이 적은 횟수만큼 나오지 않으면 U2, 원천 목록과 명사 목록(`NOUNS` · `NO_NOUN`)의
+    이름이 갈리면 U3, 훑을 파일이 없으면 U4
 실패 줄은 `FAIL [<ID>] <파일>:<줄> …` 이다(ID 는 실패의 갈래마다 — 닻마다가 아니다). 원천 · 파일 하나에 걸린 실패는 줄 없이
 `<파일>` 만 든다. ID 마다 변조본이 있는지는 `bite-gates.sh` 의 이 검사 절이 이 파일의 `r.fail("…` 에서 ID 를 읽어 견준다.
 
-**보지 않는 것.** 닻이 없는 문장(새로 적은 수는 `CHECKLIST.md` 와 리뷰가 본다) · 기록 넷(`docs/slices/` · `docs/adr/` ·
+**보지 않는 것.** 닻 없는 수 가운데 원천의 지금 값과 다른 수와 명사 옆이 아닌 수(`CHECKLIST.md` 와 리뷰가 본다) · 기록 넷(`docs/slices/` · `docs/adr/` ·
 `docs/eval-log/` · `docs/audit/`) · 측정과 지난 일의 수 · 문장의 뜻(닻은 「이 문장의 이 수는 이 원천」이라는 판단을 고정할 뿐이다).
-수를 새로 적거나 원천을 바꾸는 PR 은 이 목록을 함께 고친다 — 문장을 지우거나 고쳐 꼴이 안 맞으면 D2 로 떨어진다.
+수를 새로 적거나 원천을 바꾸는 PR 은 이 목록을 함께 고친다 — 문장을 지우거나 고쳐 꼴이 안 맞으면 D2 로 떨어진다. 원천을
+더하면 그 명사도(U3).
 
 `run-evals.sh` 가 부르지 않아 수트 지문 밖이다. 표준 라이브러리만 쓴다.
 """
@@ -205,6 +210,12 @@ ANCHORS = [
     ('README.md', r'감사자 {N}(?=종|을|은)', 3, '감사자'),
     ('README.md', r'문서 틀 {N} —', 1, '틀'),
     ('README.md', r'열린 버그 {N}을', 1, '열린 버그'),
+    # .claude-plugin/marketplace.json
+    ('.claude-plugin/marketplace.json', r'감사자 {N}종', 1, '감사자'),
+    ('.claude-plugin/marketplace.json', r'문서 틀 {N}\(', 1, '틀'),
+    # vibe-audit/.claude-plugin/plugin.json · vibe-slice/.claude-plugin/plugin.json
+    ('vibe-audit/.claude-plugin/plugin.json', r'감사자 {N}종', 1, '감사자'),
+    ('vibe-slice/.claude-plugin/plugin.json', r'문서 틀 {N}\(', 1, '틀'),
     # INTENT.md
     ('INTENT.md', r'감사자 {N} ·', 1, '감사자'),
     # CLAUDE.md
@@ -277,6 +288,8 @@ ANCHORS = [
     ('scripts/test-gates.py', r'{N}(?=이 맨 뒤|을 이름으로 든다)', 2, '변조 시험'),
     # scripts/bite-gates.sh
     ('scripts/bite-gates.sh', r'변조 시험 {N}(?=만 있|뿐|을 건너뛴다)', 6, '변조 시험'),
+    ('scripts/bite-gates.sh', r'변조 시험 {N}만 든다', 1, '변조 시험'),
+    ('scripts/bite-gates.sh', r"keep '\^PASS 감사자 {N}개'", 1, '감사자'),
     ('scripts/bite-gates.sh', r'「{N} 통과」', 1, '늘 도는 검사'),
     ('scripts/bite-gates.sh', r'원본 {N} 가운데', 1, '감사자'),
     ('scripts/bite-gates.sh', r'# G — {N} 스텝 밖', 1, '적기 조건 스텝'),
@@ -328,6 +341,7 @@ ANCHORS = [
     ('vibe-audit/README.md', r'^{N}만 문턱', 1, '트리거 케이스'),
     ('vibe-audit/README.md', r'^열만 문턱 {N} 으로', 1, 'route 문턱'),
     ('vibe-audit/README.md', r'로 문턱 {N} 에서', 1, '전수 문턱'),
+    ('vibe-audit/README.md', r'감사자 {N}종', 2, '감사자'),
     # vibe-audit/evals/README.md
     ('vibe-audit/evals/README.md', r'없으면 {N}을 전부', 1, '감사자'),
     # vibe-slice/skills/slice-docs/templates/claude-md.md
@@ -349,6 +363,7 @@ ANCHORS = [
     ('vibe-slice/skills/slice-docs/scripts/verify-docs.py', r'찾는 {N} 절 이름', 1, '칸의 절'),
     # scripts/test-verify-docs.py
     ('scripts/test-verify-docs.py', r'틀 {N}을 둔다', 1, '틀'),
+    ('scripts/test-verify-docs.py', r'틀 {N}으로 세운', 1, '틀'),
     # scripts/sync-agents.sh
     ('scripts/sync-agents.sh', r'감사자 {N}과 브리핑', 1, '감사자'),
     ('scripts/sync-agents.sh', r'README 의 이슈 {N}\)', 1, '열린 버그'),
@@ -358,14 +373,125 @@ ANCHORS = [
     # scripts/test-sync-slice.py
     ('scripts/test-sync-slice.py', r'slice-docs/scripts/ 의 {N} 검사가 원본과', 1, '조각 문서 검사'),
     ('scripts/test-sync-slice.py', r'심은 {N} 검사가 대상 레포에서', 1, '조각 문서 검사'),
+    ('scripts/test-sync-slice.py', r'심은 틀 {N}을', 1, '대장 틀'),
     # scripts/verify-copy.py
     ('scripts/verify-copy.py', r'감사자 {N}만 둔다', 1, '감사자'),
     ('scripts/verify-copy.py', r'들어가 {N}이 다르므로', 1, '감사자'),
+    ('scripts/verify-copy.py', r'PASS 감사자 {N}개', 1, '감사자'),
     # scripts/verify-evals.py
     ('scripts/verify-evals.py', r'{N}을 전부 띄우는', 2, '감사자'),
     # scripts/budget-breakdown.py
     ('scripts/budget-breakdown.py', r'안 주면 {N} 전부', 1, '감사자'),
 ]
+
+
+# ── U 같은 원천 훑기 ───────────────────────────────────────────────────────────────────────────────────
+# 원천마다 그 원천을 가리키는 명사(조각 46 설계 ② U · ADR 0059). 명사는 정규식이다 — `{N}` 이 없으면 명사 바로 앞이나 바로
+# 뒤(빈칸 하나)의 수 낱말을, `{N}` 이 있으면 그 꼴만 본다. 그 수가 그 원천의 지금 값과 같고 닻이 잡은 자리가 아니면 U1 이다.
+# 명사를 둘 수 없는 원천은 NO_NOUN 에 까닭과 함께 둔다 — 이름이 없어서 빠지는 원천은 없다(U3).
+NOUNS = {
+    # 파일 수
+    "감사자": [r"감사자"],
+    "틀": [r"틀"],
+    "대장 틀": [r"틀"],
+    "케이스": [r"케이스"],
+    "트리거 케이스": [r"트리거"],
+    "판정 케이스": [r"판정"],
+    "cycle-continuity 그레이더": [r"그레이더"],
+    "플러그인": [r"플러그인"],
+    "매니페스트": [r"매니페스트"],
+    "조각 문서 검사": [r"검사"],
+    "변조 시험 py": [r"`bite-\*\.py`"],
+    # 코드의 목록 길이와 상수
+    "늘 도는 검사": [r"검사", r"자체 시험"],
+    "validate 줄": [r"`claude plugin validate`"],
+    "변조 시험": [r"변조 시험"],
+    "게이트": [r"검사"],
+    "고정 목록 CHECKS": [r"`CHECKS` 의"],
+    "고정 목록": [r"목록의"],
+    "대조군 KEPT": [r"대조군"],
+    "감사자 tools": [r"읽기 전용"],
+    "적기 조건 스텝": [r"스텝"],
+    "머리의 키": [r"머리의 키"],
+    "gate 잡의 키": [r"gate 잡의 키"],
+    "route 문턱": [r"문턱"],
+    "전수 문턱": [r"문턱"],
+    "러너 동시성": [r"-j"],
+    "후보 대장 변조": [r"변조한 대장"],
+    "비교기 변조": [r"비교기 변조"],
+    "칸의 절": [r"{N} 절"],
+    "감사자 고르는 원천": [r"원천"],
+    # 표의 줄 수
+    "단계": [r"단계"],
+    "만나는 자리": [r"{N} 자리에서"],
+    "문서 종류": [r"문서는 {N}"],
+    "의도 칸": [r"{N} 절", r"{N} 제목은"],
+    "마스터플랜 칸": [r"{N} 절", r"{N} 제목은"],
+    "CLAUDE.md 칸": [r"{N} 절", r"{N} 제목은"],
+    "Profile 칸": [r"{N} 절", r"{N} 제목은"],
+    "요구사항 칸": [r"{N} 절", r"{N} 제목은", r"{N} 칸이"],
+    "설계 칸": [r"{N} 절", r"{N} 제목은"],
+    "열린 버그": [r"버그", r"이슈"],
+}
+NO_NOUN = {
+    "CI 회차": "그 수를 드는 낱말 「회차」 · 「회」는 감사 회차 · 측정 회차 · 리뷰 회차와 같은 낱말이라 오검이 닻보다 많다 — 닻 둘(eval.yml)이 든다",
+}
+
+# 훑을 파일 — 저장소 맨 위에서 고른 살아 있는 파일. 사본 트리에는 `.git` 이 없어 git 으로 고르지 않는다.
+SCAN_EXT = (".md", ".py", ".sh", ".yml", ".yaml", ".json")
+SCAN_SKIP = ("docs/slices/", "docs/adr/", "docs/eval-log/", "docs/audit/", "vibe-audit/recall/")  # 기록 넷과 회수율 픽스처
+SCAN_SKIP_RE = re.compile(r"^vibe-audit/evals/[^/]+/")  # 평가 픽스처 — evals/README.md 는 훑는다
+SELF = "scripts/verify-counts.py"  # 원천 목록 · 명사 · 예외를 든 이 파일 자신은 훑지 않는다
+
+# 예외 — 원천의 명사 옆에 지금 값과 같은 수가 있지만 그 원천을 든 문장이 아닌 자리. (파일, 꼴, 횟수, 까닭) — 꼴과 횟수는 닻과 같다.
+# 꼴이 적은 횟수만큼 나오지 않으면 U2 다(문장을 지우거나 고쳤으면 예외도 고친다).
+EXEMPT = [
+    # 지난 기록 — 그때의 값을 적었다. 원천이 바뀌어도 고치지 않는다
+    ('feedback.json', r'{N} 감사자', 2, '대장의 판정 까닭 — 판정한 때의 감사자 수'),
+    ('docs/master-plan.md', r'케이스 {N}이 셋을 잽니다', 1, '닫힌 조각 44 의 줄이 그때의 README 문장을 옮겨 적었다'),
+    ('docs/master-plan.md', r'로 문턱 {N} 을 넘었', 1, '닫힌 조각 24 의 줄 — 그때의 전수 결과'),
+    ('scripts/run-evals.sh', r'문턱 {N} 에서 네 만점', 1, '지난 리뷰(Codex)가 든 보기 — 그때의 문턱'),
+    ('scripts/verify-evals.py', r'전수 문턱 {N} 을\n', 1, '지난 리뷰(Codex)가 든 보기 — 그때의 문턱'),
+    # 다른 것을 센 같은 값
+    ('scripts/bite-gates.sh', r'문턱 {N} 하네스', 1, '--threshold 가 없을 때 하네스가 쓰는 1.0 — route 문턱이 아니다'),
+    # 변조본의 바꿀 글 — 닻이 잡는 문장을 일부러 베꼈다. 그 문장이 바뀌면 vedit 이 「한 번이 아니다」로 먼저 떨어진다
+    ('scripts/bite-gates.sh', r"'문서 틀 {N}' ", 2, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'변조 시험 {N}이 맨 뒤'", 2, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'감사자 {N} · '", 1, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r'읽기 전용 {N}\.', 3, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'대조군 {N} 이 돌았다'", 1, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'케이스 {N}이'", 2, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'케이스 {N}이다'", 2, '변조본의 바꿀 글'),
+    ('scripts/bite-gates.sh', r"'문턱 {N} 에서 네 만점'", 1, '변조본의 바꿀 글'),
+]
+
+RUN = r"([0-9][0-9,]*(?:\.[0-9]+)?(?![0-9])|[가-힣]+)"
+LEFT = r"(?<![가-힣A-Za-z0-9.,_′-])"
+
+
+def noun_patterns(pat):
+    """명사 하나의 정규식 — (정규식, 수를 읽는 법). 앞: 명사 뒤의 덩이(토씨 붙음), 뒤: 명사 앞의 덩이(매김꼴)."""
+    if "{N}" in pat:
+        return [(re.compile(compile_anchor(pat), re.M), word)]
+    return [(re.compile(rf"(?<![가-힣A-Za-z0-9_]){pat} {RUN}", re.M), lambda s: word(s) if s[0].isdigit() else number_token(s)),
+            (re.compile(rf"{LEFT}{RUN} {pat}", re.M), word)]
+
+
+def scan_files(root):
+    import os
+    out = []
+    for d, dirs, files in os.walk(root):
+        rd = pathlib.Path(d).relative_to(root).as_posix()
+        rd = "" if rd == "." else rd + "/"
+        dirs[:] = sorted(x for x in dirs if x != ".git" and not os.path.islink(os.path.join(d, x))
+                         and not (rd + x + "/").startswith(SCAN_SKIP) and not SCAN_SKIP_RE.match(rd + x + "/"))
+        for f in sorted(files):
+            rel = rd + f
+            full = os.path.join(d, f)
+            if rel == SELF or not f.endswith(SCAN_EXT) or os.path.islink(full):
+                continue
+            out.append(rel)
+    return out
 
 
 # ── E 끝 줄 ────────────────────────────────────────────────────────────────────────────────────────────
@@ -494,7 +620,64 @@ def judge(root):
             if hits:
                 r.fail("E1", f"{rel}:{line}",
                        f"끝 줄에 견준 값이 아닌 수 낱말 {' · '.join(hits)} — 지우거나 견준 값(변수)으로 찍는다")
-    return r.bad, len(ANCHORS), len(values), n_end
+    # U — 같은 원천 훑기
+    named = set(NOUNS) | set(NO_NOUN)
+    for name in sorted(set(SOURCES) - named):
+        r.fail("U3", SELF, f"원천 「{name}」에 명사가 없다 — NOUNS 에 명사를 두거나 NO_NOUN 에 까닭을 적는다")
+    for name in sorted(named - set(SOURCES)):
+        r.fail("U3", SELF, f"명사 목록의 「{name}」이 원천 목록에 없다 — 지운 원천의 명사를 지운다")
+    for name in sorted(set(NOUNS) & set(NO_NOUN)):
+        r.fail("U3", SELF, f"원천 「{name}」이 NOUNS 와 NO_NOUN 에 다 있다 — 한 곳에만 둔다")
+    for name, pats in NOUNS.items():
+        if not pats:
+            r.fail("U3", SELF, f"원천 「{name}」의 명사 목록이 비었다 — 둘 수 없으면 NO_NOUN 에 까닭을 적는다")
+    skip = {}  # 파일 → 훑지 않는 수 낱말의 시작 자리(닻 · 예외 · 원천을 읽는 자리)
+    for rel, held in spans.items():
+        skip.setdefault(rel, set()).update(a for a, _ in held)
+    for name, src in SOURCES.items():
+        if src[0] == "const":
+            try:
+                text = read(root, src[1])
+            except Uncountable:
+                continue
+            skip.setdefault(src[1], set()).update(m.start(1) for m in re.finditer(src[2], text, re.M))
+    for rel, pat, times, why in EXEMPT:
+        try:
+            text = read(root, rel)
+        except Uncountable as e:
+            r.fail("U2", rel, f"예외의 파일을 못 읽었다 — {e}")
+            continue
+        found = list(re.finditer(compile_anchor(pat), text, re.M))
+        if len(found) != times:
+            at = ", ".join(str(text.count("\n", 0, m.start()) + 1) for m in found) or "없음"
+            r.fail("U2", rel, f"예외 /{pat}/ 이 {len(found)} 번 나온다(줄 {at}) — {times} 번이어야 한다. 문장을 고쳤으면 예외도 고친다")
+            continue
+        skip.setdefault(rel, set()).update(m.start(1) for m in found)
+    scanned = scan_files(root)
+    if not scanned:
+        r.fail("U4", ".", f"같은 원천을 훑을 파일이 없다 — {' · '.join(SCAN_EXT)}")
+    rules = [(name, rx, how) for name, pats in NOUNS.items() if name in values for pat in pats for rx, how in noun_patterns(pat)]
+    for rel in scanned:
+        try:
+            text = read(root, rel)
+        except Uncountable:
+            continue
+        held, hits = skip.get(rel, set()), {}
+        for name, rx, how in rules:
+            for m in rx.finditer(text):
+                at = m.start(1)
+                if at in held:
+                    continue
+                got = how(m.group(1))
+                if got is None or got != values[name]:
+                    continue
+                hits.setdefault(at, (m.group(1), []))[1].append(name)
+        for at in sorted(hits):
+            tok, names = hits[at]
+            line = text.count("\n", 0, at) + 1
+            r.fail("U1", f"{rel}:{line}", f"닻 없는 수 {tok} 이 원천 「{' · '.join(sorted(set(names)))}」의 지금 값과 같다 — "
+                   "같은 원천이면 ANCHORS 에 닻을, 아니면 EXEMPT 에 까닭과 함께 예외를 더한다")
+    return r.bad, len(ANCHORS), len(values), n_end, len(scanned), len(EXEMPT)
 
 
 def main(argv):
@@ -505,12 +688,13 @@ def main(argv):
     if not root.is_dir():
         print(USAGE, file=sys.stderr)
         return 2
-    bad, n_anchor, n_source, n_end = judge(root)
+    bad, n_anchor, n_source, n_end, n_scan, n_exempt = judge(root)
     if bad:
         for b in bad:
             print(b)
         return 1
-    print(f"PASS verify-counts.py — 닻 {n_anchor} 이 원천 {n_source} 과 맞고, 끝 줄 {n_end} 에 견준 값 밖의 수 낱말이 없다")
+    print(f"PASS verify-counts.py — 닻 {n_anchor} 이 원천 {n_source} 과 맞고, 끝 줄 {n_end} 에 견준 값 밖의 수 낱말이 없고, "
+          f"훑은 파일 {n_scan} 에 닻 없는 같은 원천 문장이 없다(예외 {n_exempt})")
     return 0
 
 

@@ -1693,8 +1693,8 @@ fi
 SB=$((SB + 1))
 sclose 1 1
 
-# 적힌 수 — verify-counts.py 가 무는지(조각 42 설계 ② D · S · L · E · N · ⑤ V3 · V6). 저장소의 사본 하나에 한 자리씩 흔들고 대어 본 뒤
-# 그 자리만 되돌린다. 「물었다」는 종료 1 이고 기대한 ID 의 `FAIL [ID]` 줄이 있을 때만이다(조각 41 설계 ② N1). 함께 찍히는 ID 는 막지
+# 적힌 수 — verify-counts.py 가 무는지(조각 42 설계 ② D · S · L · E · N · ⑤ V3 · V6, 조각 46 설계 ② U · R). 저장소의 사본 하나에 한 자리씩
+# 흔들고 대어 본 뒤 그 자리만 되돌린다. 닻 · 명사 · 예외는 검사 코드에 있어, 변조본은 사본에 든 검사(`$VC/scripts/verify-counts.py`)를 돈다. 「물었다」는 종료 1 이고 기대한 ID 의 `FAIL [ID]` 줄이 있을 때만이다(조각 41 설계 ② N1). 함께 찍히는 ID 는 막지
 # 않는다. 바꿀 글은 그 파일에 꼭 한 번이어야 한다 — 아니면 이 변조본을 그 파일에 맞춰 고친다. 바른 트리는 checks 에서 이미 지나갔다.
 sopen "verify-counts.py"
 VC=$(mktemp -d)
@@ -1720,8 +1720,8 @@ vback() {  # $@=저장소 맨 위 기준 경로 — 사본의 그 자리를 저�
     if [ -e "$R/$f" ]; then cp -pPR "$R/$f" "$VC/$f"; fi
   done
 }
-vbite() {  # $1=기대한 ID  $2=이름
-  bit 1 "^FAIL \[$1\] " "$2" python3 scripts/verify-counts.py "$VC"
+vbite() {  # $1=기대한 ID  $2=이름  $3=실패 줄의 자리(grep -E, 없으면 아무 자리) — 사본에 든 검사를 사본에 댄다
+  bit 1 "^FAIL \[$1\] ${3:-}" "$2" python3 "$VC/scripts/verify-counts.py" "$VC"
 }
 VPASS='^PASS verify-counts\.py — 닻 [0-9]+ 이 원천 [0-9]+ 과 맞고, 끝 줄 [0-9]+ 에'
 # D1 — 적힌 수가 원천과 다르다: 수 하나를 틀리게 · 원천을 하나 늘림 · gates.sh 의 검사 수를 되돌림(V6) · 닻을 가진 끝 줄의 낱말
@@ -1769,6 +1769,40 @@ vback scripts/bite-gates.sh
 vedit scripts/test-verify-feedback.py 'print(f"PASS verify-feedback.py' 'print(f"OK verify-feedback.py'
 vbite E2 "끝 줄의 꼴을 바꿈"
 vback scripts/test-verify-feedback.py
+# U1 — 닻 없는 같은 원천 문장: 감사 회차 15 · 16 · 17 이 짚은 자리 넷의 닻을 하나씩 지움 · 새 문장을 닻 없이 더함(명사 뒤 · 명사 앞)
+vedit scripts/verify-counts.py "    ('scripts/gates.sh', r'심은 {N} 검사가 대상에서', 1, '조각 문서 검사'),\\n" ""
+vbite U1 "NC-15 · NC-16 의 자리(gates.sh)의 닻을 지움" 'scripts/gates\.sh:[0-9]+ '
+vback scripts/verify-counts.py
+vedit scripts/verify-counts.py "    ('scripts/test-sync-slice.py', r'slice-docs/scripts/ 의 {N} 검사가 원본과', 1, '조각 문서 검사'),\\n" ""
+vbite U1 "NC-16 의 자리(test-sync-slice.py 독스트링)의 닻을 지움" 'scripts/test-sync-slice\.py:[0-9]+ '
+vback scripts/verify-counts.py
+vedit scripts/verify-counts.py "    ('scripts/test-sync-slice.py', r'심은 {N} 검사가 대상 레포에서', 1, '조각 문서 검사'),\\n" ""
+vbite U1 "NC-15 · NC-16 의 자리(test-sync-slice.py 주석)의 닻을 지움" 'scripts/test-sync-slice\.py:[0-9]+ '
+vback scripts/verify-counts.py
+vedit scripts/verify-counts.py "    ('docs/procedure.md', r'{N} 검사는 \`vibe-slice\`', 1, '조각 문서 검사'),\\n" ""
+vbite U1 "NC-17 의 자리(procedure.md 머리)의 닻을 지움" 'docs/procedure\.md:[0-9]+ '
+vback scripts/verify-counts.py
+vedit CHECKLIST.md '\n## 플러그인의 파일을 고쳤다면' '\n감사자 여섯이 다 읽기 전용이다.\n\n## 플러그인의 파일을 고쳤다면'
+vbite U1 "명사 뒤의 수를 닻 없이 더함" 'CHECKLIST\.md:[0-9]+ '
+vback CHECKLIST.md
+vedit docs/architecture.md '\n## 문서' '\n일곱 단계를 지난다.\n\n## 문서'
+vbite U1 "명사 앞의 수를 닻 없이 더함" 'docs/architecture\.md:[0-9]+ '
+vback docs/architecture.md
+# U2 — 예외가 낡았다: 예외가 가리키는 문장을 고침
+vedit scripts/run-evals.sh '문턱 0.8 에서 네 만점' '문턱에서 네 만점'
+vbite U2 "예외가 가리키는 문장을 고침" 'scripts/run-evals\.sh '
+vback scripts/run-evals.sh
+# U3 — 원천과 명사 목록이 갈린다: 원천의 명사를 지움 · 명사 없는 원천을 더함
+vedit scripts/verify-counts.py '    "단계": [r"단계"],\n' ''
+vbite U3 "원천의 명사를 지움"
+vback scripts/verify-counts.py
+vedit scripts/verify-counts.py '    "열린 버그": ("rows",' '    "새 원천": ("files", "vibe-audit/agents/audit-*.md", None),\n    "열린 버그": ("rows",'
+vbite U3 "명사 없는 원천을 더함"
+vback scripts/verify-counts.py
+# U4 — 훑을 파일이 없다: 훑는 꼴이 낡음
+vedit scripts/verify-counts.py 'SCAN_EXT = (".md", ".py", ".sh", ".yml", ".yaml", ".json")' 'SCAN_EXT = (".zzz",)'
+vbite U4 "훑을 파일의 꼴이 아무것도 고르지 않음"
+vback scripts/verify-counts.py
 # 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2 와 사용법 줄
 for args in "a b" "-x" "--help" "$VC/nope"; do
   set +e
@@ -1787,8 +1821,8 @@ vedit vibe-audit/README.md '케이스 스물여섯이' '케이스 서른하나�
 vedit .github/workflows/eval.yml '케이스 스물여섯이다' '케이스 서른하나이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
-sclose 17 2
-echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
+sclose 27 2
+echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴 · 닻 없는 같은 원천 문장과 감사가 짚은 자리 · 예외 낡음 · 명사 목록 · 훑을 파일)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
 
 # ID 마다 변조본(조각 42 설계 ② R) — verify-counts.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 vbite 가 이 파일에 있다.
 # 변조본: E2 의 vbite 를 다 지운 이 파일은 E2 를 「변조본 없음」으로 찍는다.
