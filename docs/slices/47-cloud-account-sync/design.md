@@ -99,7 +99,12 @@
 | B1 `@claude-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
 | B2 `@pdw96-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
 
-**두 꼴 다 끄지 못했다.** 저장소 설정의 `enabledPlugins` 는 계정 동기화본에 닿지 않는다 — ③ B 목록 밖의 꼴은 재지 않았다. 두 가지는 이 PR 이 지운다.
+**두 꼴 다 끄지 못했다.** 저장소 설정의 `enabledPlugins` 는 계정 동기화본에 닿지 않는다 — ③ B 목록 밖의 꼴은 재지 않았다. 두 가지는 세션이 지우지 못했다 —
+세션의 git 연결이 원격 가지 지우기(`git push --delete`)를 세 번 다 끊었다. 저자가 GitHub 에서 지웠다(2026-10-30, 세션이 `git ls-remote` 로 0 개를 확인했다).
+
+**① 에 없던 고침 — `scripts/verify-counts.py`.** ⑤ 의 「새 문장의 수를 찍으면 닻이나 예외를 더한다」대로다. README 절 제목이 바뀌어 원천 「열린 버그」의 머리 줄을
+「경로가 셋인 이유」로 옮겼고(첫 표는 그대로 버그 표다), 지운 문장 「README 의 이슈 셋」의 닻 둘(두 심기 스크립트)을 뺐고, README 의 새 문장 「감사자 여섯 ·
+`audit-brief`」에 닻 하나를 더했다 — 닻 137 → 136.
 
 **④ 의 열어 둔 것 — README 의 겹침 글은 ADR 0060 의 6 이다.** 사본 레포의 앱 세션에 두 벌이 뜬다는 것, 스코프 없는 이름이 사본이고 `vibe-audit:` · `vibe-slice:` 를
 붙인 이름이 원본이라는 것, 특화로 감사하려면 스코프 없는 이름으로 부른다는 것, 레포 설정으로는 끌 수 없었다는 것(위 표)과 계정에서 끄면 모든 레포에서 꺼진다는 것을 적는다.
