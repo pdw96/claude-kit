@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # `vibe-slice` 의 스킬(`slice-docs` · `slice-review` …)을 대상 레포의 .claude/skills/ 에 다 심는다.
 #
-# 클라우드 레인은 마켓플레이스 설치를 받지 못하므로(README 의 이슈 셋) 스킬이 레포에
-# 있어야 뜬다. 대화형 세션은 `vibe-slice` 플러그인으로 받는다(ADR 0013 의 1).
+# 특화가 있는 레포와 계정 동기화가 닿지 않는 세션은 스킬이 레포에 있어야 그 레포의 스킬이
+# 뜬다(README 「설치」 ③). 로컬 대화형 세션과 앱에서 연 클라우드 세션은 `vibe-slice` 플러그인으로 받는다(ADR 0013 의 1 · ADR 0060).
 #
 #   ./scripts/sync-slice.sh ~/src/ERP
 #   ./scripts/sync-slice.sh ~/src/ERP --force    # 있는 사본을 폴더째 덮는다

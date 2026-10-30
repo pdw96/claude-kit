@@ -86,3 +86,20 @@
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A | ③ B 의 실측과 날짜 항목, ① 의 A 줄 전부 | 성공 기준 1 ~ 4 |
+
+## PR A 에서 정한 것 (2026-10-30)
+
+**③ B 의 실측** — 세션이 버리는 가지 둘을 밀고(`claude/slice47-probe-b1` `9918fbb` · `claude/slice47-probe-b2` `29f965c`, 둘 다 `main` `97d78a1` 위에
+`.claude/settings.json` 의 `enabledPlugins` 한 덩이만 더했다), 저자가 앱에서 가지마다 claude-kit 클라우드 세션을 열어 쟀다. 대조군은 이 착공 · 구현 세션(앱에서 연
+`main`)이다.
+
+| 꼴 | `CLAUDE_CODE_SYNC_PLUGINS` | `~/.claude/plugins/synced/<버킷>/` | `vibe-audit:audit-*` | `vibe-slice:slice-docs` |
+|---|---|---|---|---|
+| 대조군(`main`) | `1` | `vibe-audit` · `vibe-slice` · 다른 플러그인 둘 · `manifest.json` | 여섯 | 있다 |
+| B1 `@claude-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+| B2 `@pdw96-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+
+**두 꼴 다 끄지 못했다.** 저장소 설정의 `enabledPlugins` 는 계정 동기화본에 닿지 않는다 — ③ B 목록 밖의 꼴은 재지 않았다. 두 가지는 이 PR 이 지운다.
+
+**④ 의 열어 둔 것 — README 의 겹침 글은 ADR 0060 의 6 이다.** 사본 레포의 앱 세션에 두 벌이 뜬다는 것, 스코프 없는 이름이 사본이고 `vibe-audit:` · `vibe-slice:` 를
+붙인 이름이 원본이라는 것, 특화로 감사하려면 스코프 없는 이름으로 부른다는 것, 레포 설정으로는 끌 수 없었다는 것(위 표)과 계정에서 끄면 모든 레포에서 꺼진다는 것을 적는다.

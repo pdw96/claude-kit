@@ -35,14 +35,14 @@ tools: ["Read", "Grep", "Glob"]
 
 ## 설치
 
-대화형 세션은 마켓플레이스에서:
+로컬 대화형 세션은 마켓플레이스에서:
 
 ```bash
 claude plugin marketplace add pdw96/claude-kit
 claude plugin install vibe-audit@pdw96-kit
 ```
 
-클라우드 레인은 이 경로를 받지 못한다. 그 레포의 `.claude/agents/` 에 사본이 있어야 한다 — `scripts/sync-agents.sh` 와 저장소 뿌리 README 참고.
+앱에서 연 클라우드 세션은 claude.ai 계정에 이 마켓플레이스를 붙여 두면 계정 동기화로 받는다. 특화가 있는 레포와 동기화가 닿지 않는 세션은 그 레포의 `.claude/agents/` 에 사본을 둔다 — `scripts/sync-agents.sh` 와 저장소 뿌리 README 「설치」 참고. 사본 레포의 앱 세션에는 두 벌이 뜨고, 스코프 없는 이름(`@audit-secrets`)이 사본이다.
 
 ## 쓰는 법
 

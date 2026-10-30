@@ -200,7 +200,7 @@ SOURCES = {
     "Profile 칸": ("rows", "docs/procedure.md", r"^### Profile\.md 의 칸$"),
     "요구사항 칸": ("rows", "docs/procedure.md", r"^### 요구사항 문서의 칸$"),
     "설계 칸": ("rows", "docs/procedure.md", r"^### 설계 문서의 칸$"),
-    "열린 버그": ("rows", "README.md", r"^## 설치 — 경로가 둘인 이유$"),
+    "열린 버그": ("rows", "README.md", r"^## 설치 — 경로가 셋인 이유$"),
 }
 
 
@@ -211,6 +211,7 @@ ANCHORS = [
     ('README.md', r'감사자 {N}(?=종|을|은)', 3, '감사자'),
     ('README.md', r'문서 틀 {N} —', 1, '틀'),
     ('README.md', r'열린 버그 {N}을', 1, '열린 버그'),
+    ('README.md', r'감사자 {N} · `audit-brief`', 1, '감사자'),
     # .claude-plugin/marketplace.json
     ('.claude-plugin/marketplace.json', r'감사자 {N}종', 1, '감사자'),
     ('.claude-plugin/marketplace.json', r'문서 틀 {N}\(', 1, '틀'),
@@ -367,10 +368,7 @@ ANCHORS = [
     ('scripts/test-verify-docs.py', r'틀 {N}으로 세운', 1, '틀'),
     # scripts/sync-agents.sh
     ('scripts/sync-agents.sh', r'감사자 {N}과 브리핑', 1, '감사자'),
-    ('scripts/sync-agents.sh', r'README 의 이슈 {N}\)', 1, '열린 버그'),
     ('scripts/sync-agents.sh', r'^{N} 다 \\`tools: \[', 1, '감사자'),
-    # scripts/sync-slice.sh
-    ('scripts/sync-slice.sh', r'README 의 이슈 {N}\)', 1, '열린 버그'),
     # scripts/test-sync-slice.py
     ('scripts/test-sync-slice.py', r'slice-docs/scripts/ 의 {N} 검사가 원본과', 1, '조각 문서 검사'),
     ('scripts/test-sync-slice.py', r'심은 {N} 검사가 대상 레포에서', 1, '조각 문서 검사'),
