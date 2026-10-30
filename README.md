@@ -1,6 +1,6 @@
 # claude-kit
 
-Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**이고, 실제로 프로젝트에서 뜨는 것은 여기가 아니라 각 레포의 사본이다.
+Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**이다 — 세션은 원본을 마켓플레이스나 계정 동기화로 받고, 특화가 있는 레포와 동기화가 닿지 않는 세션만 그 레포의 사본으로 받는다(「설치」).
 
 ## 들어 있는 것
 
@@ -11,7 +11,7 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 
 ## 설치 — 경로가 셋인 이유
 
-**하나로 안 된다.** 프로젝트 레포가 `.claude/settings.json` 에 마켓플레이스를 선언해서 세션이 자동으로 받게 하는 길(`extraKnownMarketplaces` · `enabledPlugins`)이 열린 버그 셋을 달고 있다 — 클라우드 세션은 이 길을 건너뛴다(`SKIP_PLUGIN_MARKETPLACE=true`).
+**하나로 안 된다.** 프로젝트 레포가 `.claude/settings.json` 에 마켓플레이스를 선언해서 세션이 자동으로 받게 하는 길(`extraKnownMarketplaces` · `enabledPlugins`)이 고쳐지지 않은 버그 셋을 달고 있다 — 클라우드 세션은 이 길을 건너뛴다(`SKIP_PLUGIN_MARKETPLACE=true`). 2026-10-30 에 #78119 는 열려 있고, #32606 · #13097 은 수정 없이 봇이 not planned 로 닫았다.
 
 | 이슈 | 증상 |
 |---|---|
