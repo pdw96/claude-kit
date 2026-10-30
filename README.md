@@ -50,8 +50,8 @@ claude plugin install vibe-slice@pdw96-kit
 ### ② 앱에서 연 클라우드 세션 — 계정 동기화
 
 claude.ai 계정에 이 저장소를 마켓플레이스로 붙이고 `vibe-audit` · `vibe-slice` 를 켜 두면, 앱에서 여는 클라우드 세션이 열릴 때 그 둘을 받는다
-(`CLAUDE_CODE_SYNC_PLUGINS=1` · `~/.claude/plugins/synced/`). 레포에 아무것도 심지 않아도 된다. 호출 이름은 ① 처럼 스코프가 붙는다. 세션 중간에 레포를 붙여도
-그 레포의 사본은 실리지 않는다 — 처음 연 레포의 목록 그대로다.
+(`CLAUDE_CODE_SYNC_PLUGINS=1` · `~/.claude/plugins/synced/`). 레포에 아무것도 심지 않아도 된다. 호출 이름은 ① 처럼 스코프가 붙는다. 세션 중간에 레포를 붙여
+등록해도 그 레포의 사본은 곧바로 실리지 않았고, 세션이 다시 시작된 뒤에 실렸다(2026-10-30).
 
 ### ③ 레포 사본 — 특화가 있는 레포
 
