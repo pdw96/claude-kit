@@ -123,7 +123,14 @@
   `verify-counts.py` 의 닻 꼴만 `고쳐지지 않은 버그 {N}을` 로 옮기고 원천 이름표 「열린 버그」는 그대로 뒀다 — 이름표는 검사 안의 이름이고 `bite-gates.sh` 의 변조본이 글자로 잡는다.
 - **NC-23 — 훑을 파일의 주석.** `verify-counts.py` 독스트링과 `SCAN_*` 머리 주석에 셋째 길(git 이 실패하면 말없이 폴더 길로 넘어가 무시된 파일까지 훑는다)을 적었다. 코드는
   그대로다 — 그 동작이 옳은지는 회차 20 OB-1 의 자리다. 같은 말을 적은 조각 46 `design.md:189-190` 은 머지된 기록이라 고치지 않는다.
-- **NC-22 — 끄는 법 실측의 CLI 판.** 위 「PR A 에서 정한 것」의 표에 세션마다의 CLI 판이 없다. 탐침 두 세션(B1 · B2)의 판은 **직접 보지 못했다** — 저자는 이 세션이 가지를
-  밀어 요청한 뒤 두 세션을 열었다고 답했고, 이 세션의 세션 목록(최근 20)에 그 두 세션이 없다. 같은 날 판을 본 세션 셋은 다 2.1.314 다 — 이 세션(`container_cc_version`),
-  도구로 연 ERP 세션, 저자가 앱에서 연 ERP 세션(08:21, `container_cc_version`). 그래서 B1 · B2 도 2.1.314 였으리라 **추정**한다. 성공 기준 1 의 「CLI 판」은 이 추정으로만
-  채워졌다 — 조각 나눔의 새 줄 「배포 경로 다시 재기」가 다시 잴 때 세션마다 판을 적는다.
+- **NC-22 — 끄는 법 실측의 CLI 판.** 위 「PR A 에서 정한 것」의 표에 세션마다의 CLI 판이 없었다. 저자가 앱에서 탐침 두 세션을 다시 열어 판을 쟀다(2026-10-30) —
+  두 세션의 HEAD 가 처음 탐침 커밋 그대로였다(B1 `9918fbb` · B2 `29f965c`, 세션이 처음 연 가지의 끝). 다시 재려고 `dcc0e00` 위에 새로 민 가지(`11a8551` · `6faa624`)는 쓰이지
+  않았다.
+
+  | 꼴 | HEAD | `claude --version` | `CLAUDE_CODE_SYNC_PLUGINS` | `.claude/settings.json` 의 `enabledPlugins` | `vibe-audit:audit-*` | `vibe-slice:slice-docs` |
+  |---|---|---|---|---|---|---|
+  | 대조군(이 세션) | `main` | 2.1.314(`container_cc_version`) | `1` | 없음 | 여섯 | 있다 |
+  | B1 | `9918fbb` | 2.1.314 | `1` | `vibe-audit@claude-kit` · `vibe-slice@claude-kit` 둘 다 `false` | 여섯 | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+  | B2 | `29f965c` | 2.1.314 | `1` | `vibe-audit@pdw96-kit` · `vibe-slice@pdw96-kit` 둘 다 `false` | 여섯 | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+
+  판까지 같은 세 세션에서 결과가 같다 — 2.1.314 에서 저장소 설정의 `enabledPlugins` 는 계정 동기화본을 끄지 못한다. 두 세션은 아무것도 고치거나 푸시하지 않았다.
