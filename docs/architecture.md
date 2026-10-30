@@ -12,7 +12,7 @@
 | 조각 문서 스킬 | `vibe-slice/skills/slice-docs/` | 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 요구사항 · 설계 틀 여섯(`templates/`)과 쓰는 법, 부적합 대장의 틀 둘(`templates/nc-ledger*.md` — 레포가 처음 한 번 베껴 세운다. 사본 대장에 적지 않고 견주지 않는다), 그리고 검사 셋(`scripts/` — 문서 대조 검사 `verify-docs.py` · 설계 → 구현 관문 `verify-slice-gate.py` · 부적합 대장 검사 `verify-ledger.py`). 절차는 `docs/procedure.md` 를 가리키기만 한다 |
 | 리뷰 가르기 스킬 | `vibe-slice/skills/slice-review/` | 리뷰 지적을 그 조각의 기준에 비춰 가르는 규칙과 답글 · 회차 표의 꼴. 틀은 옆의 `slice-docs` 에서 읽는다 |
 | 매니페스트 셋 | `.claude-plugin/marketplace.json` · `vibe-audit/.claude-plugin/plugin.json` · `vibe-slice/.claude-plugin/plugin.json` | 마켓플레이스와 플러그인 둘. 두 군데 적힌 이름 · 설명과, 플러그인 폴더마다 장터에 줄이 하나인지를 `verify-manifest.py` 가 본다 |
-| 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` · `.claude/skills/<스킬>/` | 클라우드 레인에서 뜨는 쪽. 그 레포에 맞게 갈린다 |
+| 사본 | 각 레포의 `.claude/agents/` · `.claude/commands/` · `.claude/scripts/` · `.claude/skills/<스킬>/` | 특화가 있는 레포와 계정 동기화가 닿지 않는 세션에서 뜨는 쪽. 그 레포에 맞게 갈린다. 앱에서 연 클라우드 세션은 계정 동기화로 원본도 받아 사본 레포에서는 두 벌이 뜬다 — 스코프 없는 이름이 사본이다(ADR 0060) |
 | 사본 대장 | `copies.json` | 사본마다 레포 · 경로 · 심을 때의 커밋 · 날짜 |
 | 후보 대장 | `feedback.json` | 사본과 원본의 차이를 묶은 후보와 그 판정(특화 · 결함 · 보류 · 되먹임 완료). 되먹임 커밋과 케이스는 되먹임 완료(`fed_back`)가 된 뒤에만 붙는다 |
 | 수트 | `vibe-audit/evals/` | 되먹임마다 붙인 케이스. 지금 모양은 그 폴더의 `README.md`, 작업 기록은 `docs/eval-log/` |

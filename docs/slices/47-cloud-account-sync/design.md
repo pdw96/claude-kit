@@ -86,3 +86,30 @@
 | PR | 담는 것 | 닫는 것 |
 |---|---|---|
 | A | ③ B 의 실측과 날짜 항목, ① 의 A 줄 전부 | 성공 기준 1 ~ 4 |
+
+## PR A 에서 정한 것 (2026-10-30)
+
+**③ B 의 실측** — 세션이 버리는 가지 둘을 밀고(`claude/slice47-probe-b1` `9918fbb` · `claude/slice47-probe-b2` `29f965c`, 둘 다 `main` `97d78a1` 위에
+`.claude/settings.json` 의 `enabledPlugins` 한 덩이만 더했다), 저자가 앱에서 가지마다 claude-kit 클라우드 세션을 열어 쟀다. 대조군은 이 착공 · 구현 세션(앱에서 연
+`main`)이다.
+
+| 꼴 | `CLAUDE_CODE_SYNC_PLUGINS` | `~/.claude/plugins/synced/<버킷>/` | `vibe-audit:audit-*` | `vibe-slice:slice-docs` |
+|---|---|---|---|---|
+| 대조군(`main`) | `1` | `vibe-audit` · `vibe-slice` · 다른 플러그인 둘 · `manifest.json` | 여섯 | 있다 |
+| B1 `@claude-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+| B2 `@pdw96-kit` false | `1` | 대조군과 같은 아홉 항목 | 여섯(도구는 다 `Read, Grep, Glob`) | 있다 — `vibe-slice:slice-review` · `vibe-audit:audit-brief` 도 |
+
+**두 꼴 다 끄지 못했다.** 저장소 설정의 `enabledPlugins` 는 계정 동기화본에 닿지 않는다 — ③ B 목록 밖의 꼴은 재지 않았다. 두 가지는 세션이 지우지 못했다 —
+세션의 git 연결이 원격 가지 지우기(`git push --delete`)를 세 번 다 끊었다. 저자가 GitHub 에서 지웠다(2026-10-30, 세션이 `git ls-remote` 로 0 개를 확인했다).
+
+**① 에 없던 고침 — `scripts/verify-counts.py`.** ⑤ 의 「새 문장의 수를 찍으면 닻이나 예외를 더한다」대로다. README 절 제목이 바뀌어 원천 「열린 버그」의 머리 줄을
+「경로가 셋인 이유」로 옮겼고(첫 표는 그대로 버그 표다), 지운 문장 「README 의 이슈 셋」의 닻 둘(두 심기 스크립트)을 뺐고, README 의 새 문장 「감사자 여섯 ·
+`audit-brief`」에 닻 하나를 더했다 — 닻 137 → 136.
+
+**④ 의 열어 둔 것 — README 의 겹침 글은 ADR 0060 의 6 이다.** 사본 레포의 앱 세션에 두 벌이 뜬다는 것, 스코프 없는 이름이 사본이고 `vibe-audit:` · `vibe-slice:` 를
+붙인 이름이 원본이라는 것, 특화로 감사하려면 스코프 없는 이름으로 부른다는 것, 레포 설정으로는 끌 수 없었다는 것(위 표)과 계정에서 끄면 모든 레포에서 꺼진다는 것을 적는다.
+
+**세션 중간에 붙인 레포 — ADR 0060 「맥락」을 고쳐 읽는다.** 그 맥락은 「세션 중간에 레포를 붙여 등록해도(`register_repo_root`) 그 레포의 사본은 실리지 않았다 — 처음 연
+레포의 목록 그대로다」고 적었다. 그 말은 등록한 턴과 다음 턴까지만 맞았다. 같은 날 이 세션이 다시 시작된 뒤(지침 파일을 다시 읽었다는 알림이 왔다) ERP 의 사본 —
+스코프 없는 감사자 여섯 · `slice-docs` · `slice-review` · `audit-brief` — 이 동기화본(`CLAUDE_CODE_SYNC_PLUGINS=1` 그대로)과 함께 실렸다. 앱에서 연 세션에 사본 레포를
+붙이면 두 벌이 된다는 것을 이 세션이 한 번 더 보였다. README ② 의 그 문장을 이 사실로 고친다.
