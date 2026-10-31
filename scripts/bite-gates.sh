@@ -1821,8 +1821,8 @@ mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' 
 keep "$VPASS" "브리핑 작업본을 심은 사본" python3 "$VC/scripts/verify-counts.py" "$VC"
 rm "$VC/.claude/audit-brief.md"
 for i in 1 2 3 4 5; do mkdir "$VC/vibe-audit/evals/zz-$i"; : > "$VC/vibe-audit/evals/zz-$i/case.yaml"; done
-vedit vibe-audit/README.md '케이스 스물여섯이' '케이스 서른하나이' '인자 없이 스물여섯을' '인자 없이 서른하나를' '| 판정 | 열여섯 |' '| 판정 | 스물하나 |'
-vedit .github/workflows/eval.yml '케이스 스물여섯이다' '케이스 서른하나이다'
+vedit vibe-audit/README.md '케이스 스물일곱이' '케이스 서른둘이' '인자 없이 스물일곱을' '인자 없이 서른둘을' '| 판정 | 열일곱 |' '| 판정 | 스물둘 |'
+vedit .github/workflows/eval.yml '케이스 스물일곱이다' '케이스 서른둘이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
 sclose 27 3
