@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: gate-severity-scale
+description: |
+  조각 48 · ADR 0061. 감사자가 부적합마다 적는 심각도(높음 · 보통 · 낮음)에 뜻이 없어
+  같은 꼴이 다른 등급을 받았다(원본 대장 회차 6 의 NC-3 보통 · NC-4 낮음). 공통 절
+  「판정은 넷이다」가 세 등급을 「놔두면 잃는 것」으로 정의한 뒤, 그 기준을 실제로 쓰는지 잰다.
+expected_outcome: |
+  규칙(탈퇴는 소프트 삭제 · 30일 복구)을 어기고 회원 행을 실제로 지우는 자리는 백업이 없어
+  되돌릴 수 없으므로 심각도 높음으로, 구조 문서가 옛 파일 이름을 가리키는 자리는 동작이 같고
+  문서만 어긋나므로 심각도 낮음으로 적힌다. 둘 다 audit-internal 의 NC 로 남는다.
+tags: [gate, internal, severity]
+context:
+  scaffold_script: fixture.sh
