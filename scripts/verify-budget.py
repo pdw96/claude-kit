@@ -52,7 +52,7 @@ import sys
 # 벽. 단위는 문자. 문자로 옮긴 `c000e95`(2026-09-22)의 값에서 약 15% 여유를 뒀다 — 지금 값은 스냅숏(SNAPSHOT)이 든다.
 ALWAYS_ON_TOTAL_MAX = 5_600      # 감사를 안 돌리는 세션도 내는 값
 COMPONENT_ALWAYS_ON_MAX = 900
-AGENT_ON_INVOKE_MAX = 11_000     # 감사 대상 코드와 같은 창을 쓴다
+AGENT_ON_INVOKE_MAX = 11_100     # 감사 대상 코드와 같은 창을 쓴다. 조각 48 에서 올렸다(ADR 0062)
 SKILL_ON_INVOKE_MAX = 4_500      # ERP#13 의 결함 여덟을 받고 올렸다
 
 SNAPSHOT = pathlib.Path("vibe-audit/evals/budget.txt")
