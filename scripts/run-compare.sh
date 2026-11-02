@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # 맞대기 러너 — 같은 재료 열을 팔 하나로 돌리고, 케이스마다 맞힌 회차 · 떴는가 · 모델 · 비용을 찍는다.
 #
-#   ./scripts/run-compare.sh vibe-audit                              # 이 작업트리의 vibe-audit + 플러그인 없음
+#   ./scripts/run-compare.sh vibe-audit                              # 이 작업트리의 vibe-audit
+#   ./scripts/run-compare.sh none                                    # 플러그인 없음 — 중립 요청 그대로
 #   ./scripts/run-compare.sh pr-review-toolkit --from <클론>          # anthropics/claude-plugins-official 클론
 #   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1
 #
@@ -20,11 +21,12 @@ main() {
 cd "$(dirname "$0")/.."
 
 PIN=a7ba5b93db0c7c8d17f3f1d25853adca79598a1a   # anthropics/claude-plugins-official, 2026-10-30
-USAGE="사용법: run-compare.sh <vibe-audit|pr-review-toolkit|claude-security> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
+USAGE="사용법: run-compare.sh <vibe-audit|none|pr-review-toolkit|claude-security> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
 
 arm=${1:-}
 case "$arm" in
-  vibe-audit) cap=18 ;;
+  vibe-audit) cap=10 ;;
+  none) cap=5 ;;
   pr-review-toolkit) cap=12 ;;
   claude-security) cap=15 ;;
   *) echo "$USAGE" >&2; exit 2 ;;
@@ -38,25 +40,25 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --from) from=${2:-}; shift 2 || { echo "$USAGE" >&2; exit 2; } ;;
     --from=*) from=${1#--from=}; shift ;;
-    --model|--model=*|--ablation|--ablation=*|--eval-dir|--eval-dir=*|--json|--json=*|--max-cost-usd|--max-cost-usd=*|--judge-model|--judge-model=*)
+    --model|--model=*|--ablation|--ablation=*|--eval-dir|--eval-dir=*|--json|--json=*|--max-cost-usd|--max-cost-usd=*|--judge-model|--judge-model=*|--allow-tools|--allow-tools=*|--disallow-tools|--disallow-tools=*)
       echo "${1%%=*} 은 이 러너가 박는다 — 팔 사이에 같아야 한다(설계 ② B ~ F)" >&2; exit 2 ;;
     -j|-j=*|--concurrency|--concurrency=*) jflag=0; pass+=("$1"); shift ;;
     *) pass+=("$1"); shift ;;
   esac
 done
 
-# 경쟁 팔은 고정한 커밋의 클론만 받는다(② E). vibe-audit 팔은 이 작업트리의 것이다.
-if [ "$arm" = vibe-audit ]; then
-  [ -z "$from" ] || { echo "vibe-audit 팔은 --from 을 받지 않는다 — 이 작업트리의 vibe-audit/ 를 쓴다" >&2; exit 2; }
+# 경쟁 팔은 고정한 커밋의 클론만 받는다(② E). vibe-audit 팔은 이 작업트리의 것, none 팔은 빈 플러그인이다.
+# 팔마다 따로 돈다 — 하네스의 기준 팔(with-without)은 플러그인 팔과 같은 요청을 받으므로 쓰지 않는다(ADR 0067).
+ablation=none
+if [ "$arm" = vibe-audit ] || [ "$arm" = none ]; then
+  [ -z "$from" ] || { echo "$arm 팔은 --from 을 받지 않는다" >&2; exit 2; }
   src=vibe-audit
-  ablation=with-without
 else
   [ -n "$from" ] || { echo "$arm 팔은 --from <anthropics/claude-plugins-official 클론> 이 있어야 한다" >&2; exit 2; }
   head=$(git -C "$from" rev-parse HEAD 2>/dev/null || true)
   [ "$head" = "$PIN" ] || { echo "클론의 HEAD 가 $PIN 이 아니다 (받은 것: '${head:-읽지 못함}')" >&2; exit 2; }
   src="$from/plugins/$arm"
   [ -f "$src/.claude-plugin/plugin.json" ] || { echo "플러그인이 없다: $src" >&2; exit 2; }
-  ablation=none
 fi
 
 # 수트 모델은 run-evals.sh 한 곳이 든다(② D).
@@ -67,20 +69,30 @@ MODEL=$(sed -n 's/^DEFAULT_MODEL=//p' scripts/run-evals.sh)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 plug="$TMP/$arm"
-cp -R "$src" "$plug"
+if [ "$arm" = none ]; then
+  # 플러그인 없음 — 하네스가 대상으로 받을 빈 플러그인. 에이전트 · 스킬 · 훅이 없다.
+  mkdir -p "$plug/.claude-plugin"
+  printf '{"name": "none", "version": "0.0.0", "description": "맞대기의 플러그인 없음 팔"}\n' > "$plug/.claude-plugin/plugin.json"
+else
+  cp -R "$src" "$plug"
+fi
 rm -rf "$plug/evals" "$plug/recall" "$plug/compare"
 mkdir -p "$plug/compare"
 n=0
 while IFS=$'\t' read -r name source axis rival; do
   case "$name" in ''|'#'*) continue ;; esac
-  [ "$arm" = vibe-audit ] || [ "$rival" = "$arm" ] || continue
+  [ "$arm" = vibe-audit ] || [ "$arm" = none ] || [ "$rival" = "$arm" ] || continue
   for f in "compare/$name/case.yaml" "compare/$name/graders/found.md" "compare/prompts/$axis.md" "$source/fixture.sh"; do
     [ -f "$f" ] || { echo "재료가 없다: $f" >&2; exit 2; }
   done
   mkdir -p "$plug/compare/$name"
   cp "compare/$name/case.yaml" "$plug/compare/$name/"
   cp -R "compare/$name/graders" "$plug/compare/$name/"
-  cp "compare/prompts/$axis.md" "$plug/compare/$name/prompt.md"
+  # 요청 본문은 축의 것 그대로(② B). 플러그인 팔은 그 도구를 부르는 한 줄을 머리에 붙인다(compare/arms.tsv · ADR 0067).
+  call=$(awk -F'\t' -v a="$arm" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
+  if [ "$arm" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $arm · $axis 줄이 없다" >&2; exit 2; fi
+  awk -v call="$call" '{ print } /^---$/ && ++n == 2 && call != "" { print ""; print call }' \
+    "compare/prompts/$axis.md" > "$plug/compare/$name/prompt.md"
   cp "$source/fixture.sh" "$plug/compare/$name/fixture.sh"
   n=$((n + 1))
 done < compare/cases.tsv
@@ -105,6 +117,7 @@ claude plugin eval "$plug" \
   --model "$MODEL" \
   --ablation "$ablation" \
   --max-cost-usd "$cap" \
+  --allow-tools Bash Write \
   "${CONC[@]}" \
   "${pass[@]}" 2>&1 | grep --line-buffered -v '^⚠ kept /tmp/claude-eval-'
 status=${PIPESTATUS[0]}
@@ -154,7 +167,7 @@ temps, total = set(), 0.0
 rows = []
 for case in d.get("cases", []):
     for side, runs in (case.get("arms") or {}).items():
-        label = arm if side == "with" else "플러그인 없음"
+        label = "플러그인 없음" if (side != "with" or arm == "none") else arm
         hits, fired_n, costs, models = 0, 0, [], set()
         for i, run in enumerate(runs, 1):
             tp = run.get("tracePath")
@@ -172,7 +185,7 @@ for case in d.get("cases", []):
             (msgs / f"{case.get('name')}.{'with' if side == 'with' else 'without'}.run{i}.md").write_text(
                 f"<!-- {label} · {'맞힘' if hit else '못 맞힘'} · 떴는가 {fired} · 비용 {c} -->\n\n{final}\n", encoding="utf-8")
         total += sum(costs)
-        rows.append((case.get("name"), label, hits, len(runs), fired_n if side == "with" else None,
+        rows.append((case.get("name"), label, hits, len(runs), fired_n if (side == "with" and arm != "none") else None,
                      sum(costs), " · ".join(sorted(models)) or "기록 없음"))
 
 print("\n| 케이스 | 팔 | 맞힘 | 떴는가 | 비용($) | 모델 |\n|---|---|---|---|---|---|")

@@ -1,7 +1,7 @@
 ---
 max_turns: 80
 timeout_seconds: 1800
-allowed_tools: [Read, Glob, Grep, Agent, TodoWrite, Skill]
+allowed_tools: [Read, Glob, Grep, Agent, TodoWrite, Skill, Workflow]
 runs: 3
 ---
 
