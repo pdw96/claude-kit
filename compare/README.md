@@ -23,5 +23,7 @@
 ./scripts/run-compare.sh claude-security --from <클론>
 ```
 
+`claude-security` 팔은 하네스 밖에서 `claude -p` 로 돈다 — 하네스의 격리 안에서는 그 스킬이 서지 않는다(ADR 0068). 채점은 같은 그레이더 글을 같은 심판 모델에 세 번 물어 가른다.
+
 `<클론>` 은 `anthropics/claude-plugins-official` 을 `a7ba5b93db0c7c8d17f3f1d25853adca79598a1a` 로 둔 것이다 — 다른 커밋이면 러너가 종료 2 다.
 팔마다 깃발(수트 모델 · 심판 · 도구 허용 · 비용 천장)을 러너가 박고, 부르는 쪽이 바꾸지 못한다. 결과는 `compare/results/<시각>-<팔>/` 에 남고 저장소에 싣지 않는다 — `result.json` 과 회차마다의 최종 응답(`messages/`).

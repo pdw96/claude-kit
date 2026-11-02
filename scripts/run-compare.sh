@@ -109,6 +109,127 @@ fi
 
 echo "팔 $arm · 케이스 $n · 모델 $MODEL · ablation $ablation · 천장 \$$cap"
 set +e
+if [ "$arm" = claude-security ]; then
+  # **claude-security 는 하네스 밖에서 돈다(ADR 0068).** 하네스의 격리 안에서는 스킬의 셸 전처리(`!` 명령)가
+  # 읽기 전용 임시 경로에 작업 위치 파일을 쓰지 못해 스킬이 서지 않는다(설계 끝 「PR B 에서 정한 것」).
+  # 같은 재료 · 같은 요청 · 같은 모델 · 같은 도구로 `claude -p` 를 부르고, 같은 그레이더 글을 같은 심판 모델에
+  # 세 번 물어 다수로 가른다. 결과는 하네스와 같은 꼴의 result.json 이라 아래 정리가 그대로 읽는다.
+  python3 - "$OUT" "$plug" "$MODEL" "$cap" "${pass[@]}" <<'OUTSIDE'
+import json, os, pathlib, re, subprocess, sys, tempfile
+
+out, plug, model, cap = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], float(sys.argv[4])
+pats, want, rest = [], None, sys.argv[5:]
+it = iter(rest)
+for a in it:
+    if a == "--case":
+        pats.append(next(it, ""))
+    elif a.startswith("--case="):
+        pats.append(a.split("=", 1)[1])
+    elif a == "--runs":
+        want = int(next(it, "0"))
+    elif a.startswith("--runs="):
+        want = int(a.split("=", 1)[1])
+    elif a in ("-j", "--concurrency"):
+        next(it, None)
+    elif a.startswith(("-j=", "--concurrency=")):
+        pass
+    else:
+        print(f"하네스 밖 팔은 --case · --runs 만 받는다 (받은 것: {a})", file=sys.stderr)
+        raise SystemExit(2)
+
+import fnmatch
+cases = sorted(d for d in (plug / "compare").iterdir() if d.is_dir()
+               and (not pats or any(fnmatch.fnmatchcase(d.name, p) for p in pats)))
+if not cases:
+    print("한 케이스도 고르지 못했다", file=sys.stderr)
+    raise SystemExit(3)
+
+# 이 세션의 설정 · 플러그인이 섞이지 않게 빈 HOME 과 필요한 변수만 넘긴다.
+KEEP = ("PATH", "TERM", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy", "NODE_EXTRA_CA_CERTS",
+        "SSL_CERT_FILE", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY")
+def env(home):
+    e = {k: os.environ[k] for k in KEEP if k in os.environ}
+    e.update(HOME=home, LANG="C.UTF-8")
+    return e
+
+def split(md):
+    parts = md.split("---", 2)
+    return parts[1], parts[2].lstrip("\n")
+
+def last_result(path):
+    res = None
+    for line in open(path, encoding="utf-8"):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") == "result":
+            res = ev
+    return res or {}
+
+spent, results, all_passed = 0.0, [], True
+(out / "traces").mkdir(parents=True, exist_ok=True)
+for case in cases:
+    front, body = split((case / "prompt.md").read_text(encoding="utf-8"))
+    tools = re.search(r"^allowed_tools:\s*\[(.*)\]\s*$", front, re.M).group(1)
+    tools = [x.strip() for x in tools.split(",") if x.strip()] + ["Bash", "Write"]
+    timeout = int(re.search(r"^timeout_seconds:\s*(\d+)", front, re.M).group(1))
+    n = want or int(re.search(r"^runs:\s*(\d+)", front, re.M).group(1))
+    _, rubric = split((case / "graders" / "found.md").read_text(encoding="utf-8"))
+    runs = []
+    for i in range(1, n + 1):
+        trace = out / "traces" / f"{case.name}.with.run{i}.jsonl"
+        if spent >= cap:
+            runs.append({"score": 0.0, "passed": False, "error": f"비용 천장 ${cap} 에 닿아 돌지 않았다", "graders": []})
+            all_passed = False
+            continue
+        with tempfile.TemporaryDirectory() as ws, tempfile.TemporaryDirectory() as home:
+            subprocess.run(["bash", str(case / "fixture.sh")], cwd=ws, check=True, stdout=subprocess.DEVNULL)
+            cmd = ["claude", "-p", body, "--plugin-dir", str(plug), "--model", model, "--permission-mode", "dontAsk",
+                   "--allowedTools", *tools, "--output-format", "stream-json", "--verbose",
+                   "--max-budget-usd", f"{cap - spent:.2f}"]
+            err = None
+            try:
+                with open(trace, "w", encoding="utf-8") as f:
+                    rc = subprocess.run(cmd, cwd=ws, env=env(home), stdout=f, stderr=subprocess.PIPE,
+                                        text=True, timeout=timeout).returncode
+                if rc:
+                    err = f"exit {rc}"
+            except subprocess.TimeoutExpired:
+                err = f"{timeout}초 안에 끝나지 않았다"
+            res = last_result(trace)
+            spent += res.get("total_cost_usd") or 0.0
+            final = res.get("result") or ""
+            # 심판 — 같은 그레이더 글을 같은 심판 모델(sonnet)에 세 번 묻는다. 도구는 없다.
+            ask = (f"{rubric}\n\n## 판정할 최종 응답\n\n<<<\n{final}\n>>>\n\n"
+                   "위 질문에 PASS 또는 FAIL 한 낱말로만 답하세요.")
+            votes = []
+            for _ in range(3):
+                j = subprocess.run(["claude", "-p", ask, "--model", "sonnet", "--tools", "", "--output-format", "json"],
+                                   cwd=ws, env=env(home), capture_output=True, text=True, timeout=300)
+                try:
+                    jr = json.loads(j.stdout)
+                except ValueError:
+                    jr = {}
+                spent += jr.get("total_cost_usd") or 0.0
+                m = re.search(r"\b(PASS|FAIL)\b", jr.get("result") or "")
+                votes.append(bool(m) and m.group(1) == "PASS")
+        passed = bool(final) and not err and sum(votes) >= 2
+        all_passed &= passed
+        run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace),
+               "graders": [{"name": "found", "passed": passed, "weight": 1, "scored": True, "judgeVotes": votes,
+                            "explanation": "하네스 밖 심판(sonnet) votes: " + " ".join("PASS" if v else "FAIL" for v in votes)}]}
+        if err:
+            run["error"] = err
+        runs.append(run)
+        print(f"{case.name} run{i} → {'PASS' if passed else 'FAIL'} · 비용 누계 ${spent:.4f}", flush=True)
+    results.append({"name": case.name, "arms": {"with": runs}})
+
+(out / "result.json").write_text(json.dumps({"cases": results}, ensure_ascii=False, indent=1), encoding="utf-8")
+raise SystemExit(0 if all_passed else 1)
+OUTSIDE
+  status=$?
+else
 claude plugin eval "$plug" \
   --eval-dir compare \
   --scaffold \
@@ -125,6 +246,7 @@ claude plugin eval "$plug" \
   "${CONC[@]}" \
   "${pass[@]}" 2>&1 | grep --line-buffered -v '^⚠ kept /tmp/claude-eval-'
 status=${PIPESTATUS[0]}
+fi
 set -e
 
 # 회차마다 맞힘 · 떴는가 · 모델 · 비용을 트레이스에서 읽고, 최종 응답을 손 대조용으로 남긴다(② G · ⑤ 「심판」).
@@ -184,7 +306,7 @@ for case in d.get("cases", []):
             hit = any(g.get("name") == "found" and g.get("passed") for g in run.get("graders", []))
             # 못 맞힌 회차는 트레이스를 남긴다 — 왜 못 맞혔는지(도구 거절 · 오류)는 트레이스에만 있다.
             # 임시 폴더는 아래에서 지워진다. run-evals.sh 가 실패 회차를 남기는 까닭과 같다.
-            if not hit and tp and pathlib.Path(tp).is_file():
+            if not hit and tp and pathlib.Path(tp).is_file() and pathlib.Path(tp).parent != out / "traces":
                 (out / "traces").mkdir(exist_ok=True)
                 shutil.copyfile(tp, out / "traces" / f"{case.get('name')}.{side}.run{i}.jsonl")
             hits += hit
