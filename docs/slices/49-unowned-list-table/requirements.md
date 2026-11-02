@@ -68,3 +68,32 @@ claude-kit 클론은 얕지 않았다(`git rev-parse --is-shallow-repository` �
 - 기간: 닫기까지 **2026-11-06**.
 - 리뷰: PR 본문에 설계 ② 를 적고, 착공 PR 도 구현 PR 도 스킬 `slice-review` 로 가른다. PR 마다 **3라운드**를 넘기면 소유자가 판정한다.
 - 감사 회차: 닫기 전 — `audit-quality`(평가셋의 그레이더 · 표본이 바뀐다 — 검사 장치가 무엇을 막는지가 바뀌는 자리. 대장에 이 조각에 기대는 줄은 없다).
+
+## 닫으며 (2026-11-02)
+
+성공 기준 아홉을 아래에 대어 봤다 — **다 미쳤다.** 구현은 설계 ⑥ 의 B 하나다 — 착공 #183(머지 `bb135e3`) · B #184(머지 `db6ab1f`). 닫기 전 감사 회차 24(`audit-quality`)는 부적합
+없이 확인불가 둘(U-38 · U-39)을 냈고, 이 닫는 세션이 근거를 대 둘 다 닫았다. 모델을 부른 측정이 없다 — 비용 0.
+
+- **저자가 정한 것(착공 세션):** 표 꼴은 eval-log 의 설명으로 표본을 짓는다 · 두 그레이더가 번호 항목을 경계로도 본다 · 전수 없이 원문과 표본으로 확인한다(ADR 0064 의 1 ~ 3). 4 · 5 는
+  착공 PR 에서 저자가 보고 머지했다
+- **B 에서 정한 것:** 정규식의 글자 · 표 꼴 표본의 꼴 · 원문 표본의 범위(설계 끝 「PR B 에서 정한 것」)
+- **저자가 정한 것(이 닫는 세션):** 다음 조각
+
+| 성공 기준 | 무엇에 대어 봤나 |
+|---|---|
+| 1. 원문이 지난다 | 전수 run 41265204732 1 회차 최종 응답 — `fcd3e1c` 의 `gate-escalated` · `gate-escalated-perf` FAIL, B 의 둘 PASS, `gate-not-an-nc` · `real-nc-found` 는 둘 다 PASS(#184 본문 V1 · `docs/eval-log/2026-11.md` 「조각 49 B」). 그 기록이 `samples/pass-numbered.md` 로 박혔고, 아티팩트의 원문과 글자 단위로 같다(U-39 닫힘). node v22.23.4 `RegExp` 도 같은 판정이다 |
+| 2. 표 꼴이 지난다 | `samples/pass-annotated-table.md` — B 의 두 그레이더 PASS, `fcd3e1c` 의 두 그레이더 FAIL(`verify-graders.py` 를 새 표본 · 옛 그레이더로 돌린 FAIL 여섯 가운데 둘씩). 굵은 글씨와 덧붙임의 방향은 설계 끝 「닫으며 바로잡는 것」 |
+| 3. 이웃 번호 항목이 막힌다 | `fail-perf-numbered-sibling.md` · `fail-supply-numbered-sibling.md` — 옛 그레이더는 지나가고 B 의 그 그레이더는 문다(같은 FAIL 여섯 가운데 둘) |
+| 4. 넓히고 좁힌 자리마다 문다 | 자리 넷(N · A · B · G) × 그레이더 둘을 하나씩 되돌린 여덟 번이 다 `FAIL` 한 줄이고 그 자리의 표본이다(#184 본문 V3 · eval-log 「조각 49 B」) |
+| 5. 지난 판정이 그대로다 | B 의 `verify-graders.py` PASS 줄이 고치기 전과 글자가 같다 — `gap-unowned(4)`. 지난 표본 열일곱은 새 그레이더에서도 PASS · 지목대로 문다(#184 머리 [run 41410008270](https://github.com/pdw96/claude-kit/actions/runs/41410008270) gate 잡 — U-38 닫힘) |
+| 6. 바뀐 자리가 좁다 | `git diff --stat fcd3e1c db6ab1f -- vibe-audit/` — 두 그레이더 · `evals/README.md` · 새 표본 여섯, 9 파일 +187 −3. 감사자 · 케이스 입력 · 다른 그레이더 · 검사 스크립트 · 러너는 diff 에 없다 |
+| 7. 한계 표가 맞다 | `vibe-audit/evals/README.md` 「목록 경계는 `-` · `*` 만 안다」 줄의 예가 `handoff-named` 이고, `gate-escalated(-perf)` 는 「번호 항목도 경계로 본다(조각 49)」로 섰다(첫 갈래 얘기 — 설계 끝) |
+| 8. 게이트가 그대로다 | 인자 없는 `./scripts/gates.sh` — #183 · #184 의 커밋 전 작업트리(각 본문), #184 머리 run 41410008270 의 gate 잡 「PASS test-gates.py — … 고정 목록 30 그대로(L2)」 · 「스물여덟 다 통과」. #183 머리 run 41404947988 도 gate · verdict success. eval 잡은 두 PR 다 같은 route 지문으로 건너뛰었다. 모델 비용 0 |
+| 9. 감사 회차 | 회차 24 `audit-quality`(부적합 없음, U-38 · U-39 닫힘)를 `docs/audit/` 에 등록했다 — `verify-ledger.py` PASS(NC 25 · 확인불가 39 · 회차 절 24) |
+
+- **돌린 감사 회차:** 회차 24(`docs/audit/nc-ledger-history.md` 의 그 절). 브리핑은 `fcd3e1c` → `db6ab1f`
+- **리뷰:** #183 · #184 다 Codex 1 회차 지적 0 — 3라운드 안
+- **넘긴 것:** 없음 — 못 미친 성공 기준이 없다. 회차 24 의 OB-2(셋째 갈래가 `###` 를 넘어 읽음) · OB-3(굵은 글씨 바깥의 덧붙임)은 한계로 설계 끝에 적었다. 실제 기록에서 떨어지면
+  그때의 트레이스로 고친다(`vibe-audit/evals/README.md` 「고치는 것」)
+- **다음 조각:** 「프로필의 언어 칸」 — 이 닫는 세션이 남은 예정 줄 일곱 가운데 꺼내는 조건이 없는 셋을 대 보이고 이 줄을 추천했고, 저자가 골랐다. 이 세션도 도구를 여러 번 쓴 턴 뒤로
+  영어로 답해 저자가 「한글로」라고 다시 말했다 — 그 줄이 든 증상이 이 저장소에서 다시 났다
