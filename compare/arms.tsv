@@ -1,0 +1,7 @@
+# 플러그인 팔이 요청 머리에 붙이는 한 줄 — ADR 0067. 칸: 팔 · 축(* 는 모든 축) · 줄. 「플러그인 없음」 팔(none)은 줄이 없다 — 중립 요청 그대로.
+vibe-audit	data	이 일은 `vibe-audit` 플러그인의 `audit-data` 감사자를 돌려서 하세요.
+vibe-audit	contract	이 일은 `vibe-audit` 플러그인의 `audit-contract` 감사자를 돌려서 하세요.
+vibe-audit	secrets	이 일은 `vibe-audit` 플러그인의 `audit-secrets` 감사자를 돌려서 하세요.
+vibe-audit	internal	이 일은 `vibe-audit` 플러그인의 `audit-internal` 감사자를 돌려서 하세요.
+pr-review-toolkit	*	이 일은 `pr-review-toolkit` 플러그인으로 하세요 — `/pr-review-toolkit:review-pr` 를 돌리거나 그 리뷰 에이전트들을 부르세요.
+claude-security	*	이 일은 `/claude-security` 의 「Scan codebase」로 하세요 — 범위는 저장소 전체입니다.

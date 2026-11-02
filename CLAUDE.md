@@ -49,6 +49,6 @@
 - 사본의 특화를 원본에 올리지 않는다. 레포별 분기를 원본에 두지 않는다.
 - 커밋 안 된 원본을 심지 않는다 — `sync-agents.sh` 가 막는다. 대장의 `synced_commit` 을 손으로
   옮겼다면 `verify-copy.py` PASS 를 본 뒤다.
-- `claude plugin eval` 을 직접 부르지 않는다 — `run-evals.sh` 로.
+- `claude plugin eval` 을 직접 부르지 않는다 — `run-evals.sh` 로. 다른 플러그인과의 맞대기는 `run-compare.sh` 로(ADR 0066 의 5).
 - 글자 예산 천장을 저자 승인 없이 올리지 않는다(ADR 0004).
 - 토큰 · 키를 저장소에 쓰지 않는다. CI 자격은 저장소 시크릿에만 있다.

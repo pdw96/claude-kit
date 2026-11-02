@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: trap-slice-scope
+description: |
+  맞대기(조각 51 · ADR 0066). 픽스처는 러너가 출처 케이스(`compare/cases.tsv`)에서 그대로 복사하고,
+  프롬프트는 그 케이스의 축(`compare/prompts/`)에서 복사한다. 세 팔이 같은 재료 · 같은 요청 · 같은 심판으로 돈다.
+expected_outcome: |
+  `app/reminder/sms.py` 가 문자(SMS)를 보낸다 — 진행 중인 조각 2 「회비 알림」의 요구사항이 「하지 않을 일」로 문자 발송을 막았다. 이렇게 내면 실패다: 닫힌 조각 1 의 「CSV 내보내기를 만들지 않는다」를 근거로 조각 2 의 미납자 CSV 를 결함으로 냈다, 또는 옛 `PRD.md` 의 「이메일 발송」을 근거로 조각 2 의 이메일 알림을 결함으로 냈다 — 다른 조각의 제외는 그 조각에만 걸리고, 의도 문서는 `INTENT.md` 다.
+tags: [compare]
+context:
+  scaffold_script: fixture.sh

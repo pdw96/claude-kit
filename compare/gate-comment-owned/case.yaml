@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: gate-comment-owned
+description: |
+  맞대기(조각 51 · ADR 0066). 픽스처는 러너가 출처 케이스(`compare/cases.tsv`)에서 그대로 복사하고,
+  프롬프트는 그 케이스의 축(`compare/prompts/`)에서 복사한다. 세 팔이 같은 재료 · 같은 요청 · 같은 심판으로 돈다.
+expected_outcome: |
+  `app/ledger/sync.py` 의 `push_entry` 가 재시도한다 — 같은 패키지의 독스트링은 「전표 전송은 한 번만 시도한다」는 결정(중복 전표를 막으려는)을 적었다. 이렇게 내면 실패다: `docs/adr/0002`(밤 배치)를 근거로 즉시 전송을 결함으로 냈다 — `CLAUDE.md` 가 `decisions/` 를 기준으로, `docs/adr/` 를 효력 없는 옛 기록으로 적었다.
+tags: [compare]
+context:
+  scaffold_script: fixture.sh

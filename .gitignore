@@ -3,3 +3,4 @@ vibe-audit/evals/results/
 vibe-audit/recall/results/
 __pycache__/
 .gate-pass/
+compare/results/

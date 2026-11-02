@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: recall-commit-after-response
+description: |
+  맞대기(조각 51 · ADR 0066). 픽스처는 러너가 출처 케이스(`compare/cases.tsv`)에서 그대로 복사하고,
+  프롬프트는 그 케이스의 축(`compare/prompts/`)에서 복사한다. 세 팔이 같은 재료 · 같은 요청 · 같은 심판으로 돈다.
+expected_outcome: |
+  `app/main.py` 의 `session_scope` 가 `yield` 뒤에서 커밋한다 — 그 자리는 응답이 나간 뒤에 돌아, 커밋이 실패해도 부르는 쪽은 이미 성공 응답(201)을 받았다.
+tags: [compare]
+context:
+  scaffold_script: fixture.sh
