@@ -169,6 +169,12 @@ def last_result(path):
 
 spent, results, all_passed = 0.0, [], True
 (out / "traces").mkdir(parents=True, exist_ok=True)
+
+def dump(extra=None):
+    """돈 회차를 그때그때 남긴다 — 뒤의 회차가 어떻게 끝나든 이미 쓴 측정이 버려지지 않는다."""
+    cases_out = results + ([extra] if extra else [])
+    (out / "result.json").write_text(json.dumps({"cases": cases_out}, ensure_ascii=False, indent=1), encoding="utf-8")
+
 for case in cases:
     front, body = split((case / "prompt.md").read_text(encoding="utf-8"))
     tools = re.search(r"^allowed_tools:\s*\[(.*)\]\s*$", front, re.M).group(1)
@@ -184,7 +190,11 @@ for case in cases:
             all_passed = False
             continue
         with tempfile.TemporaryDirectory() as ws, tempfile.TemporaryDirectory() as home:
-            subprocess.run(["bash", str(case / "fixture.sh")], cwd=ws, check=True, stdout=subprocess.DEVNULL)
+            if subprocess.run(["bash", str(case / "fixture.sh")], cwd=ws, stdout=subprocess.DEVNULL).returncode:
+                runs.append({"score": 0.0, "passed": False, "error": "픽스처가 실패했다 — 회차를 돌리지 않았다", "graders": []})
+                all_passed = False
+                dump({"name": case.name, "arms": {"with": runs}})
+                continue
             cmd = ["claude", "-p", body, "--plugin-dir", str(plug), "--model", model, "--permission-mode", "dontAsk",
                    "--allowedTools", *tools, "--output-format", "stream-json", "--verbose",
                    "--max-budget-usd", f"{cap - spent:.2f}"]
@@ -201,12 +211,22 @@ for case in cases:
             spent += res.get("total_cost_usd") or 0.0
             final = res.get("result") or ""
             # 심판 — 같은 그레이더 글을 같은 심판 모델(sonnet)에 세 번 묻는다. 도구는 없다.
+            # 표마다 남은 천장을 넘기고, 천장에 닿거나 심판이 답하지 않으면 채점 못 함으로 남긴다 —
+            # 탐지 실패와 가른다. 회차 실행이 이미 실패했으면 심판을 부르지 않는다.
             ask = (f"{rubric}\n\n## 판정할 최종 응답\n\n<<<\n{final}\n>>>\n\n"
                    "위 질문에 PASS 또는 FAIL 한 낱말로만 답하세요.")
-            votes = []
-            for _ in range(3):
-                j = subprocess.run(["claude", "-p", ask, "--model", "sonnet", "--tools", "", "--output-format", "json"],
-                                   cwd=ws, env=env(home), capture_output=True, text=True, timeout=300)
+            votes, grade_err = [], None
+            for _ in range(3 if final and not err else 0):
+                if spent >= cap:
+                    grade_err = f"비용 천장 ${cap} 에 닿아 채점을 마치지 못했다"
+                    break
+                try:
+                    j = subprocess.run(["claude", "-p", ask, "--model", "sonnet", "--tools", "", "--output-format", "json",
+                                        "--max-budget-usd", f"{cap - spent:.2f}"],
+                                       cwd=ws, env=env(home), capture_output=True, text=True, timeout=300)
+                except subprocess.TimeoutExpired:
+                    grade_err = "심판이 300초 안에 답하지 않았다"
+                    break
                 try:
                     jr = json.loads(j.stdout)
                 except ValueError:
@@ -214,6 +234,8 @@ for case in cases:
                 spent += jr.get("total_cost_usd") or 0.0
                 m = re.search(r"\b(PASS|FAIL)\b", jr.get("result") or "")
                 votes.append(bool(m) and m.group(1) == "PASS")
+        if grade_err:
+            err = f"채점 못 함 — {grade_err}" + (f" (그 전 표 {len(votes)})" if votes else "")
         passed = bool(final) and not err and sum(votes) >= 2
         all_passed &= passed
         run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace),
@@ -222,10 +244,11 @@ for case in cases:
         if err:
             run["error"] = err
         runs.append(run)
-        print(f"{case.name} run{i} → {'PASS' if passed else 'FAIL'} · 비용 누계 ${spent:.4f}", flush=True)
+        dump({"name": case.name, "arms": {"with": runs}})
+        print(f"{case.name} run{i} → {'PASS' if passed else 'FAIL'}{' · ' + err if err else ''} · 비용 누계 ${spent:.4f}", flush=True)
     results.append({"name": case.name, "arms": {"with": runs}})
 
-(out / "result.json").write_text(json.dumps({"cases": results}, ensure_ascii=False, indent=1), encoding="utf-8")
+dump()
 raise SystemExit(0 if all_passed else 1)
 OUTSIDE
   status=$?
