@@ -100,8 +100,12 @@ done < compare/cases.tsv
 
 OUT="compare/results/$(date -u +%Y-%m-%dT%H-%M-%SZ)-$arm"
 mkdir -p "$OUT"
+# 동시성도 run-evals.sh 한 곳이 든다 — 같은 자격 · 같은 요금 한도를 나눠 쓰는 까닭이 같다.
 CONC=()
-if [ "$jflag" = 1 ]; then CONC=(-j 4); fi
+if [ "$jflag" = 1 ]; then
+  read -r -a CONC <<< "$(sed -n 's/^if \[ "\$jflag" = 1 \]; then CONC=(\(.*\)); fi$/\1/p' scripts/run-evals.sh)"
+  [ "${#CONC[@]}" -gt 0 ] || { echo "scripts/run-evals.sh 에서 동시성을 읽지 못했다" >&2; exit 2; }
+fi
 
 echo "팔 $arm · 케이스 $n · 모델 $MODEL · ablation $ablation · 천장 \$$cap"
 set +e
