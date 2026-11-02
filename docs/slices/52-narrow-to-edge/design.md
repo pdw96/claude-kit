@@ -84,8 +84,9 @@
   팔의 하네스 호출 줄이 `main` 과 글자 그대로다(`git diff` 의 덩이가 하네스 밖 길과 끝 줄 · 머리 주석에만 있다). 새 검사 · 변조본은 세우지 않는다(요구사항 하지 않을 일 5).
 - **측정(PR C)** — `./scripts/run-compare.sh claude-security --from <클론>` 한 번. 끝 표 · 정답지 낱말 수 · 회차마다 하위 기록이 있는지(주 트레이스의 `Agent` · `Workflow` 호출 수와
   견준다)를 eval-log 에 싣는다. 여섯 회차의 최종 응답을 사람이 다 읽어 심판과 갈린 회차를 적는다 — 갈린 회차가 하나라도 있으면 판정을 내기 전에 저자에게 올린다.
-- **재료 견주기(PR C)** — `git diff --stat ba1f955 <측정 커밋> -- compare/ vibe-audit/evals/gate-root-cause-auth/fixture.sh vibe-audit/evals/trap-local-dev-password/fixture.sh`
-  가 비어 있음을 eval-log 에 싣는다(회차 26 OB-3).
+- **재료 견주기(PR C)** — 이 팔이 읽는 재료만 견준다 — `git diff --stat ba1f955 <측정 커밋> -- compare/cases.tsv compare/arms.tsv compare/prompts/secrets.md
+  compare/gate-root-cause-auth compare/trap-local-dev-password vibe-audit/evals/gate-root-cause-auth/fixture.sh vibe-audit/evals/trap-local-dev-password/fixture.sh`
+  가 비어 있음을 eval-log 에 싣는다(회차 26 OB-3). `compare/README.md` 는 PR B 가 고치는 설명이라 들지 않는다(①).
 - **README(PR C)** — 절의 숫자마다 eval-log 의 칸을 대어 PR 본문에 대응을 보인다.
 - **수트와 갈림** — 각 PR 에서 `python3 scripts/eval-key.py route` · `full` 이 `main` 과 같은 값을 찍는 것을 PR 본문에 보인다.
 - **게이트** — 각 PR 의 작업트리와 CI gate 잡에서 `./scripts/gates.sh` 가 통과한다.
