@@ -129,7 +129,7 @@ set -e
 
 # 회차마다 맞힘 · 떴는가 · 모델 · 비용을 트레이스에서 읽고, 최종 응답을 손 대조용으로 남긴다(② G · ⑤ 「심판」).
 ARM="$arm" python3 - "$OUT" <<'PY'
-import json, os, pathlib, stat, sys
+import json, os, pathlib, shutil, stat, sys
 
 out = pathlib.Path(sys.argv[1])
 arm = os.environ["ARM"]
@@ -182,6 +182,11 @@ for case in d.get("cases", []):
             if c is not None:
                 costs.append(c)
             hit = any(g.get("name") == "found" and g.get("passed") for g in run.get("graders", []))
+            # 못 맞힌 회차는 트레이스를 남긴다 — 왜 못 맞혔는지(도구 거절 · 오류)는 트레이스에만 있다.
+            # 임시 폴더는 아래에서 지워진다. run-evals.sh 가 실패 회차를 남기는 까닭과 같다.
+            if not hit and tp and pathlib.Path(tp).is_file():
+                (out / "traces").mkdir(exist_ok=True)
+                shutil.copyfile(tp, out / "traces" / f"{case.get('name')}.{side}.run{i}.jsonl")
             hits += hit
             fired_n += fired
             if run.get("error"):
@@ -212,7 +217,6 @@ for t in temps:
                 os.chmod(os.path.join(root, x), stat.S_IRWXU)
             except OSError:
                 pass
-    import shutil
     shutil.rmtree(t, ignore_errors=True)
 PY
 
