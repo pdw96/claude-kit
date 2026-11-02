@@ -1,0 +1,11 @@
+# 맞대기 재료 열 — 조각 51 설계 ③ A 의 닫힌 목록. 칸: 케이스 · 출처 케이스 폴더 · 축(prompts/<축>.md) · 경쟁 팔
+recall-commit-after-response	vibe-audit/recall/recall-commit-after-response	data	pr-review-toolkit
+recall-downgrade-equal-rows	vibe-audit/recall/recall-downgrade-equal-rows	data	pr-review-toolkit
+recall-expiry-from-processing	vibe-audit/recall/recall-expiry-from-processing	data	pr-review-toolkit
+recall-inactive-code	vibe-audit/recall/recall-inactive-code	data	pr-review-toolkit
+recall-blank-boundary	vibe-audit/recall/recall-blank-boundary	contract	pr-review-toolkit
+recall-nul-boundary	vibe-audit/recall/recall-nul-boundary	contract	pr-review-toolkit
+gate-root-cause-auth	vibe-audit/evals/gate-root-cause-auth	secrets	claude-security
+trap-local-dev-password	vibe-audit/evals/trap-local-dev-password	secrets	claude-security
+gate-comment-owned	vibe-audit/evals/gate-comment-owned	internal	pr-review-toolkit
+trap-slice-scope	vibe-audit/evals/trap-slice-scope	internal	pr-review-toolkit

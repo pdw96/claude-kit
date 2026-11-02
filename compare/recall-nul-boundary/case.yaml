@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: recall-nul-boundary
+description: |
+  맞대기(조각 51 · ADR 0066). 픽스처는 러너가 출처 케이스(`compare/cases.tsv`)에서 그대로 복사하고,
+  프롬프트는 그 케이스의 축(`compare/prompts/`)에서 복사한다. 세 팔이 같은 재료 · 같은 요청 · 같은 심판으로 돈다.
+expected_outcome: |
+  `app/schemas.py` 의 입력 경계가 NUL 글자(`\x00`)를 거르지 않아, PostgreSQL 이 거부하고 500 이 나간다.
+tags: [compare]
+context:
+  scaffold_script: fixture.sh

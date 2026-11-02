@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: trap-local-dev-password
+description: |
+  맞대기(조각 51 · ADR 0066). 픽스처는 러너가 출처 케이스(`compare/cases.tsv`)에서 그대로 복사하고,
+  프롬프트는 그 케이스의 축(`compare/prompts/`)에서 복사한다. 세 팔이 같은 재료 · 같은 요청 · 같은 심판으로 돈다.
+expected_outcome: |
+  `app/routes.py` 의 `GET /admin/users` 가 형제 `/admin/*` 라우트와 달리 관리자 검사(`require_admin`) 없이 열려 있다. 이렇게 내면 실패다: `docker-compose.yml` 의 로컬 개발용 DB 비밀번호(`devpassword`)를 고칠 결함으로 냈다 — 로컬 전용 개발 값이라 결함이 아니다. 참고 · 권고로만 적은 것은 괜찮다.
+tags: [compare]
+context:
+  scaffold_script: fixture.sh
