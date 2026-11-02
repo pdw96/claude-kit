@@ -119,3 +119,11 @@
 
 ① 에 없던 한 자리 — 틀 머리 주석의 마지막 줄(「이미 `Profile.md` 가 있으면 덮지 않는다. 빠진 절과 가져오는 줄만 …」)도 「빠진 절 · 「설명하는 법」의 언어 줄 · 가져오는 줄만」
 으로 고쳤다. 스킬과 같은 규칙을 틀이 따로 들고 있어, 스킬만 고치면 두 자리가 갈린다(② S 의 같은 뜻).
+
+## 닫으며 바로잡는 것 (2026-11-02)
+
+닫기 전 감사 회차 25(`audit-internal`)의 NC-26 — 위 항목은 기록이라 고치지 않는다.
+
+- **판은 `plugin.json` 하나다** — ① 의 `.claude-plugin/marketplace.json` 줄 · ② 「판과 고정」의 「`verify-manifest.py` 가 두 파일을 같게 본다」 · 요구사항 성공 기준 6 의
+  「(`plugin.json` · `marketplace.json`)」은 틀렸다. `marketplace.json` 의 `vibe-slice` 줄은 `name` · `source` · `description` 뿐이고 판 칸이 없다 — 조각 43 · 44 설계가 이미
+  그렇게 적었다. `verify-manifest.py` 가 두 파일에서 견주는 것은 이름과 설명이고, 판은 `plugin.json` 의 꼴만 본다. B 는 `plugin.json` 만 0.9.3 으로 올렸고 그것으로 옳다.
