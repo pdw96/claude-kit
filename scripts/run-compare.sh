@@ -215,7 +215,7 @@ for case in cases:
             # 탐지 실패와 가른다. 회차 실행이 이미 실패했으면 심판을 부르지 않는다.
             ask = (f"{rubric}\n\n## 판정할 최종 응답\n\n<<<\n{final}\n>>>\n\n"
                    "위 질문에 PASS 또는 FAIL 한 낱말로만 답하세요.")
-            votes, grade_err = [], None
+            votes, grade_err, judge_cost = [], None, 0.0
             for _ in range(3 if final and not err else 0):
                 if spent >= cap:
                     grade_err = f"비용 천장 ${cap} 에 닿아 채점을 마치지 못했다"
@@ -231,14 +231,21 @@ for case in cases:
                     jr = json.loads(j.stdout)
                 except ValueError:
                     jr = {}
-                spent += jr.get("total_cost_usd") or 0.0
-                m = re.search(r"\b(PASS|FAIL)\b", jr.get("result") or "")
-                votes.append(bool(m) and m.group(1) == "PASS")
+                c = jr.get("total_cost_usd") or 0.0
+                spent += c
+                judge_cost += c
+                # 읽을 수 있는 판정만 표로 센다 — 심판이 실패했거나(종료 · 자격 · 천장) 답에 PASS · FAIL 이 없으면
+                # 그 회차는 채점되지 않은 것이다. FAIL 로 세면 탐지 실패로 둔갑한다.
+                m = re.search(r"\b(PASS|FAIL)\b", jr.get("result") or "") if j.returncode == 0 and not jr.get("is_error") else None
+                if not m:
+                    grade_err = f"심판이 판정을 내지 못했다 (종료 {j.returncode})"
+                    break
+                votes.append(m.group(1) == "PASS")
         if grade_err:
             err = f"채점 못 함 — {grade_err}" + (f" (그 전 표 {len(votes)})" if votes else "")
         passed = bool(final) and not err and sum(votes) >= 2
         all_passed &= passed
-        run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace),
+        run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace), "judgeCostUsd": judge_cost,
                "graders": [{"name": "found", "passed": passed, "weight": 1, "scored": True, "judgeVotes": votes,
                             "explanation": "하네스 밖 심판(sonnet) votes: " + " ".join("PASS" if v else "FAIL" for v in votes)}]}
         if err:
@@ -317,7 +324,7 @@ rows = []
 for case in d.get("cases", []):
     for side, runs in (case.get("arms") or {}).items():
         label = "플러그인 없음" if (side != "with" or arm == "none") else arm
-        hits, fired_n, costs, models = 0, 0, [], set()
+        hits, fired_n, costs, models, ungraded = 0, 0, [], set(), 0
         for i, run in enumerate(runs, 1):
             tp = run.get("tracePath")
             if tp:
@@ -326,6 +333,8 @@ for case in d.get("cases", []):
             models |= m
             if c is not None:
                 costs.append(c)
+            # 하네스 밖 팔은 심판 비용을 회차에 따로 남긴다 — 천장에 든 돈이라 합에 넣는다(ADR 0068).
+            costs.append(run.get("judgeCostUsd") or 0.0)
             hit = any(g.get("name") == "found" and g.get("passed") for g in run.get("graders", []))
             # 못 맞힌 회차는 트레이스를 남긴다 — 왜 못 맞혔는지(도구 거절 · 오류)는 트레이스에만 있다.
             # 임시 폴더는 아래에서 지워진다. run-evals.sh 가 실패 회차를 남기는 까닭과 같다.
@@ -333,19 +342,21 @@ for case in d.get("cases", []):
                 (out / "traces").mkdir(exist_ok=True)
                 shutil.copyfile(tp, out / "traces" / f"{case.get('name')}.{side}.run{i}.jsonl")
             hits += hit
+            ungraded += str(run.get("error") or "").startswith("채점 못 함")
             fired_n += fired
             if run.get("error"):
                 final = f"(회차 오류: {run.get('error')})\n\n" + final
             (msgs / f"{case.get('name')}.{'with' if side == 'with' else 'without'}.run{i}.md").write_text(
                 f"<!-- {label} · {'맞힘' if hit else '못 맞힘'} · 떴는가 {fired} · 비용 {c} -->\n\n{final}\n", encoding="utf-8")
         total += sum(costs)
-        rows.append((case.get("name"), label, hits, len(runs), fired_n if (side == "with" and arm != "none") else None,
+        rows.append((case.get("name"), label, hits, len(runs), ungraded, fired_n if (side == "with" and arm != "none") else None,
                      sum(costs), " · ".join(sorted(models)) or "기록 없음"))
 
 print("\n| 케이스 | 팔 | 맞힘 | 떴는가 | 비용($) | 모델 |\n|---|---|---|---|---|---|")
-for name, label, hits, nruns, fired_n, cost, models in rows:
+for name, label, hits, nruns, ungraded, fired_n, cost, models in rows:
     f = "—" if fired_n is None else f"{fired_n}/{nruns}"
-    print(f"| {name} | {label} | {hits}/{nruns} | {f} | {cost:.4f} | {models} |")
+    u = f" (채점 못 함 {ungraded})" if ungraded else ""
+    print(f"| {name} | {label} | {hits}/{nruns}{u} | {f} | {cost:.4f} | {models} |")
 print(f"\n합 비용 ${total:.4f} · 최종 응답은 {msgs}/")
 
 # --keep-temp 로 남은 작업공간을 치운다 — run-evals.sh 와 같은 까닭으로 먼저 열고 지운다.
