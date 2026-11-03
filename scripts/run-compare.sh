@@ -4,7 +4,7 @@
 #   ./scripts/run-compare.sh vibe-audit                              # 이 작업트리의 vibe-audit
 #   ./scripts/run-compare.sh none                                    # 플러그인 없음 — 중립 요청 그대로
 #   ./scripts/run-compare.sh pr-review-toolkit --from <클론>          # anthropics/claude-plugins-official 클론
-#   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1
+#   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1   # 잠김 — ADR 0071
 #
 # **왜 따로 있나.** 조각 51 · ADR 0066 의 5. `run-evals.sh` 는 고정한 러너이고 수트 지문에 든다 — 고치면
 # 재는 대상(감사자)이 그대로인데 route 수트가 돈다. 이 러너는 수트 밖(`compare/`)만 읽어 지문에 들지 않는다.
@@ -14,7 +14,8 @@
 # 팔은 같은 설계 ③ B. 하네스 밖 팔(claude-security)은 조각 52 설계 ② A ~ F 가 더한다 — 정답지를 건네지 않고,
 # 새는 길을 센다. 이 러너는 측정 도구이고 게이트가 아니다 — **종료는 판정이 아니다.** 하네스는 문턱을 받지
 # 않으면 1.0 을 써서 한 회차라도 못 맞히면 1 로 끝나고, 하네스 밖 길도 같은 규칙으로 0 · 1 을 낸다. 러너는 그
-# 종료를 그대로 돌려줄 뿐이고, 판정은 끝 표로 사람이 낸다(ADR 0066 의 4).
+# 종료를 그대로 돌려줄 뿐이고, 판정은 끝 표로 사람이 낸다(ADR 0066 의 4). 따로 5 는 결과 폴더에 자격 꼴이 있어
+# 싣지 말라는 뜻이다 — 점수보다 앞선다(NC-32).
 #
 # 표준 라이브러리만 쓴다.
 set -euo pipefail
@@ -24,6 +25,9 @@ main() {
 cd "$(dirname "$0")/.."
 
 PIN=a7ba5b93db0c7c8d17f3f1d25853adca79598a1a   # anthropics/claude-plugins-official, 2026-10-30
+# 하네스 밖 팔은 잠겼다(ADR 0071) — 측정 자격이 저자 구독 토큰이었고 그 팔의 격리 없는 Bash 가 세션 자격에 닿는 자리였다.
+# 측정 전용 계정의 자격 · 세션 자격이 없는 기계 · 자격을 붙이지 않는 프록시를 세우는 조각이 그 ADR 과 함께 0 으로 푼다.
+OUTSIDE_LOCKED=1
 USAGE="사용법: run-compare.sh <vibe-audit|none|pr-review-toolkit|claude-security> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
 
 arm=${1:-}
@@ -35,6 +39,9 @@ case "$arm" in
   *) echo "$USAGE" >&2; exit 2 ;;
 esac
 shift
+if [ "$arm" = claude-security ] && [ "$OUTSIDE_LOCKED" = 1 ]; then
+  echo "claude-security 팔(하네스 밖)은 잠겼다 — ADR 0071. 측정 전용 계정의 자격과 세션 자격이 없는 기계를 세운 뒤 푼다" >&2; exit 2
+fi
 
 from=""
 pass=()
@@ -62,6 +69,11 @@ else
   [ "$head" = "$PIN" ] || { echo "클론의 HEAD 가 $PIN 이 아니다 (받은 것: '${head:-읽지 못함}')" >&2; exit 2; }
   src="$from/plugins/$arm"
   [ -f "$src/.claude-plugin/plugin.json" ] || { echo "플러그인이 없다: $src" >&2; exit 2; }
+fi
+# 하네스 밖 팔은 제3자 플러그인에 격리 없는 Bash 를 주므로 넘기는 자격을 러너가 고른다 — 측정 자격 하나뿐이다
+# (NC-31 · ADR 0069 의 5). 부르는 셸의 다른 자격은 넘기지 않는다.
+if [ "$arm" = claude-security ] && [ -z "${EVAL_OAUTH_TOKEN:-}" ]; then
+  echo "claude-security 팔은 측정 자격 EVAL_OAUTH_TOKEN 이 있어야 한다 — 그 값만 CLAUDE_CODE_OAUTH_TOKEN 으로 넘긴다" >&2; exit 2
 fi
 
 # 수트 모델은 run-evals.sh 한 곳이 든다(② D).
@@ -154,12 +166,13 @@ if not cases:
     print("한 케이스도 고르지 못했다", file=sys.stderr)
     raise SystemExit(3)
 
-# 이 세션의 설정 · 플러그인이 섞이지 않게 빈 HOME 과 필요한 변수만 넘긴다.
+# 이 세션의 설정 · 플러그인이 섞이지 않게 빈 HOME 과 필요한 변수만 넘긴다. 자격은 측정 자격 하나를 러너가 골라
+# 넣는다 — 부르는 셸의 CLAUDE_CODE_OAUTH_TOKEN · ANTHROPIC_API_KEY 는 넘기지 않는다(NC-31).
 KEEP = ("PATH", "TERM", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy", "NODE_EXTRA_CA_CERTS",
-        "SSL_CERT_FILE", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY")
+        "SSL_CERT_FILE")
 def env(home):
     e = {k: os.environ[k] for k in KEEP if k in os.environ}
-    e.update(HOME=home, LANG="C.UTF-8")
+    e.update(HOME=home, LANG="C.UTF-8", CLAUDE_CODE_OAUTH_TOKEN=os.environ["EVAL_OAUTH_TOKEN"])
     return e
 
 def split(md):
@@ -177,8 +190,24 @@ def last_result(path):
             res = ev
     return res or {}
 
-# 정답지 낱말 — 재료 폴더에만 있고 픽스처 · 요청 본문에는 없는 글(조각 52 설계 ③ B 의 닫힌 목록).
-LEAK = ("case.yaml", "found.md", "expected_outcome", str(mat))
+# 정답지 낱말 — 재료 폴더에만 있고 픽스처 · 요청 본문에는 없는 글(조각 52 설계 ③ B 의 닫힌 목록과 NC-30 이 더한 것).
+# 이름 · 경로 낱말에, 고른 케이스마다 그레이더의 절 머리(`## …`)와 기대 결과의 첫 줄을 재료에서 읽어 더한다 —
+# 파일 이름이 명령에 남지 않는 읽기(glob · 상대 경로)도 본문이 기록에 실리면 잡힌다.
+LEAK = ["case.yaml", "found.md", "expected_outcome", "graders", "/compare/", "claude-kit", str(mat), mat.name]
+for case in cases:
+    LEAK += [l.strip() for l in split((case / "graders" / "found.md").read_text(encoding="utf-8"))[1].splitlines()
+             if l.startswith("## ")]
+    m = re.search(r"^expected_outcome:\s*\|\s*\n\s+(.+)$", (case / "case.yaml").read_text(encoding="utf-8"), re.M)
+    if m:
+        LEAK.append(m.group(1).strip())
+LEAK = sorted(set(LEAK))
+# 그 낱말이 재료 밖(픽스처 · 요청 본문)에도 있으면 세기가 거짓으로 찍힌다 — 돌리기 전에 멈춘다(설계 ③ B 의 조건).
+for case in cases:
+    outside = (case / "fixture.sh").read_text(encoding="utf-8") + split((case / "prompt.md").read_text(encoding="utf-8"))[1]
+    clash = [w for w in LEAK if w in outside]
+    if clash:
+        print(f"정답지 낱말이 {case.name} 의 픽스처 · 요청에도 있다 — {clash}", file=sys.stderr)
+        raise SystemExit(2)
 
 
 def keep_sessions(home, dest):
@@ -322,6 +351,8 @@ dump()
 raise SystemExit(0 if all_passed else 1)
 OUTSIDE
   status=$?
+  # 2 · 3 은 돌리기 전에 선 것(인자 · 케이스 · 정답지 낱말)이라 결과 파일이 없다 — 정리 단계의 4 로 덮지 않는다(회차 29 OB-30).
+  if [ "$status" -eq 2 ] || [ "$status" -eq 3 ]; then exit "$status"; fi
 else
 claude plugin eval "$plug" \
   --eval-dir compare \
@@ -343,8 +374,9 @@ fi
 set -e
 
 # 회차마다 맞힘 · 떴는가 · 모델 · 비용을 트레이스에서 읽고, 최종 응답을 손 대조용으로 남긴다(② G · ⑤ 「심판」).
-ARM="$arm" python3 - "$OUT" <<'PY'
-import json, os, pathlib, shutil, stat, sys
+scan=0
+ARM="$arm" python3 - "$OUT" <<'PY' || scan=$?
+import json, os, pathlib, re, shutil, stat, sys
 
 out = pathlib.Path(sys.argv[1])
 arm = os.environ["ARM"]
@@ -452,11 +484,39 @@ for t in temps:
             except OSError:
                 pass
     shutil.rmtree(t, ignore_errors=True)
+
+# 싣기 전 자격 훑기(NC-32) — 결과 폴더는 압축본으로 저장소에 실린다. 부르는 셸의 자격 값(앞 · 뒤 16 자 포함)과
+# 자격 접두사의 꼴을 폴더 전체에서 찾는다. 값은 찍지 않고 자리만 찍는다. 걸리면 종료 5 — 싣지 않는다.
+values = [v for k in ("EVAL_OAUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY")
+          if len(v := os.environ.get(k, "")) >= 32]
+needles = sorted({x for v in values for x in (v, v[:16], v[-16:])})
+SHAPES = (r"sk-ant-[A-Za-z0-9_-]{8,}", r"github_pat_[A-Za-z0-9_]{20,}", r"gh[pousr]_[A-Za-z0-9]{36}",
+          r"AKIA[0-9A-Z]{16}", r"xox[abposr]-[A-Za-z0-9-]{10,}")
+found, nfiles = [], 0
+for f in sorted(out.rglob("*")):
+    if not f.is_file():
+        continue
+    nfiles += 1
+    data = f.read_bytes().decode("utf-8", "replace")
+    if any(x in data for x in needles):
+        found.append(f"{f.relative_to(out)}: 넘긴 자격의 값")
+    found += [f"{f.relative_to(out)}: {s}" for s in SHAPES if re.search(s, data)]
+if found:
+    print(f"\n싣지 말 것 — 결과 폴더에 자격 꼴이 {len(found)} 자리 있다(값은 찍지 않는다):")
+    for x in found:
+        print(f"  {x}")
+    raise SystemExit(5)
+print(f"\n자격 훑기: 파일 {nfiles} 에서 넘긴 자격의 값(앞 · 뒤 16 자 포함 {len(needles)} 꼴) · 접두사 꼴 {len(SHAPES)} 이 0 건")
 PY
+[ "$scan" -eq 0 ] || [ "$scan" -eq 5 ] || exit "$scan"
 
 echo "하네스 종료 $status · 결과 $OUT"
 # 결과를 세션 밖에 남기는 길(NC-28 · 조각 52 설계 ② E) — 이 폴더는 .gitignore 라 측정한 세션과 함께 사라진다.
-echo "결과 폴더는 .gitignore 라 세션 밖에 남지 않는다 — docs/eval-log/compare-<날짜>.tar.xz 로 싣는다(풀고 싣는 법은 docs/eval-log/2026-11.md 「조각 51 닫기」)"
+if [ "$scan" -eq 5 ]; then
+  echo "결과 폴더에 자격 꼴이 있다 — 싣지 말고 위 자리를 먼저 본다(종료 5)"
+  exit 5
+fi
+echo "결과 폴더는 .gitignore 라 세션 밖에 남지 않는다 — 위 자격 훑기가 0 건이면 docs/eval-log/compare-<날짜>.tar.xz 로 싣는다(풀고 싣는 법은 docs/eval-log/2026-11.md 「조각 51 닫기」)"
 exit "$status"
 
 }
