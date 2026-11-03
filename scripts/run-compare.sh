@@ -89,7 +89,8 @@ mkdir -p "$mat/compare"
 n=0
 while IFS=$'\t' read -r name source axis rival; do
   case "$name" in ''|'#'*) continue ;; esac
-  [ "$arm" = vibe-audit ] || [ "$arm" = none ] || [ "$rival" = "$arm" ] || continue
+  # 경쟁 팔 칸은 쉼표로 여럿을 들 수 있다 — 한 케이스를 두 경쟁 팔이 돈다(조각 52 · ADR 0070).
+  [ "$arm" = vibe-audit ] || [ "$arm" = none ] || case ",$rival," in *",$arm,"*) ;; *) continue ;; esac
   for f in "compare/$name/case.yaml" "compare/$name/graders/found.md" "compare/prompts/$axis.md" "$source/fixture.sh"; do
     [ -f "$f" ] || { echo "재료가 없다: $f" >&2; exit 2; }
   done

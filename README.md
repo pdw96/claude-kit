@@ -23,7 +23,8 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 몫은 없었다. 보안 축은 `claude-security` 도 두 케이스를 다 맞혔다(6/6, 함정 포함 — 정답지를 건네지 않고 다시 쟀다).
 
 **한계.** 근거는 함정 두 케이스 · 6 회차뿐이다. 이 재료(`ba1f955`) · 이 수트 모델(`claude-sonnet-5-5`) · 이 경쟁 커밋(`anthropics/claude-plugins-official` `a7ba5b9`)에서만 맞고, 다른
-재료 · 모델 · 판에서는 다시 재야 한다. 회차당 원값은 `vibe-audit` $0.21 · 플러그인 없음 $0.13 · `pr-review-toolkit` $0.48 · `claude-security` $0.65 다. 표 · 판정 규칙 · 원문은
+재료 · 모델 · 판에서는 다시 재야 한다. 플러그인 팔은 요청 머리에서 그 도구를 이름으로 불렀다 — 이름을 부르지 않고 설치만 했을 때 감사자가 뜨는지는
+route 수트가 따로 재고(`vibe-audit/evals/README.md`), 설치만 한 상태에서 함정까지 가리는지는 한 번에 재지 않았다(ADR 0067 · 0070). 회차당 원값은 `vibe-audit` $0.21 · 플러그인 없음 $0.13 · `pr-review-toolkit` $0.48 · `claude-security` $0.65 다. 표 · 판정 규칙 · 원문은
 `docs/eval-log/2026-11.md` 「다른 플러그인과 맞대기 — 조각 51 PR C」 · 「`claude-security` 다시 재기 — 조각 52 PR C」와 ADR 0066 · 0069.
 
 ## 설치 — 경로가 셋인 이유
