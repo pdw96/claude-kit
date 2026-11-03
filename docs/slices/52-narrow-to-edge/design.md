@@ -129,3 +129,14 @@ B 와 C 를 나누는 까닭 — B 는 러너라 리뷰가 있고 비용이 0 �
   `pr-review-toolkit` 은 `trap-local-dev-password` 를 돌지 않아(조각 51 설계 ③ A — 그 케이스의 경쟁 팔은 `claude-security`) 그 칸은 「— (재지 않음)」이다.
 - **`claude-security` 는 「같았던 축」에서만 든다** — 보안 축에서 두 케이스를 다 맞혔다는 사실만 적고, 그 팔을 상대로 앞선다 · 뒤진다를 말하지 않는다(ADR 0069 의 2).
 - **측정의 CLI 판** — 2.1.317 이다. 조각 51 측정(2.1.316)과 다르다 — 측정 기계의 CLI 가 그 사이 올랐다. 수트 지문의 해시 부분은 그대로다. eval-log 항목이 판을 든다.
+
+## PR C 에서 더한 것 (2026-11-03, 저자 판정)
+
+저자가 PR C(#195)의 README 절을 읽고 둘을 정했다(ADR 0070).
+
+- **`pr-review-toolkit` × `trap-local-dev-password` 를 재서 채운다** — 요구사항 하지 않을 일 2(다른 세 팔을 다시 재지 않는다) · 3(재료를 고치지 않는다)을 이 한 칸만큼 넓힌다.
+  `compare/cases.tsv` 의 경쟁 팔 칸이 쉼표로 여럿을 들고, 러너가 그 목록에서 팔을 고른다. 재료(픽스처 · 요청 · 그레이더)는 그대로다. ② F(다른 세 팔은 그대로)는 「다른 팔이 받는
+  케이스는 그대로이고 `pr-review-toolkit` 만 하나를 더 받는다」로 읽는다 — 가짜 `claude` 로 `vibe-audit` · `none` 열, `claude-security` 둘, `pr-review-toolkit` 아홉. ③ A 의 재는 칸에
+  `pr-review-toolkit` × `trap-local-dev-password` × 3 이 더해진다. 결과 1/3 — eval-log 「`pr-review-toolkit` 의 빈 칸 — 조각 52 PR C」.
+- **README 「한계」에 한 줄** — 플러그인 팔은 이름으로 불렀고, 설치만 했을 때 뜨는지는 route 수트가 재며, 설치만 한 상태에서 함정까지 가리는지는 한 번에 재지 않았다.
+- **비용** — 조각 52 측정 합 $4.3130(천장 $8 안).
