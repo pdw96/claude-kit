@@ -213,6 +213,9 @@ ANCHORS = [
     ('README.md', r'문서 틀 {N} —', 1, '틀'),
     ('README.md', r'고쳐지지 않은 버그 {N}을', 1, '열린 버그'),
     ('README.md', r'감사자 {N} · `audit-brief`', 1, '감사자'),
+    # README.en.md — 영어 입구. 수는 아라비아 숫자로 쓴다 — L 이 영어 수 낱말을 읽지 못한다(ADR 0072 의 5)
+    ('README.en.md', r'{N} read-only auditors', 2, '감사자'),
+    ('README.en.md', r'{N} document templates', 1, '틀'),
     # .claude-plugin/marketplace.json
     ('.claude-plugin/marketplace.json', r'감사자 {N}종', 1, '감사자'),
     ('.claude-plugin/marketplace.json', r'문서 틀 {N}\(', 1, '틀'),
