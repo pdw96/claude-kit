@@ -4,7 +4,7 @@
 #   ./scripts/run-compare.sh vibe-audit                              # 이 작업트리의 vibe-audit
 #   ./scripts/run-compare.sh none                                    # 플러그인 없음 — 중립 요청 그대로
 #   ./scripts/run-compare.sh pr-review-toolkit --from <클론>          # anthropics/claude-plugins-official 클론
-#   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1
+#   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1   # 잠김 — ADR 0071
 #
 # **왜 따로 있나.** 조각 51 · ADR 0066 의 5. `run-evals.sh` 는 고정한 러너이고 수트 지문에 든다 — 고치면
 # 재는 대상(감사자)이 그대로인데 route 수트가 돈다. 이 러너는 수트 밖(`compare/`)만 읽어 지문에 들지 않는다.
@@ -25,6 +25,9 @@ main() {
 cd "$(dirname "$0")/.."
 
 PIN=a7ba5b93db0c7c8d17f3f1d25853adca79598a1a   # anthropics/claude-plugins-official, 2026-10-30
+# 하네스 밖 팔은 잠겼다(ADR 0071) — 측정 자격이 저자 구독 토큰이었고 그 팔의 격리 없는 Bash 가 세션 자격에 닿는 자리였다.
+# 측정 전용 계정의 자격 · 세션 자격이 없는 기계 · 자격을 붙이지 않는 프록시를 세우는 조각이 그 ADR 과 함께 0 으로 푼다.
+OUTSIDE_LOCKED=1
 USAGE="사용법: run-compare.sh <vibe-audit|none|pr-review-toolkit|claude-security> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
 
 arm=${1:-}
@@ -36,6 +39,9 @@ case "$arm" in
   *) echo "$USAGE" >&2; exit 2 ;;
 esac
 shift
+if [ "$arm" = claude-security ] && [ "$OUTSIDE_LOCKED" = 1 ]; then
+  echo "claude-security 팔(하네스 밖)은 잠겼다 — ADR 0071. 측정 전용 계정의 자격과 세션 자격이 없는 기계를 세운 뒤 푼다" >&2; exit 2
+fi
 
 from=""
 pass=()

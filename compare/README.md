@@ -20,10 +20,11 @@
 ./scripts/run-compare.sh vibe-audit                         # 이 작업트리의 vibe-audit
 ./scripts/run-compare.sh none                               # 플러그인 없음 — 빈 플러그인 · 중립 요청
 ./scripts/run-compare.sh pr-review-toolkit --from <클론>
-./scripts/run-compare.sh claude-security --from <클론>
+./scripts/run-compare.sh claude-security --from <클론>         # 잠김 — ADR 0071, 종료 2
 ```
 
 `claude-security` 팔은 하네스 밖에서 `claude -p` 로 돈다 — 하네스의 격리 안에서는 그 스킬이 서지 않는다(ADR 0068). 채점은 같은 그레이더 글을 같은 심판 모델에 세 번 물어 가른다.
+**이 팔은 지금 잠겨 있다(ADR 0071)** — 러너가 종료 2 로 막는다. 측정 전용 계정의 자격 · 세션 자격이 없는 기계 · 자격을 붙이지 않는 프록시를 세우는 조각이 푼다. 아래는 풀린 뒤의 동작이다.
 이 팔은 `--plugin-dir` 로 플러그인만 받는다 — 재료(`case.yaml` · `graders/` · 요청 · 픽스처)는 러너가 따로 둔 임시 폴더에서 읽는다(조각 52 · ADR 0069 의 4).
 격리 없는 Bash 를 가져 디스크를 뒤지는 것은 막지 못하므로, 회차마다 그 회차의 세션 기록(하위 에이전트 것 포함)을 결과 폴더의 `sessions/` 에 남기고
 정답지 낱말이 나온 회차를 끝 표 아래에 따로 센다. 낱말 목록은 러너(`run-compare.sh` 의 `LEAK`)가 든다 — 이름 · 경로 낱말에 고른 케이스의 그레이더 절 머리와
