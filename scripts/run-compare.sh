@@ -11,7 +11,10 @@
 # 깃발을 기억에 맡기지 않는 까닭은 `run-evals.sh` 머리 주석과 같다 — 수트 모델 · 심판 · 픽스처를 여기서 박는다.
 #
 # **무엇을 보장하나.** `docs/slices/51-head-to-head/design.md` ② A ~ H. 재료 열은 `compare/cases.tsv`,
-# 팔은 같은 설계 ③ B. 이 러너는 측정 도구이고 게이트가 아니다 — 점수로 종료가 바뀌지 않는다.
+# 팔은 같은 설계 ③ B. 하네스 밖 팔(claude-security)은 조각 52 설계 ② A ~ F 가 더한다 — 정답지를 건네지 않고,
+# 새는 길을 센다. 이 러너는 측정 도구이고 게이트가 아니다 — **종료는 판정이 아니다.** 하네스는 문턱을 받지
+# 않으면 1.0 을 써서 한 회차라도 못 맞히면 1 로 끝나고, 하네스 밖 길도 같은 규칙으로 0 · 1 을 낸다. 러너는 그
+# 종료를 그대로 돌려줄 뿐이고, 판정은 끝 표로 사람이 낸다(ADR 0066 의 4).
 #
 # 표준 라이브러리만 쓴다.
 set -euo pipefail
@@ -28,7 +31,7 @@ case "$arm" in
   vibe-audit) cap=10 ;;
   none) cap=5 ;;
   pr-review-toolkit) cap=12 ;;
-  claude-security) cap=15 ;;
+  claude-security) cap=8 ;;
   *) echo "$USAGE" >&2; exit 2 ;;
 esac
 shift
@@ -67,8 +70,13 @@ MODEL=$(sed -n 's/^DEFAULT_MODEL=//p' scripts/run-evals.sh)
 
 # 임시 폴더에 플러그인과 재료를 엮는다(② A · B). 픽스처는 출처 케이스의 것, 프롬프트는 축의 것을 그대로 복사한다.
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+# 재료(정답지 · 요청 · 픽스처)가 놓이는 자리. 하네스 팔은 하네스가 대상 플러그인 안의 `compare/` 를 읽으므로
+# 플러그인 안이다. 하네스 밖 팔은 `--plugin-dir` 로 플러그인만 넘기므로 따로 둔 폴더다 — 정답지를 건네지
+# 않는다(조각 52 설계 ② A · NC-29). 플러그인과 같은 부모에도 두지 않는다.
+MAT=$(mktemp -d)
+trap 'rm -rf "$TMP" "$MAT"' EXIT
 plug="$TMP/$arm"
+if [ "$arm" = claude-security ]; then mat="$MAT"; else mat="$plug"; fi
 if [ "$arm" = none ]; then
   # 플러그인 없음 — 하네스가 대상으로 받을 빈 플러그인. 에이전트 · 스킬 · 훅이 없다.
   mkdir -p "$plug/.claude-plugin"
@@ -77,7 +85,7 @@ else
   cp -R "$src" "$plug"
 fi
 rm -rf "$plug/evals" "$plug/recall" "$plug/compare"
-mkdir -p "$plug/compare"
+mkdir -p "$mat/compare"
 n=0
 while IFS=$'\t' read -r name source axis rival; do
   case "$name" in ''|'#'*) continue ;; esac
@@ -85,15 +93,15 @@ while IFS=$'\t' read -r name source axis rival; do
   for f in "compare/$name/case.yaml" "compare/$name/graders/found.md" "compare/prompts/$axis.md" "$source/fixture.sh"; do
     [ -f "$f" ] || { echo "재료가 없다: $f" >&2; exit 2; }
   done
-  mkdir -p "$plug/compare/$name"
-  cp "compare/$name/case.yaml" "$plug/compare/$name/"
-  cp -R "compare/$name/graders" "$plug/compare/$name/"
+  mkdir -p "$mat/compare/$name"
+  cp "compare/$name/case.yaml" "$mat/compare/$name/"
+  cp -R "compare/$name/graders" "$mat/compare/$name/"
   # 요청 본문은 축의 것 그대로(② B). 플러그인 팔은 그 도구를 부르는 한 줄을 머리에 붙인다(compare/arms.tsv · ADR 0067).
   call=$(awk -F'\t' -v a="$arm" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
   if [ "$arm" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $arm · $axis 줄이 없다" >&2; exit 2; fi
   awk -v call="$call" '{ print } /^---$/ && ++n == 2 && call != "" { print ""; print call }' \
-    "compare/prompts/$axis.md" > "$plug/compare/$name/prompt.md"
-  cp "$source/fixture.sh" "$plug/compare/$name/fixture.sh"
+    "compare/prompts/$axis.md" > "$mat/compare/$name/prompt.md"
+  cp "$source/fixture.sh" "$mat/compare/$name/fixture.sh"
   n=$((n + 1))
 done < compare/cases.tsv
 [ "$n" -gt 0 ] || { echo "$arm 팔의 케이스가 없다" >&2; exit 2; }
@@ -114,11 +122,12 @@ if [ "$arm" = claude-security ]; then
   # 읽기 전용 임시 경로에 작업 위치 파일을 쓰지 못해 스킬이 서지 않는다(설계 끝 「PR B 에서 정한 것」).
   # 같은 재료 · 같은 요청 · 같은 모델 · 같은 도구로 `claude -p` 를 부르고, 같은 그레이더 글을 같은 심판 모델에
   # 세 번 물어 다수로 가른다. 결과는 하네스와 같은 꼴의 result.json 이라 아래 정리가 그대로 읽는다.
-  python3 - "$OUT" "$plug" "$MODEL" "$cap" "${pass[@]}" <<'OUTSIDE'
-import json, os, pathlib, re, subprocess, sys, tempfile
+  python3 - "$OUT" "$plug" "$mat" "$MODEL" "$cap" "${pass[@]}" <<'OUTSIDE'
+import json, os, pathlib, re, shutil, subprocess, sys, tempfile
 
-out, plug, model, cap = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], float(sys.argv[4])
-pats, want, rest = [], None, sys.argv[5:]
+out, plug, mat = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+model, cap = sys.argv[4], float(sys.argv[5])
+pats, want, rest = [], None, sys.argv[6:]
 it = iter(rest)
 for a in it:
     if a == "--case":
@@ -138,7 +147,7 @@ for a in it:
         raise SystemExit(2)
 
 import fnmatch
-cases = sorted(d for d in (plug / "compare").iterdir() if d.is_dir()
+cases = sorted(d for d in (mat / "compare").iterdir() if d.is_dir()
                and (not pats or any(fnmatch.fnmatchcase(d.name, p) for p in pats)))
 if not cases:
     print("한 케이스도 고르지 못했다", file=sys.stderr)
@@ -166,6 +175,55 @@ def last_result(path):
         if ev.get("type") == "result":
             res = ev
     return res or {}
+
+# 정답지 낱말 — 재료 폴더에만 있고 픽스처 · 요청 본문에는 없는 글(조각 52 설계 ③ B 의 닫힌 목록).
+LEAK = ("case.yaml", "found.md", "expected_outcome", str(mat))
+
+
+def keep_sessions(home, dest):
+    """회차의 임시 HOME 에 CLI 가 쓴 세션 기록(`.claude/projects/` 아래 *.jsonl — 하위 에이전트 것 포함)을
+    결과 폴더로 옮긴다(설계 ② B · ③ C). 옮긴 파일과, 그 가운데 프로젝트 폴더 바로 아래가 아닌 것(하위 기록)의 수."""
+    src = pathlib.Path(home) / ".claude" / "projects"
+    kept, sub = [], 0
+    for f in sorted(src.rglob("*.jsonl")) if src.is_dir() else []:
+        rel = f.relative_to(src)
+        to = dest / rel
+        to.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, to)
+        kept.append(to)
+        sub += len(rel.parts) > 2
+    return kept, sub
+
+
+def leak_hits(paths):
+    """주 트레이스와 세션 기록에서 정답지 낱말이 나온 자리 — 「파일: 낱말」 목록."""
+    hits = []
+    for pth in paths:
+        try:
+            text = pth.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        hits += [f"{pth.relative_to(out)}: {w}" for w in LEAK if w in text]
+    return hits
+
+
+def sub_calls(trace):
+    """주 트레이스가 하위 실행(Agent · Task · Workflow)을 부른 수 — 하위 기록이 남았는지 견줄 자리."""
+    n = 0
+    try:
+        lines = open(trace, encoding="utf-8")
+    except OSError:
+        return 0
+    for line in lines:
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        msg = ev.get("message")
+        for block in (msg.get("content") or []) if isinstance(msg, dict) else []:
+            n += isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") in ("Agent", "Task", "Workflow")
+    return n
+
 
 spent, results, all_passed = 0.0, [], True
 (out / "traces").mkdir(parents=True, exist_ok=True)
@@ -210,6 +268,10 @@ for case in cases:
             res = last_result(trace)
             spent += res.get("total_cost_usd") or 0.0
             final = res.get("result") or ""
+            # 새는 길 — 심판을 부르기 전에(심판도 같은 HOME 에 기록을 쓴다) 회차의 기록을 옮기고 낱말을 센다.
+            kept, sub_records = keep_sessions(home, out / "sessions" / f"{case.name}.run{i}")
+            seen = {"leakHits": leak_hits([trace, *kept]), "sessionFiles": len(kept),
+                    "subRecords": sub_records, "subCalls": sub_calls(trace)}
             # 심판 — 같은 그레이더 글을 같은 심판 모델(sonnet)에 세 번 묻는다. 도구는 없다.
             # 표마다 남은 천장을 넘기고, 천장에 닿거나 심판이 답하지 않으면 채점 못 함으로 남긴다 —
             # 탐지 실패와 가른다. 회차 실행이 이미 실패했으면 심판을 부르지 않는다.
@@ -245,7 +307,7 @@ for case in cases:
             err = f"채점 못 함 — {grade_err}" + (f" (그 전 표 {len(votes)})" if votes else "")
         passed = bool(final) and not err and sum(votes) >= 2
         all_passed &= passed
-        run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace), "judgeCostUsd": judge_cost,
+        run = {"score": 1.0 if passed else 0.0, "passed": passed, "tracePath": str(trace), "judgeCostUsd": judge_cost, **seen,
                "graders": [{"name": "found", "passed": passed, "weight": 1, "scored": True, "judgeVotes": votes,
                             "explanation": "하네스 밖 심판(sonnet) votes: " + " ".join("PASS" if v else "FAIL" for v in votes)}]}
         if err:
@@ -359,6 +421,21 @@ for name, label, hits, nruns, ungraded, fired_n, cost, models in rows:
     print(f"| {name} | {label} | {hits}/{nruns}{u} | {f} | {cost:.4f} | {models} |")
 print(f"\n합 비용 ${total:.4f} · 최종 응답은 {msgs}/")
 
+# 하네스 밖 팔의 새는 길(조각 52 설계 ② B). 위 표의 칸은 네 팔에 같게 두고(② F), 이 팔만 줄을 더한다.
+if arm == "claude-security":
+    print("\n| 케이스 | 정답지 낱말이 나온 회차 | 세션 기록 | 하위 호출 · 하위 기록이 남은 회차 |\n|---|---|---|---|")
+    hits_all = []
+    for case in d.get("cases", []):
+        runs = (case.get("arms") or {}).get("with", [])
+        leaked = [r for r in runs if r.get("leakHits")]
+        called = [r for r in runs if r.get("subCalls")]
+        print(f"| {case.get('name')} | {len(leaked)}/{len(runs)} | {sum(r.get('sessionFiles') or 0 for r in runs)} |"
+              f" {len(called)} · {sum(1 for r in called if r.get('subRecords'))} |")
+        hits_all += [h for r in runs for h in r.get("leakHits") or []]
+    for h in hits_all:
+        print(f"  정답지 낱말: {h}")
+    print(f"세션 기록은 {out / 'sessions'}/")
+
 # --keep-temp 로 남은 작업공간을 치운다 — run-evals.sh 와 같은 까닭으로 먼저 열고 지운다.
 for t in temps:
     if not (t.name.startswith("claude-eval-") and t.parent == pathlib.Path("/tmp")):
@@ -377,6 +454,8 @@ for t in temps:
 PY
 
 echo "하네스 종료 $status · 결과 $OUT"
+# 결과를 세션 밖에 남기는 길(NC-28 · 조각 52 설계 ② E) — 이 폴더는 .gitignore 라 측정한 세션과 함께 사라진다.
+echo "결과 폴더는 .gitignore 라 세션 밖에 남지 않는다 — docs/eval-log/compare-<날짜>.tar.xz 로 싣는다(풀고 싣는 법은 docs/eval-log/2026-11.md 「조각 51 닫기」)"
 exit "$status"
 
 }
