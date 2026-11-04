@@ -93,7 +93,7 @@
   다음 `audit-internal` 회차를 기다린다. U-48 은 이 닫는 세션이 git 과 PR 본문으로 닫았다
 - **리뷰:** #198 · #199 다 Codex 1 회차, 지적 없음 — 3 라운드 안
 - **넘긴 것:** 조각 나눔에 새 줄은 없다. 열린 것은 대장이 든다 —
-  - U-49 의 전수 — 보존 중인 `eval-result` 아티팩트 145 개(2026-11-04)를 저자의 기계에서 받아 훑는다. 이 세션은 회차가 든 예 하나(`13206590260`)만 훑었다(0 건).
+  - U-49 의 전수 — 보존 중인 `eval-result` 아티팩트 145 개(2026-11-04)를 저자의 기계에서 받아 훑는다. 이 세션은 회차가 든 예(`13206590260`)와 이 닫는 PR 의 CI 가 올린 것(`13295735396`) 둘만 훑었다(둘 다 0 건). 이 닫는 PR 의 CI 는 CLI 판이 2.1.318 로 올라 route 수트가 한 번 돌았다(통과).
     `gh api --paginate 'repos/pdw96/claude-kit/actions/artifacts?name=eval-result&per_page=100' --jq '.artifacts[] | select(.expired | not) | .id'` 로 번호를 받고, 번호마다
     `gh api repos/pdw96/claude-kit/actions/artifacts/<번호>/zip > <번호>.zip` 으로 받아, 푼 내용을 `sk-ant-` · `github_pat_` · `gh[pousr]_` + 36 자 · `AKIA` · `xox[abposr]-` 와 지금 CI 시크릿 값의
     앞 · 뒤 16 자로 훑는다
