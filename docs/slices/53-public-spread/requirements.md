@@ -66,3 +66,38 @@
   고침으로 다음 `audit-internal` 회차를 기다린다) · `audit-secrets`(대장이 이 조각에 기대는 것 — NC-31 · NC-32 가 고침으로 다음 `audit-secrets` 회차를 기다린다. 회차 28 이 NC-32 의 높음을
   「저장소가 공개이거나 공개될 수 있다」를 전제로 매겼고, 이 조각이 그 공개를 앞세운다). `audit-quality` 는 고르지 않는다 — 바뀌는 검사는 있는 검사의 닻 줄뿐이고, NC-30 은 그 길(하네스
   밖 팔)이 ADR 0071 로 잠겨 이 조각에서 돌지 않는다.
+
+## 닫으며 (2026-11-04)
+
+성공 기준 열을 아래에 대어 봤다 — **다 미쳤다.** 6 은 닫기 전 감사가 찾은 빠진 닻(NC-36)을 이 닫는 PR 이 고친 뒤에 미친다. 구현은 설계 ⑥ 의 B 하나다 — 착공 #198(머지
+`a71c7db`) · B #199(머지 `9f64354`). 측정 비용 0, 기간(2026-11-06) 안.
+
+- **저자가 정한 것(착공 세션):** 밖 사용자는 받아 쓰게만 · 영어는 README 만 · `README.en.md` 새로 · `vibe-audit` 중심(ADR 0072 의 1 ~ 4). 5 ~ 8 은 세션이 정했고 저자가 이 세션에서
+  물어 본 뒤 착공 PR 을 머지하라고 했다(2026-11-03)
+- **저자가 정한 것(이 닫는 세션):** NC-36 은 감사 제안 (가) — 「2 plugins」와 닻. U-49 는 지금 접두사로 훑어 본다. 다음 조각은 없음 — 여기서 멈춘다
+
+| 성공 기준 | 무엇에 대어 봤나 |
+|---|---|
+| 1. 범위 변경이 먼저 선다 | #198 — `INTENT.md` Why 문단 · What 「밖 사용자의 입구」 · Not 5, 마스터플랜 「범위 변경」 2026-11-03 줄. 회차 30 체크 23 이 봤다 |
+| 2. 영어 입구가 선다 | `README.md:3` ↔ `README.en.md:3` 이 서로를 가리키고, 절 일곱이 설계 ③ A 의 차례대로다(회차 30 체크 16). 「쓰는 법」 · 「가리키는 곳」은 ③ A 의 「옮기는 정도」보다 넓게 옮겼다 — `vibe-audit/README.md` 의 「한 번에 하나」 · 「새 세션」 · 「같은 감사자로 닫기」와 `audit-brief` 쓰는 법을 더했고, 「(Korean)」은 절 제목에 한 번 달았다(회차 30 OB-35) |
+| 3. 설치가 선다 | #199 본문 「설치」 — 빈 HOME 에서 설치 블록을 글자 그대로, CLI 2.1.317, `vibe-audit` 0.4.8 · `vibe-slice` 0.9.3 `enabled`. 이 닫는 PR 이 더한 `claude plugin update vibe-slice@pdw96-kit` 도 같은 HOME 에서 종료 0 |
+| 4. 주장이 원문과 같다 | #199 본문 「숫자 대응」 — 숫자마다 `README.md` 와 `docs/eval-log/2026-11.md` 의 줄. 회차 30 체크 14 가 다 맞음을 봤다. 「세 회차 다 확인불가」의 원문은 eval-log 가 아니라 회차 27 기록(`docs/audit/records/audit-quality-2026-11-03-075941.md` OB-1)이다(회차 30 OB-34) |
+| 5. 언어의 한계가 앞에 있다 | `README.en.md` 「Language」 절이 「Install」보다 앞이다(회차 30 체크 14). 그 절의 「이름으로 부를 수 있다」에는 잰 기록이 없다(회차 30 OB-37) |
+| 6. 수가 물린다 | 원천이 있는 수 셋 — `{N} read-only auditors`(2) · `{N} document templates`(1) · `marketplace with {N} plugins`(1, 이 닫는 PR — NC-36). `verify-counts.py` PASS(닻 139). 수를 바꾼 사본에서 D1, 문장을 지운 사본에서 D2(#199 본문 · 이 닫는 PR 본문). 영어 수 낱말로 남긴 자리는 원천이 없다 — 설계 끝 「닫으며 바로잡는 것」 |
+| 7. 두 벌이 살아 있는 문서다 | `docs/procedure.md:120` · `CHECKLIST.md` 「항상」(회차 30 체크 16) |
+| 8. 도구 · 수트는 그대로다 | `git diff --stat 737448c 9f64354 -- vibe-audit vibe-slice .claude-plugin scripts/run-evals.sh` 가 비어 있다. PR 마다 `eval-key.py` route · full 이 그때의 `main` 과 같았다(#199 본문) — CI eval 은 두 PR 다 건너뛰었다 |
+| 9. 게이트 | #198 · #199 의 머리마다 CI gate · verdict success, 작업트리의 `./scripts/gates.sh` 「스물여덟 다 통과」(#198 · #199 본문) |
+| 10. 감사 회차 | 회차 30(`audit-internal`) · 31(`audit-secrets`)을 `docs/audit/` 에 등록했다 — `verify-ledger.py` PASS(NC 36 · 확인불가 49 · 회차 절 31) |
+
+- **돌린 감사 회차:** 회차 30 · 31(`docs/audit/nc-ledger-history.md` 의 그 절). 브리핑은 둘 다 `737448c` → `9f64354`. NC-31 · 32 · 33 · 34 가 해소로 닫혔고, NC-36(보통)은 이 PR 의 고침으로
+  다음 `audit-internal` 회차를 기다린다. U-48 은 이 닫는 세션이 git 과 PR 본문으로 닫았다
+- **리뷰:** #198 · #199 다 Codex 1 회차, 지적 없음 — 3 라운드 안
+- **넘긴 것:** 조각 나눔에 새 줄은 없다. 열린 것은 대장이 든다 —
+  - U-49 의 전수 — 보존 중인 `eval-result` 아티팩트 145 개(2026-11-04)를 저자의 기계에서 받아 훑는다. 이 세션은 회차가 든 예(`13206590260`)와 이 닫는 PR 의 CI 가 올린 것(`13295735396`) 둘만 훑었다(둘 다 0 건). 이 닫는 PR 의 CI 는 CLI 판이 2.1.318 로 올라 route 수트가 한 번 돌았다(통과).
+    `gh api --paginate 'repos/pdw96/claude-kit/actions/artifacts?name=eval-result&per_page=100' --jq '.artifacts[] | select(.expired | not) | .id'` 로 번호를 받고, 번호마다
+    `gh api repos/pdw96/claude-kit/actions/artifacts/<번호>/zip > <번호>.zip` 으로 받아, 푼 내용을 `sk-ant-` · `github_pat_` · `gh[pousr]_` + 36 자 · `AKIA` · `xox[abposr]-` 와 지금 CI 시크릿 값의
+    앞 · 뒤 16 자로 훑는다
+  - NC-36 의 재감사(다음 `audit-internal` 회차) · NC-35(기한 「맞대기 다시 재기」) · U-43
+  - 회차 30 「문서에 없어서」의 새 셋(영어 명사 → 원천 · 옮김의 원천이 README · eval-log 밖일 때 · 감사 기록이 사실의 원문이 될 수 있는가)과 회차 31 OB-1 · OB-2 · 「안 본 것」의
+    `audit-quality` 몫(포크 PR 의 지문 캐시) — 처음 나온 것이라 회차 절에만 둔다
+- **다음 조각:** 없음 — 저자가 여기서 멈추기로 했다(2026-11-04). 조각 나눔의 `예정` 줄은 그대로 남는다

@@ -2,7 +2,7 @@
 
 [한국어](README.md) · English
 
-A Claude Code plugin marketplace with two plugins. The main one, `vibe-audit`, gives you 6 read-only auditors, each narrowed to one purpose.
+A Claude Code plugin marketplace with 2 plugins. The main one, `vibe-audit`, gives you 6 read-only auditors, each narrowed to one purpose.
 They report nonconformities and cannot fix anything — they have no tool that writes.
 
 ## What's inside
@@ -83,6 +83,7 @@ claude plugin install vibe-slice@pdw96-kit
 ```bash
 claude plugin marketplace update pdw96-kit
 claude plugin update vibe-audit@pdw96-kit
+claude plugin update vibe-slice@pdw96-kit
 ```
 
 then reload (or turn on auto-update for `pdw96-kit` in `/plugin`).

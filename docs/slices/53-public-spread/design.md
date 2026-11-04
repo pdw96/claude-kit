@@ -112,3 +112,13 @@
   `('README.en.md', r'{N} document templates', 1, '틀')` — `vibe-slice` 단락. 영어 수 낱말을 쓴 자리는 없다. 원천 · 명사 목록 · 규칙은 그대로다.
 - **원천이 있는 수로 세지 않은 것** — 함정 표의 맞힘 · 같았던 축의 17/18 · 「two trap cases · 6 runs」 · 회차당 원값 · 날짜 · 커밋은 측정 · 지난 일이라 닻에 들지 않는다(② E). 「three or four
   slices」(「대략의 주기」의 옮김)는 원천이 없는 서술이다.
+
+## 닫으며 바로잡는 것 (2026-11-04)
+
+닫기 전 감사 회차 30(`audit-internal`)이 NC-36 으로 냈다 — 위 「PR B 에서 정한 것」의 「원천이 있는 수는 둘이다 … 영어 수 낱말을 쓴 자리는 없다」가
+틀렸다. `README.en.md` 머리 「with two plugins」는 원천 「플러그인」(`*/.claude-plugin/plugin.json`)이 있는 수였고 영어 수 낱말이었다. 저자 판정대로 닫는 PR 이 고쳤다.
+
+- **원천이 있는 수는 셋이다** — 머리 문단의 `marketplace with {N} plugins`(1, 플러그인)를 「2 plugins」로 고치고 닻을 더했다. 앞의 둘(감사자 · 틀)은 그대로다.
+- **영어 수 낱말로 남긴 자리 — 원천이 없다** — 「two trap cases」 · 「six cases」(측정의 묶음 크기) · 「all three runs」 · 「those three runs」(측정 회차) · 「three or four
+  slices」(「대략의 주기」의 옮김) · 「one purpose」 · 「one area」 · 「one at a time」(뜻의 낱말). 원천이 있는 명사(감사자 · 틀 · 플러그인)의 수는 영어 낱말로 쓰지 않는다.
+- **같은 파일에서 함께 고친 것** — 판 받기 블록에 `claude plugin update vibe-slice@pdw96-kit` 를 더했다(회차 30 OB-36). 빈 HOME 에서 그 줄이 종료 0 이다.
