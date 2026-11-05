@@ -21,10 +21,11 @@
     훑을 파일이 없거나 끝 줄을 하나도 못 찾은 파일이 있으면 E2(읽는 법이 낡았다)
   - U 같은 원천 훑기(조각 46 · ADR 0059) — 아래 `NOUNS` 가 원천마다 그 원천을 가리키는 명사를 든다. 살아 있는 파일(`SCAN_*` —
     `.git` 이 있고 git 이 성공하면 git 이 드는 파일, 아니면 폴더를 걸어서 — git 이 실패하면 말없이 폴더 길로 넘어가 무시된
-    파일까지 훑는다. 브리핑 · 감사 기록의 작업본 `.claude/` 셋은 뺀다)에서
+    파일까지 훑는다. `/audit-brief` 의 브리핑 · 기록 작업본 자리는 뺀다 — 그 목록은 훑는 트리의 `BRIEF` 가 든다)에서
     명사 바로 앞이나 뒤의 수 낱말이 그 원천의 지금 값과 같고, 닻이 잡은 자리도 원천을 읽는 자리(`const`)도 `EXEMPT` 의 예외도
     아니면 U1(닻 없는 같은 원천 문장). 예외의 꼴이 적은 횟수만큼 나오지 않거나 예외의 파일을 못 읽으면 U2, 원천 목록과 명사
-    목록(`NOUNS` · `NO_NOUN`)의 이름이 갈리거나 겹치거나 명사 목록이 비면 U3, 훑을 파일이 없으면 U4
+    목록(`NOUNS` · `NO_NOUN`)의 이름이 갈리거나 겹치거나 명사 목록이 비면 U3, 훑을 파일이 없으면 U4, 작업본 자리를 `BRIEF` 에서
+    못 읽으면 U5(조각 55 설계 ③ — 그때는 훑지 않는다)
 실패 줄은 `FAIL [<ID>] <파일>:<줄> …` 이다(ID 는 실패의 갈래마다 — 닻마다가 아니다). 원천 · 파일 하나에 걸린 실패는 줄 없이
 `<파일>` 만 든다. ID 마다 변조본이 있는지는 `bite-gates.sh` 의 이 검사 절이 이 파일의 `r.fail("…` 에서 ID 를 읽어 견준다.
 
@@ -444,11 +445,12 @@ NO_NOUN = {
 # 훑을 파일 — 저장소 맨 위에서 고른 살아 있는 파일. `.git` 이 있으면 git 이 드는 파일(추적한 것과 무시되지 않은 새 파일 —
 # `bite-gates.sh` 가 사본에 베끼는 집합과 같다)에서, 없으면(사본 트리) 폴더를 걸어 고른다. 무시된 파일은 CI 체크아웃에 없어 git
 # 길에서는 훑지 않는다. `.git` 이 있어도 git 이 실패하면(종료가 0 이 아님) 말없이 폴더 길로 넘어가고, 그 길은 무시된 파일까지
-# 훑는다(감사 회차 21 NC-23 — 그 동작이 옳은지는 회차 20 OB-1). `/audit-brief` 의 브리핑 · 기록 자리(`SCAN_SKIP_LOCAL`)는 커밋하지 않는 작업본이라 어느 길에서도 뺀다(감사 회차 18 NC-18).
+# 훑는다(감사 회차 21 NC-23 — 그 동작이 옳은지는 회차 20 OB-1). `/audit-brief` 의 브리핑 · 기록 자리는 커밋하지 않는 작업본이라 어느 길에서도 뺀다(감사 회차 18 NC-18).
+# 그 자리의 목록은 여기 두지 않는다 — 훑는 트리의 `BRIEF` 가 든 맨 위 대입 `DEFAULT_EXCLUDE` 를 읽는다(조각 55 · ADR 0074).
 SCAN_EXT = (".md", ".py", ".sh", ".yml", ".yaml", ".json")
 SCAN_SKIP = ("docs/slices/", "docs/adr/", "docs/eval-log/", "docs/audit/", "vibe-audit/recall/")  # 기록 넷과 회수율 픽스처
 SCAN_SKIP_RE = re.compile(r"^vibe-audit/evals/[^/]+/")  # 평가 픽스처 — evals/README.md 는 훑는다
-SCAN_SKIP_LOCAL = (".claude/audits/", ".claude/briefs/", ".claude/audit-brief.md")  # verify-brief.py 의 DEFAULT_EXCLUDE 와 같다
+BRIEF = "vibe-audit/scripts/verify-brief.py"  # 작업본 자리의 첫 자리 — 커맨드 `/audit-brief` 의 짝
 SELF = "scripts/verify-counts.py"  # 원천 목록 · 명사 · 예외를 든 이 파일 자신은 훑지 않는다
 
 # 예외 — 원천의 명사 옆에 지금 값과 같은 수가 있지만 그 원천을 든 문장이 아닌 자리. (파일, 꼴, 횟수, 까닭) — 꼴과 횟수는 닻과 같다.
@@ -471,7 +473,7 @@ EXEMPT = [
     ('scripts/bite-gates.sh', r"'케이스 {N}이'", 2, '변조본의 바꿀 글'),
     ('scripts/bite-gates.sh', r"'케이스 {N}이다'", 2, '변조본의 바꿀 글'),
     ('scripts/bite-gates.sh', r"'문턱 {N} 에서 네 만점'", 1, '변조본의 바꿀 글'),
-    ('scripts/bite-gates.sh', r"'감사자 {N}이 다 읽기 전용이다", 1, '대조군이 브리핑 작업본에 심는 글'),
+    ('scripts/bite-gates.sh', r"'감사자 {N}이 다 읽기 전용이다", 2, '대조군과 읽는 고리의 변조본이 브리핑 작업본에 심는 글'),
 ]
 
 RUN = r"([0-9][0-9,]*(?:\.[0-9]+)?(?![0-9])|[가-힣]+)"
@@ -486,12 +488,42 @@ def noun_patterns(pat):
             (re.compile(rf"{LEFT}{RUN} {pat}", re.M), word)]
 
 
-def scan_files(root):
+def local_skip(root):
+    """작업본 자리 — 훑는 트리의 `BRIEF` 에서 맨 위 대입 `DEFAULT_EXCLUDE` 를 실행하지 않고 읽는다. 받는 꼴과 거절은 조각 55
+    설계 ③ 이 든다. 못 읽으면 Uncountable(U5) — 옛 목록이나 빈 목록으로 넘어가지 않는다(설계 ② E)."""
+    import ast
+
+    try:
+        tree = ast.parse((root / BRIEF).read_bytes().decode("utf-8"), BRIEF)
+    except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as e:
+        raise Uncountable(f"`{BRIEF}` 를 못 읽었다 — {e.__class__.__name__}") from None
+
+    def binds(node):  # 맨 위 문장 하나가 그 이름을 묶나 — 대입 · 덧붙임 대입 · 꼴 붙은 대입, 튜플 풀기까지
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, (ast.AugAssign, ast.AnnAssign)) else []
+        return any(isinstance(n, ast.Name) and n.id == "DEFAULT_EXCLUDE" for t in targets for n in ast.walk(t))
+
+    found = [n for n in tree.body if binds(n)]
+    if len(found) != 1:
+        raise Uncountable(f"`{BRIEF}` 에서 맨 위의 `DEFAULT_EXCLUDE` 를 묶는 문장이 {len(found)} 개다 — 하나여야 한다")
+    node = found[0]
+    if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)):
+        raise Uncountable(f"`{BRIEF}:{node.lineno}` 의 `DEFAULT_EXCLUDE` 가 `이름 = 값` 꼴의 대입이 아니다")
+    try:
+        val = ast.literal_eval(node.value)
+    except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+        raise Uncountable(f"`{BRIEF}:{node.lineno}` 의 `DEFAULT_EXCLUDE` 값이 리터럴이 아니다") from None
+    if not (isinstance(val, tuple) and val and all(isinstance(e, str) and e.strip("/") for e in val)):
+        raise Uncountable(f"`{BRIEF}:{node.lineno}` 의 `DEFAULT_EXCLUDE` 가 빈 경로 없는 문자열의 비지 않은 튜플이 아니다")
+    return tuple(e.rstrip("/") for e in val)
+
+
+def scan_files(root, local):
     import os
     import subprocess
 
-    def keep(rel, full):
-        return (rel != SELF and rel.endswith(SCAN_EXT) and not rel.startswith(SCAN_SKIP + SCAN_SKIP_LOCAL)
+    def keep(rel, full):  # 작업본 자리는 그 경로 자체이거나 그 아래(조각 55 설계 ③)
+        return (rel != SELF and rel.endswith(SCAN_EXT) and not rel.startswith(SCAN_SKIP)
+                and not any(rel == e or rel.startswith(e + "/") for e in local)
                 and not SCAN_SKIP_RE.match(rel) and not os.path.islink(full) and os.path.isfile(full))
 
     if (root / ".git").exists():
@@ -669,7 +701,12 @@ def judge(root):
             r.fail("U2", rel, f"예외 /{pat}/ 이 {len(found)} 번 나온다(줄 {at}) — {times} 번이어야 한다. 문장을 고쳤으면 예외도 고친다")
             continue
         skip.setdefault(rel, set()).update(m.start(1) for m in found)
-    scanned = scan_files(root)
+    try:
+        local = local_skip(root)
+    except Uncountable as e:
+        r.fail("U5", BRIEF, f"작업본 자리를 못 읽어 같은 원천을 훑지 않았다 — {e}")
+        return r.bad, len(ANCHORS), len(values), n_end, 0, len(EXEMPT)
+    scanned = scan_files(root, local)
     if not scanned:
         r.fail("U4", ".", f"같은 원천을 훑을 파일이 없다 — {' · '.join(SCAN_EXT)}")
     rules = [(name, rx, how) for name, pats in NOUNS.items() if name in values for pat in pats for rx, how in noun_patterns(pat)]
