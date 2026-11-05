@@ -25,6 +25,8 @@
 - [ ] 그 플러그인의 `plugin.json` 판을 올렸다(`vibe-audit` · `vibe-slice`) — 판이 그대로면 이미 설치한 레포가
       `claude plugin update` 를 해도 새 파일을 받지 않는다(ADR 0013). 틀 여섯도, 검사 셋(`scripts/verify-docs.py` ·
       `scripts/verify-slice-gate.py` · `scripts/verify-ledger.py` — 링크의 실물은 `vibe-slice/skills/slice-docs/scripts/`)도 `vibe-slice` 의 파일이다
+- [ ] `vibe-slice` 스킬의 글을 고쳤거나 지도 링크를 다시 박았다면, 스킬 `slice-review` · `slice-docs` 가 가리키는 절차 지도의 자리(단계 · 단락)와
+      같은 말을 한다 — 박을 지도가 바뀌었으면 스킬이 그 자리를 다르게 말하는 데가 없는지 본다. 이 일치를 무는 검사는 없다(ADR 0075)
 
 ## 감사자 문구를 고쳤다면
 
