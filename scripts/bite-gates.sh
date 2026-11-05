@@ -1808,10 +1808,11 @@ vedit vibe-audit/scripts/verify-brief.py 'DEFAULT_EXCLUDE = (' 'DEFAULT_EXCLUDES
 vbite U5 "작업본 자리의 상수 이름을 바꿈" 'vibe-audit/scripts/verify-brief\.py '
 vback vibe-audit/scripts/verify-brief.py
 # 읽는 고리 — 첫 자리에서 브리핑 작업본을 빼면 그 작업본의 같은 원천 문장이 걸린다. 목록을 verify-counts.py 에 다시 박으면 지나간다
-# (조각 55 설계 ② C · F — 아래 「브리핑 작업본을 심은 사본」 대조군만으로는 그 고리가 보이지 않는다)
+# (조각 55 설계 ② C · F — 아래 「브리핑 작업본을 심은 사본」 대조군만으로는 그 고리가 보이지 않는다). 저장소의 검사로 사본을 본다 —
+# 사본의 검사를 대면 검사 옆과 훑는 트리가 같은 사본이라 「검사 파일 옆에서 읽기」가 지나간다(감사 회차 33 NC-38)
 vedit vibe-audit/scripts/verify-brief.py ', ".claude/audit-brief.md")' ')'
 mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
-vbite U1 "첫 자리에서 브리핑 작업본을 뺌" '\.claude/audit-brief\.md:[0-9]+ '
+bit 1 '^FAIL \[U1\] \.claude/audit-brief\.md:[0-9]+ ' "첫 자리에서 브리핑 작업본을 뺌" python3 scripts/verify-counts.py "$VC"
 rm "$VC/.claude/audit-brief.md"
 vback vibe-audit/scripts/verify-brief.py
 # 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2 와 사용법 줄
