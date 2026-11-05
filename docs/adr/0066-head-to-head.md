@@ -52,3 +52,7 @@ VoltAgent/awesome-claude-code-subagents). 착공 세션이 `anthropics/claude-pl
 - 3: B 에서 케이스마다 `type: llm` 그레이더 하나. 설계 ② C · ⑤ 「심판」.
 - 4: C 에서 `docs/eval-log/2026-11.md` 가 이 규칙 그대로 축마다 판정을 든다.
 - 5: B 에서 `scripts/run-compare.sh` · `CLAUDE.md` 「금지」 한 줄. `run-evals.sh` · `eval-key.py` 는 그대로다.
+
+## 대체 (2026-11-05)
+
+- 2 는 ADR 0067 이 대체했다 — 플러그인 팔은 요청 머리에 그 도구를 부르는 한 줄을 붙이고, 「플러그인 없음」은 중립 요청 그대로 따로 돈다

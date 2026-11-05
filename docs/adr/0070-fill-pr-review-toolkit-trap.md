@@ -33,3 +33,7 @@
 - 조각 52 PR C 가 `compare/cases.tsv` 의 그 줄과 `scripts/run-compare.sh` 의 경쟁 팔 고르기를 고치고, 그 칸을 재 `docs/eval-log/2026-11.md` 와 README 표에 적는다.
 - README 「무엇이 다른가」의 「한계」에 2 의 한 줄.
 - 조각 52 설계 끝 날짜 항목이 이 ADR 을 가리킨다.
+
+## 대체 (2026-11-05)
+
+- 1 은 ADR 0069 의 3(「`claude-security` 팔만」)과 2 의 근거(「상대가 0 인 자리만 주장한다」)를 대체한다 — 머지할 때 머리에 적지 않아 덧붙인다(ADR 0073 의 9)
