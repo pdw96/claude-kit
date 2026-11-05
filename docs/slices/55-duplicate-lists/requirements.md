@@ -66,3 +66,31 @@
 - 리뷰: 착공 PR 도 구현 PR 도 스킬 `slice-review` 로 가른다. PR 마다 **3라운드**를 넘기면 소유자가 판정한다.
 - 감사 회차: 닫기 전 — `audit-quality`(바뀌는 것 — 검사 `verify-counts.py` 와 그 변조본. 대장이 이 조각에 기대는 것 — NC-30 이 고침으로 다음 `audit-quality` 회차를 기다린다) ·
   `audit-internal`(바뀌는 것 — 조각 나눔과 ADR 0073 의 5 의 첫 적용. 대장이 이 조각에 기대는 것 — NC-37 이 고침으로 다음 `audit-internal` 회차를 기다린다).
+
+## 닫으며 (2026-11-05)
+
+성공 기준 아홉을 아래에 대어 봤다 — **다 미쳤다.** 3 은 닫기 전 감사가 찾은 변조본의 빈 절반(NC-38)을 이 닫는 PR 이 고친 뒤에 미친다. 구현은 설계 ⑥ 의 A 하나다 — 착공 #206(머지
+`dfedd06`) · A #207(머지 `7fb0237`). 측정 비용 0, 기간(2026-11-08) 안. 근거는 `docs/procedure.md` 단계 6 대로 명령과 결과의 핵심 줄을 여기 든다.
+
+- **저자가 정한 것(착공 세션):** ADR 0074 의 1 · 2 — 둘 다 세션이 추천한 쪽. 3 ~ 7 은 세션이 정했고 #206 본문 「세션이 정한 것」에 든 채 저자가 머지하라고 했다(2026-11-05)
+- **저자가 정한 것(이 닫는 세션):** 넷 다 세션이 추천한 쪽 — NC-38 은 「고침」으로 이 닫는 PR 이 감사 제안 한 줄을 싣는다(ADR 0073 의 2). U-43 은 「측정 뒤에 박혔다」로 확정해
+  닫는다. 회차 34 의 「문서에 없어서」(규칙 5 의 「목록」의 경계 · 감사 회차로 넘긴 일을 무엇이 잡는가)는 조각 나눔 새 줄 「같은 목록의 경계」로 둔다. 다음 조각은
+  「`slice-review` 를 새 단계 3 에 맞추기」
+- **착공 뒤 기록:** `git diff --stat dfedd06 7fb0237 -- docs/slices/55-duplicate-lists docs/adr/0074-duplicate-lists.md` 빈 출력 — #207 은 요구사항 · 설계 · ADR 을 고치지 않았다
+
+| 성공 기준 | 무엇에 대어 봤나 |
+|---|---|
+| 1. 결정이 기록된다 | `git diff --stat 00c2de5 dfedd06` → `docs/adr/0074-duplicate-lists.md` · `docs/master-plan.md` · 이 폴더의 `design.md` · `requirements.md` 넷(+224 −2). ADR 0074 머리가 「1 · 2 는 저자가 조각 55 의 착공 세션에서 정했다」를 든다 |
+| 2. 스크립트 쌍이 한 자리다 | `git grep -nE '\.claude/(audits\|briefs\|audit-brief)' 7fb0237 -- scripts/verify-counts.py` → 빈 출력(종료 1). `git diff --stat dfedd06 7fb0237` → `scripts/bite-gates.sh` · `scripts/verify-counts.py` 둘(+59 −11). 회차 34 항목 17 이 같은 경로 목록이 남은 살아 있는 자리를 커맨드 본문(조각 나눔 줄) · `test-verify-brief.py:34`(ADR 0049 꼴) 둘로 댔다 |
+| 3. 고리가 문다 | run 42018377873 gate 잡(`57f546f`) 「verify-counts.py: … 합 29 이 기대한 ID · 종료로 떨어지고, 대조군 3 이 PASS 줄로 지나감」 · 「변조 시험: 절 36 이 다 닫힘」(대장 U-51). 변조본 (나)는 사본의 검사를 사본에 대어 「검사 파일 옆에서 읽기」를 놓쳤고(NC-38), 이 닫는 PR 이 저장소의 검사로 사본을 보게 고쳤다 — 저장소의 검사를 `ROOT / BRIEF` 로 바꾼 작업트리에서 고친 명령은 PASS(그 변조본이 떨어진다), 옛 명령은 `FAIL [U1] .claude/audit-brief.md:1`(놓친다). 고친 머리 `b1c8333` 의 로컬 `gates.sh` 「합 29 … 대조군 3」 |
+| 4. 프로필 쌍이 넘어간다 | `docs/master-plan.md:90` 「같은 조각이 프로필 쌍도 맡는다 — 프로필 틀 머리 주석(…`profile.md:14`)과 스킬 `slice-docs` 의 … 줄(`SKILL.md:42-43`)」 |
+| 5. 정답지 낱말 쌍이 한 자리다 | 닫는 머리에서 `grep -c expected_outcome compare/README.md` → `0`, `grep -c LEAK compare/README.md` → `1` — 착공 때와 같다 |
+| 6. 넷째 쌍이 넘어간다 | `docs/master-plan.md:91` 「`/audit-brief` 커맨드의 제외 목록」 |
+| 7. 플러그인 · 수트는 그대로다 | `git diff --stat 00c2de5 7fb0237 -- vibe-audit vibe-slice .claude-plugin` 빈 출력. `eval-key.py route` → `eval-route-cli2.1.318-8fbc43c6e316871042214dd1`, `full` → `eval-full-cli2.1.318-6f595da5b221fee85e0c1d28` — `00c2de5` · `777f6bd` · `57f546f` 에서 같고, CI eval 잡은 두 PR 다 건너뛰었다 |
+| 8. 게이트 | 인자 없는 `./scripts/gates.sh` 「스물여덟 다 통과」 종료 0 — `777f6bd`(12분 37초) · `57f546f`(12분 10초) · `b1c8333`(12분 52초). CI gate · verdict 초록 — run 42016514957(#206) · 42018377873(#207) |
+| 9. 감사 회차 | 회차 33 `audit-quality`(`docs/audit/records/audit-quality-2026-11-05-114638.md` — NC-38 · U-51, NC-29 · NC-30 닫힘, 등록 `740cce7`) · 회차 34 `audit-internal`(`…/audit-internal-2026-11-05-115617.md` — 통과, NC-37 닫힘, 등록 `6678f32`) |
+
+- **돌린 감사 회차:** 회차 33(`audit-quality`) · 34(`audit-internal`) — 요구사항 「제약」의 줄 그대로
+- **넘긴 것:** 프로필 쌍 → 조각 나눔 「`slice-review` 를 새 단계 3 에 맞추기」. 넷째 쌍 → 「`/audit-brief` 커맨드의 제외 목록」. 규칙 5 의 「목록」의 경계와 감사 회차로 넘긴 일 →
+  새 줄 「같은 목록의 경계」. 회차 33 OB-1(설계 ⑤ 가 손으로 둔 D 와 ADR 0074 의 4 의 경계를 무는 것이 없다)은 관찰로 남는다
+- **다음 조각:** 「`slice-review` 를 새 단계 3 에 맞추기」 — 의존한 「감사자가 거듭 청한 절차 물음」이 닫혀 꺼낼 수 있다. 저자가 골랐다(2026-11-05)
