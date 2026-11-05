@@ -1803,6 +1803,17 @@ vback scripts/verify-counts.py
 vedit scripts/verify-counts.py 'SCAN_EXT = (".md", ".py", ".sh", ".yml", ".yaml", ".json")' 'SCAN_EXT = (".zzz",)'
 vbite U4 "훑을 파일의 꼴이 아무것도 고르지 않음"
 vback scripts/verify-counts.py
+# U5 — 작업본 자리를 못 읽는다: 첫 자리(verify-brief.py)의 맨 위 대입이 없다(조각 55 설계 ② E · ⑤)
+vedit vibe-audit/scripts/verify-brief.py 'DEFAULT_EXCLUDE = (' 'DEFAULT_EXCLUDES = ('
+vbite U5 "작업본 자리의 상수 이름을 바꿈" 'vibe-audit/scripts/verify-brief\.py '
+vback vibe-audit/scripts/verify-brief.py
+# 읽는 고리 — 첫 자리에서 브리핑 작업본을 빼면 그 작업본의 같은 원천 문장이 걸린다. 목록을 verify-counts.py 에 다시 박으면 지나간다
+# (조각 55 설계 ② C · F — 아래 「브리핑 작업본을 심은 사본」 대조군만으로는 그 고리가 보이지 않는다)
+vedit vibe-audit/scripts/verify-brief.py ', ".claude/audit-brief.md")' ')'
+mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+vbite U1 "첫 자리에서 브리핑 작업본을 뺌" '\.claude/audit-brief\.md:[0-9]+ '
+rm "$VC/.claude/audit-brief.md"
+vback vibe-audit/scripts/verify-brief.py
 # 인자 — 거절하는 꼴은 아무것도 견주지 않고 종료 2 와 사용법 줄
 for args in "a b" "-x" "--help" "$VC/nope"; do
   set +e
@@ -1825,8 +1836,8 @@ vedit vibe-audit/README.md '케이스 스물일곱이' '케이스 서른둘이' 
 vedit .github/workflows/eval.yml '케이스 스물일곱이다' '케이스 서른둘이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
-sclose 27 3
-echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴 · 닻 없는 같은 원천 문장과 감사가 짚은 자리 · 예외 낡음 · 명사 목록 · 훑을 파일)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
+sclose 29 3
+echo "verify-counts.py: 변조본(수를 틀리게 · 원천 더하기 · 검사 수 되돌림 · 문장 지움 · 겹쳐 적음 · 파일 없음 · 원천 비움 · 읽는 자리 · 못 읽는 낱말 · 끝 줄의 수 · 끝 줄의 꼴 · 닻 없는 같은 원천 문장과 감사가 짚은 자리 · 예외 낡음 · 명사 목록 · 훑을 파일 · 작업본 자리를 못 읽음 · 작업본 자리의 첫 자리)과 거절 인자, 합 $SB 이 기대한 ID · 종료로 떨어지고, 대조군 $SK 이 PASS 줄로 지나감"
 
 # ID 마다 변조본(조각 42 설계 ② R) — verify-counts.py 가 찍을 수 있는 ID(r.fail("…"))마다 그 ID 를 기대하는 vbite 가 이 파일에 있다.
 # 변조본: E2 의 vbite 를 다 지운 이 파일은 E2 를 「변조본 없음」으로 찍는다.
