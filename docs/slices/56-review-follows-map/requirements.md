@@ -64,3 +64,31 @@
 - 리뷰: 착공 PR 도 구현 PR 도 스킬 `slice-review` 로 가른다. PR 마다 **3라운드**를 넘기면 소유자가 판정한다.
 - 감사 회차: 닫기 전 — `audit-internal`(바뀌는 것 — 스킬 `slice-review` · 틀 머리 주석이 절차 지도 · 규칙 5 와 같은 말을 하는가) · `audit-quality`(대장이 이 조각에 기대는 것 — NC-38 이
   고침으로 다음 `audit-quality` 회차를 기다린다).
+
+## 닫으며 (2026-11-05)
+
+성공 기준 아홉을 아래에 대어 봤다 — **다 미쳤다.** 구현은 설계 ⑥ 의 A 하나다 — 착공 #209(머지 `44231ec`) · A #210(머지 `db20f53`). 측정 비용 0, 기간(2026-11-08) 안.
+근거는 `docs/procedure.md` 단계 6 대로 명령과 결과의 핵심 줄을 여기 든다.
+
+- **저자가 정한 것(착공 세션):** ADR 0075 의 1 ~ 3 — 셋 다 세션이 추천한 쪽. 4 ~ 7 은 세션이 정했고 #209 에 실린 채 저자가 머지했다
+- **저자가 정한 것(이 닫는 세션):** 넷 다 세션이 추천한 쪽 — NC-39 는 「등록」, 기한은 조각 나눔 「새 장치는 새어 나간 결함에만」을 꺼내는 조각의 닫기 전 `audit-quality` 회차. NC-40 은
+  「고침」으로 이 닫는 PR 이 `CHECKLIST.md` 에 한 줄을 싣는다(`34146a6`, ADR 0073 의 2). 회차 36 의 「문서에 없어서」 A · B 는 조각 나눔 새 줄 「리뷰 기준의 원천 경계」 ·
+  「감사 회차의 바뀌는 것」으로 둔다. 다음 조각은 「새 장치는 새어 나간 결함에만」
+- **착공 뒤 기록:** `git diff --stat 44231ec db20f53 -- docs/slices/56-review-follows-map docs/adr/0075-review-follows-map.md` 빈 출력 — #210 은 요구사항 · 설계 · ADR 을 고치지 않았다
+
+| 성공 기준 | 무엇에 대어 봤나 |
+|---|---|
+| 1. 결정이 기록된다 | `git diff --stat e6ee6b5 44231ec` → ADR 0075 · 마스터플랜 · 이 폴더의 `design.md` · `requirements.md` 넷(+217 −1). ADR 0075 머리가 「1 ~ 3 은 저자가 조각 56 의 착공 세션에서 정했다」를 든다 |
+| 2. 스킬이 지도와 같은 말을 한다 | `slice-review/SKILL.md` `:18` 「대장 판정의 고침(지도 「닫는 PR」 단락)」 · `:20` 「지도 단계 3 대로 넓힌 몫은 빼고」 · `:28` 「(둘 다 1 의 넓힌 몫 · 판정 고침은 빼고)」 · `:39` 「조각 나눔의 줄로 넘기거나, 지도 단계 3 대로 넓혀 보장에 넣는다」. `grep -n "조각 나눔의 줄로 넘긴다"` → `:32` 한 줄(사실의 틀림이 PR 밖일 때) — ⑥ 밖의 보장을 그 길로만 넘기는 줄이 없다. 회차 36 항목 17 · 18 적합 — 지도 조건을 옮겨 적지 않았다 |
+| 3. 천장 안이다 | `python3 scripts/verify-budget.py` → 「PASS vibe-slice — … 호출 시 최대 slice-review 4491 (천장 4500, 여유 9)」. `scripts/verify-budget.py:56` `SKILL_ON_INVOKE_MAX = 4_500`, `git diff --stat e6ee6b5 HEAD -- scripts/verify-budget.py` 빈 출력 |
+| 4. 프로필 쌍이 한 자리다 | `profile.md:14` 「이미 `Profile.md` 가 있으면 덮지 않는다 — 고치는 것은 스킬 `slice-docs` 「어디서 시작하나」의 프로필 줄이 든다.」. `git diff --stat e6ee6b5 HEAD -- vibe-slice/skills/slice-docs/` → `SKILL.md` · `profile.md` 각 한 줄 — `SKILL.md` 는 지도 링크 줄뿐이라 그 프로필 줄(`:42-43`)은 그대로. 회차 36 항목 13 · 17 적합 |
+| 5. 지도 링크가 지금 지도다 | `python3 scripts/verify-map-pin.py` → 「PASS 절차 지도 판 — 링크 2 · 박은 커밋 47f46fd · 기준 7d25c3a」. `git diff --stat 47f46fd HEAD -- docs/procedure.md` 빈 출력 |
+| 6. 판이 오른다 | `vibe-slice/.claude-plugin/plugin.json` `"version": "0.9.4"`. `python3 scripts/verify-manifest.py` → 「PASS 플러그인 2개 — …」 |
+| 7. 지도 · `vibe-audit` · 수트는 그대로다 | `git diff --stat e6ee6b5 HEAD -- docs/procedure.md vibe-audit .github ':(exclude)vibe-audit/evals/budget.txt'` 빈 출력. `eval-key.py route` → `eval-route-cli2.1.318-8fbc43c6e316871042214dd1`, `full` → `eval-full-cli2.1.318-6f595da5b221fee85e0c1d28` — `44231ec` · `7d25c3a` · 이 닫는 머리에서 같고, CI eval 잡은 두 PR 다 같은 지문으로 건너뛰었다 |
+| 8. 게이트 | 인자 없는 `./scripts/gates.sh` 「스물여덟 다 통과」 종료 0 — `7d25c3a`. CI gate · verdict 초록 — run 42031667157(#209 — 「스물셋 통과 · 변조 시험 다섯은 건너뛰었다 — 같은 지문 … 이 이미 물었다」) · run 42034780384(#210 — 지문 캐시가 없어 인자 없이 「변조 시험: 절 36 이 다 닫힘」 · 「스물여덟 다 통과」) |
+| 9. 감사 회차 | 회차 35 `audit-quality`(`docs/audit/records/audit-quality-2026-11-05-135052.md` — NC-39, NC-38 닫힘, 등록 `9822025`) · 회차 36 `audit-internal`(`…/audit-internal-2026-11-05-140016.md` — 주 물음 적합, NC-40, 등록 `f25e071`) |
+
+- **돌린 감사 회차:** 회차 35(`audit-quality`) · 36(`audit-internal`) — 요구사항 「제약」의 줄 그대로
+- **넘긴 것:** 스킬 `slice-review` 의 가르기 행동을 재는 평가(NC-39) → 조각 나눔 「새 장치는 새어 나간 결함에만」이 정하는 규칙으로 가른다. 리뷰 기준의 원천 경계(회차 36 A) → 새 줄
+  「리뷰 기준의 원천 경계」. 감사 회차 줄의 「바뀌는 것」(회차 36 B) → 새 줄 「감사 회차의 바뀌는 것」. 회차 35 OB-1(천장 비교만 무는 변조본이 없다)은 관찰로 남는다
+- **다음 조각:** 「새 장치는 새어 나간 결함에만」 — 의존이 없어 꺼낼 수 있다. 저자가 골랐다(2026-11-05)
