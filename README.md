@@ -107,7 +107,7 @@ claude.ai 계정에 이 저장소를 마켓플레이스로 붙이고 `vibe-audit
 
 감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을
 베껴 세운다(자리는 [시스템 구조](docs/architecture.md)). 무엇을 언제 감사할지는 조각 요구사항의 감사 회차가 든다 — 고르는 법은 [절차 지도](docs/procedure.md) 「감사 회차」,
-바뀐 것에 맞는 감사자는 [`vibe-audit/README.md`](vibe-audit/README.md) 「대략의 주기」.
+바뀐 것에 맞는 감사자는 [`vibe-audit/README.md`](vibe-audit/README.md) 의 두 표 — 감사자마다 「무엇만 보는가」와 「대략의 주기」.
 
 ## 가리키는 곳
 
