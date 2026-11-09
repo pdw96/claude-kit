@@ -247,7 +247,8 @@ CI(`.github/workflows/eval.yml`)는 PR 과 `main` push 에서 **`route-*` 만** 
   합쳐 센다), 「변경 파일」 · 「커밋」 절의 내용.
 - **플러그인으로 깐 쪽** — 커맨드 본문에서 `${CLAUDE_PLUGIN_ROOT}` 가 풀리지 않아(anthropics/claude-code#9354)
   커맨드가 검사기 자리를 적어 줄 수 없다. 플러그인 폴더의 `scripts/verify-brief.py` 로 찾게 하고, 못 찾으면
-  머리의 `검사:` 에 「못 돌림」과 까닭을 적는다 — 말없이 건너뛰지 않는다.
+  모으기 전에 멈춘다 — 뺄 경로(`DEFAULT_EXCLUDE`)가 그 파일에 있다. 찾았는데 못 돌리면 머리의 `검사:` 에
+  「못 돌림」과 까닭을 적는다 — 말없이 건너뛰지 않는다(ADR 0079 의 3).
 
 ## 기록
 
