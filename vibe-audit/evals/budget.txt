@@ -12,7 +12,7 @@ agent  audit-internal      804   11074
 agent  audit-ops           765   10585
 agent  audit-quality       777   11073
 agent  audit-secrets       885   10704
-skill  audit-brief         312    4491
+skill  audit-brief         312    4499
        — 상시 합계            5250
 
 [vibe-slice]
