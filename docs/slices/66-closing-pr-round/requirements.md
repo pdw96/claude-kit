@@ -64,3 +64,39 @@ rev-parse --is-shallow-repository` → `false`).
   3)과 갈리지 않는가, ADR 0073 의 7 의 대체가 양쪽에 있는가. 새 기준으로 돈다 — 기준 `205bc09` 라 조각 65 의 닫는 PR(`## 닫으며` 의 근거 · 마스터플랜 65 줄 · 새 줄)도 이 회차가 본다(ADR
   0085 의 6). 이 조각이 넘긴 일 — 기준을 무는 검사가 없어 이 회차가 본다(설계 ②)). 대장에 이 조각에 기대는 줄은 없다 — `audit-internal` 몫으로 열린 줄이 없다(`docs/audit/nc-ledger.md`).
   `audit-quality` 는 고르지 않는다 — 검사 · 변조본 · 평가셋이 바뀌지 않고, 실패 조건을 더하거나 고치지 않아 상시 회차도 걸리지 않는다.
+
+## 닫으며 (2026-11-11)
+
+성공 기준 일곱을 아래에 대어 봤다 — **다 미쳤다.** 구현은 설계 ⑥ 의 A 하나다 — 착공 #240(머지 `7bc8236`) · A #241(머지 `8088a8b`). 측정 비용 0, 기간(2026-11-14) 안. 근거는
+`docs/procedure.md` 단계 6 대로 명령과 결과의 핵심 줄을 여기 든다.
+
+- **저자가 정한 것(착공 세션):** ADR 0085 의 1 — 세션이 추천한 쪽. 2 ~ 6 은 세션이 정했고 #240 에 실린 채 저자가 머지했다
+- **저자가 정한 것(이 닫는 세션):** 셋 다 세션이 추천한 쪽 — NC-53 은 고침(기록 쪽 — 설계 끝 「바로잡았다」 항목과 아래 「바로잡는 것」). 회차 47 의 「문서에 없어서」 A · B 는 한 줄로
+  묶어 새 줄 「닫는 PR 의 회차와 git 근거」, C 는 조각 나눔 「넘김의 「다음」과 넘긴 감사자」 줄에 날짜를 박은 구절로 덧붙인다. 다음 조각은 「ADR 대체 표기의 자리」
+- **착공 뒤 기록(U-61):** `git diff --stat 7bc8236 8088a8b` → `docs/procedure.md` 하나(+4 −1). #241 은 ⑥ A 몫만 실었고 요구사항 · 설계 · ADR · 마스터플랜을 고치지 않았다. 이 닫는
+  PR 은 이 절과 설계 끝 「바로잡았다」 항목을 덧붙이고, 설계의 지난 항목과 ADR 은 고치지 않는다
+- **조각 65 `## 닫으며` 의 git 근거(U-59):** `git diff --stat 39046c0 205bc09` → `CLAUDE.md` 하나(+4 −2). `git diff --stat 39046c0 205bc09 -- docs/slices docs/adr docs/master-plan.md` 빈
+  출력. `git log --oneline 02997ae..383a82e -- scripts .github vibe-audit vibe-slice compare` → `bc1316b` · `e25797b` 둘. `git log --diff-filter=A --format=%h --
+  docs/adr/0077-audit-round-sources.md` → `02997ae`. `git diff --stat 383a82e 205bc09 -- docs/audit` 빈 출력. `git diff --stat 383a82e 4f90d79 -- scripts .github vibe-audit vibe-slice
+  compare` 빈 출력 — 조각 65 `## 닫으며` 의 git 근거가 다 맞다
+- **감사 기록은 글자 그대로(U-60 · 하지 않을 일 2):** `git diff --name-status 205bc09 8088a8b -- docs/audit` → 회차 46 의 기록 · 브리핑 둘이 `A`, 대장 두 파일이 `M`. 조각 56 ~ 64 의
+  `records/` · `briefs/` 는 diff 에 없다. 회차 47 등록 커밋 `d10f5b2` 의 `docs/audit` 몫은 새 파일 둘과 대장 두 파일의 등록이다 — `git diff --numstat 8088a8b d10f5b2 -- docs/audit` 에서
+  `records/` · `briefs/` 는 `181 0` · `397 0`
+- **닫는 PR 이 실은 판정 고침(ADR 0073 의 2):** NC-53 — 설계 끝 「바로잡았다」 항목과 아래 「바로잡는 것」. 대장에서 「고침」이고 닫는 것은 다음 `audit-internal` 회차다
+- **바로잡는 것(기록은 고치지 않는다):**
+  - ADR 0085 의 1 과 설계 ② A 의 「대장 등록」이 다음 회차의 diff 에 든다는 말은 대장을 빼고 읽는다 — `/audit-brief` 가 `docs/audit/` 를 뺀다. 대장은 감사자가 지금 파일로 읽는다(NC-53)
+
+| 성공 기준 | 무엇에 대어 봤나 |
+|---|---|
+| 1. 결정이 기록된다 | `git diff --stat 36843e0 7bc8236` → ADR 0073 · ADR 0085 · 마스터플랜 · 이 폴더의 `design.md` · `requirements.md` 다섯(+249 −1). ADR 0085 머리 「1 은 저자가 조각 66 의 착공 세션에서 정했다」 · 「ADR 0073 의 7 가운데 「`## 닫으며` 의 근거」 몫을 대체한다」, ADR 0073 끝 `## 대체 (2026-11-11)` 「- 7 의 「`## 닫으며` 의 근거」(3 의 규칙) 몫은 ADR 0085 가 대체했다」. 회차 47 항목 21 적합 |
+| 2. 항목이 기준을 든다 | `docs/procedure.md:68-71` — (가) 「이 조각 앞의 마지막 회차가 감사한 커밋」, (나) 「대장 지나간 쪽의 마지막 회차 절 첫 줄(「감사한 커밋」)」 · 「앞 회차가 없으면 착공 전 기본 가지」, (다) 「다 같은 기준을 쓴다」, (라) 「앞 조각의 닫는 PR … 이 이 조각 회차의 diff 에 든다」, (마) 「(ADR 0085)」. 회차 47 항목 19 의 (가) ~ (마) 같은 말 — 갈린 범위(「대장 등록」)는 기록 쪽이라 위 「바로잡는 것」 |
+| 3. 한 자리다 | `grep -c '\*\*돌리는 법\*\*' docs/procedure.md` → `1`. `git diff --stat 36843e0 8088a8b -- vibe-audit vibe-slice CHECKLIST.md CLAUDE.md` 빈 출력 |
+| 4. 새 기준이 이 조각에서 문다 | 회차 47 브리핑(`docs/audit/briefs/audit-internal-2026-11-11-062059.md`) 머리 「기준: `205bc09`」, 「변경 파일」에 `.../65-standing-round-threshold/requirements.md` 와 `docs/master-plan.md`. 회차 47 항목 15 가 조각 65 `## 닫으며` 의 근거를 파일로 대어 봤고, 항목 22 가 기준이 회차 46 절 첫 줄과 같다고 봤다 |
+| 5. 장치가 늘지 않는다 | `git diff --stat 36843e0 <c> -- scripts .github vibe-audit vibe-slice compare` — `7bc8236` · `8088a8b` · `d10f5b2` 에서 다 빈 출력. `eval-key.py route` → `eval-route-cli2.1.322-f20a76d0b063250f985b6e6b`, `full` → `eval-full-cli2.1.322-c6bc6837f9aa0cdb677d949c` — `36843e0` · `a3c707e` · `d10f5b2` 에서 같다 |
+| 6. 게이트 | 인자 없는 `./scripts/gates.sh` 「변조 시험: 절 36 이 다 닫힘」 · 「스물여덟 다 통과」 종료 0 — `a3c707e`(#241). `verify-docs.py` · `verify-counts.py`(닻 139 · 원천 40) · `verify-map-pin.py`(박은 커밋 47f46fd) PASS. CI gate · verdict 초록 — run 42955598147(#240) · run 42966751595(#241), eval 은 수트 지문이 같아 건너뜀. Codex 리뷰 — #240 지적 0, #241 지적 0 |
+| 7. 감사 회차 | 회차 47 `audit-internal`(`docs/audit/records/audit-internal-2026-11-11-062059.md` — 부적합 NC-53(보통, 고침), 확인불가 U-59 · U-60 · U-61 은 위 줄로 닫힘, 등록 `d10f5b2`) |
+
+- **돌린 감사 회차:** 회차 47(`audit-internal`) — 요구사항 「제약」의 줄 그대로, 새 기준 `205bc09` 로
+- **넘긴 것:** 회차 47 「문서에 없어서」 A · B → 조각 나눔 「닫는 PR 의 회차와 git 근거」. C → 조각 나눔 「넘김의 「다음」과 넘긴 감사자」에 덧붙임. 관찰 OB-62 · OB-63 은 줄을 두지
+  않는다 — 글끼리 부딪히지 않고 사슬이 선다(회차 47)
+- **다음 조각:** 「ADR 대체 표기의 자리」
