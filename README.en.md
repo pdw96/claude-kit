@@ -2,7 +2,7 @@
 
 [한국어](README.md) · English
 
-A Claude Code plugin marketplace with 2 plugins. The main one, `vibe-audit`, gives you 6 read-only auditors, each narrowed to one purpose.
+A Claude Code plugin marketplace with 3 plugins. The main one, `vibe-audit`, gives you 6 read-only auditors, each narrowed to one purpose.
 They report nonconformities and cannot fix anything — they have no tool that writes.
 
 ## What's inside
@@ -11,6 +11,7 @@ They report nonconformities and cannot fix anything — they have no tool that w
 |---|---|
 | `vibe-audit` | 6 read-only auditors and the `audit-brief` command |
 | `vibe-slice` | Document templates and a procedure for running a project in slices — written in Korean (below) |
+| `vibe-rules` | One skill with two rule passages to read before reporting a defect in a review or audit — how far a repo's self-imposed rules reach, and placeholders vs. real secrets. Written in Korean; no tools |
 
 **`vibe-audit`.** Each auditor's frontmatter is `tools: ["Read", "Grep", "Glob"]` — no `Edit`, `Write` or `Bash`. Asking it to fix something does not work, by
 construction: code an auditor fixed would be code nobody audited. Each auditor looks at one area only and hands anything outside it to the auditor that owns it.
@@ -76,6 +77,7 @@ In a local interactive session, add the marketplace once and every repository yo
 claude plugin marketplace add pdw96/claude-kit
 claude plugin install vibe-audit@pdw96-kit
 claude plugin install vibe-slice@pdw96-kit
+claude plugin install vibe-rules@pdw96-kit
 ```
 
 **A new version does not arrive by reloading** — auto-update is off by default for this marketplace. To get one:

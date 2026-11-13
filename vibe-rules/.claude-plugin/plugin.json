@@ -1,0 +1,14 @@
+{
+  "name": "vibe-rules",
+  "version": "0.1.0",
+  "description": "저장소를 검토 · 감사할 때 결함으로 내기 전에 가를 규칙 문장 둘 — 스스로 정한 규칙의 효력 범위, 자리표시자와 진짜. 스킬 하나이고 도구는 없습니다.",
+  "author": {
+    "name": "도원"
+  },
+  "keywords": [
+    "review",
+    "audit",
+    "rules"
+  ],
+  "license": "MIT"
+}
