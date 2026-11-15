@@ -21,7 +21,12 @@
 ./scripts/run-compare.sh none                               # 플러그인 없음 — 빈 플러그인 · 중립 요청
 ./scripts/run-compare.sh pr-review-toolkit --from <클론>
 ./scripts/run-compare.sh claude-security --from <클론>         # 잠김 — ADR 0071, 종료 2
+./scripts/run-compare.sh none-ctx                           # 맥락 팔 — 플러그인 없음 + CLAUDE.md 의 맥락 글
+./scripts/run-compare.sh pr-review-toolkit-ctx --from <클론>
 ```
+
+**맥락 팔(`-ctx`)** 은 바탕 팔(이름에서 `-ctx` 를 뗀 것)과 플러그인 · 요청 · 깃발이 같고, 러너가 픽스처 복사본 끝에서 작업 폴더의 `CLAUDE.md` 에 `compare/context.md` 를 덧붙이는 것만
+다르다 — 출처 픽스처는 고치지 않는다. 왜 · 무엇을 보장하나는 조각 71(`docs/slices/71-trim/`) · ADR 0090.
 
 `claude-security` 팔은 하네스 밖에서 `claude -p` 로 돈다 — 하네스의 격리 안에서는 그 스킬이 서지 않는다(ADR 0068). 채점은 같은 그레이더 글을 같은 심판 모델에 세 번 물어 가른다.
 **이 팔은 지금 잠겨 있다(ADR 0071)** — 러너가 종료 2 로 막는다. 측정 전용 계정의 자격 · 세션 자격이 없는 기계 · 자격을 붙이지 않는 프록시를 세우는 조각이 푼다. 아래는 풀린 뒤의 동작이다.

@@ -5,6 +5,8 @@
 #   ./scripts/run-compare.sh none                                    # 플러그인 없음 — 중립 요청 그대로
 #   ./scripts/run-compare.sh pr-review-toolkit --from <클론>          # anthropics/claude-plugins-official 클론
 #   ./scripts/run-compare.sh claude-security --from <클론> --case 'trap-*' --runs 1   # 잠김 — ADR 0071
+#   ./scripts/run-compare.sh none-ctx                                # 맥락 팔 — 픽스처의 CLAUDE.md 에 compare/context.md 를 더한다
+#   ./scripts/run-compare.sh pr-review-toolkit-ctx --from <클론>      # 같은 맥락 + pr-review-toolkit (조각 71 · ADR 0090)
 #
 # **왜 따로 있나.** 조각 51 · ADR 0066 의 5. `run-evals.sh` 는 고정한 러너이고 수트 지문에 든다 — 고치면
 # 재는 대상(감사자)이 그대로인데 route 수트가 돈다. 이 러너는 수트 밖(`compare/`)만 읽어 지문에 들지 않는다.
@@ -28,7 +30,7 @@ PIN=a7ba5b93db0c7c8d17f3f1d25853adca79598a1a   # anthropics/claude-plugins-offic
 # 하네스 밖 팔은 잠겼다(ADR 0071) — 측정 자격이 저자 구독 토큰이었고 그 팔의 격리 없는 Bash 가 세션 자격에 닿는 자리였다.
 # 측정 전용 계정의 자격 · 세션 자격이 없는 기계 · 자격을 붙이지 않는 프록시를 세우는 조각이 그 ADR 과 함께 0 으로 푼다.
 OUTSIDE_LOCKED=1
-USAGE="사용법: run-compare.sh <vibe-audit|none|pr-review-toolkit|claude-security> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
+USAGE="사용법: run-compare.sh <vibe-audit|none|pr-review-toolkit|claude-security|none-ctx|pr-review-toolkit-ctx> [--from <클론>] [--case <글롭>] [--runs <n>] [-j <n>]"
 
 arm=${1:-}
 case "$arm" in
@@ -36,9 +38,19 @@ case "$arm" in
   none) cap=5 ;;
   pr-review-toolkit) cap=12 ;;
   claude-security) cap=8 ;;
+  none-ctx) cap=5 ;;
+  pr-review-toolkit-ctx) cap=12 ;;
   *) echo "$USAGE" >&2; exit 2 ;;
 esac
 shift
+# 맥락 팔(-ctx)은 바탕 팔과 플러그인 · 요청 · 깃발이 같고, 픽스처 끝에서 CLAUDE.md 에 compare/context.md 를 더하는 것만
+# 다르다(조각 71 · ADR 0090). 아래에서 플러그인 · 요청 · 경쟁 팔 칸을 고르는 자리는 바탕 팔(base)을 쓴다.
+base=${arm%-ctx}
+ctx=0
+[ "$base" = "$arm" ] || ctx=1
+if [ "$ctx" = 1 ]; then
+  [ -s compare/context.md ] || { echo "맥락 팔의 글이 없다: compare/context.md" >&2; exit 2; }
+fi
 if [ "$arm" = claude-security ] && [ "$OUTSIDE_LOCKED" = 1 ]; then
   echo "claude-security 팔(하네스 밖)은 잠겼다 — ADR 0071. 측정 전용 계정의 자격과 세션 자격이 없는 기계를 세운 뒤 푼다" >&2; exit 2
 fi
@@ -60,14 +72,14 @@ done
 # 경쟁 팔은 고정한 커밋의 클론만 받는다(② E). vibe-audit 팔은 이 작업트리의 것, none 팔은 빈 플러그인이다.
 # 팔마다 따로 돈다 — 하네스의 기준 팔(with-without)은 플러그인 팔과 같은 요청을 받으므로 쓰지 않는다(ADR 0067).
 ablation=none
-if [ "$arm" = vibe-audit ] || [ "$arm" = none ]; then
+if [ "$base" = vibe-audit ] || [ "$base" = none ]; then
   [ -z "$from" ] || { echo "$arm 팔은 --from 을 받지 않는다" >&2; exit 2; }
   src=vibe-audit
 else
   [ -n "$from" ] || { echo "$arm 팔은 --from <anthropics/claude-plugins-official 클론> 이 있어야 한다" >&2; exit 2; }
   head=$(git -C "$from" rev-parse HEAD 2>/dev/null || true)
   [ "$head" = "$PIN" ] || { echo "클론의 HEAD 가 $PIN 이 아니다 (받은 것: '${head:-읽지 못함}')" >&2; exit 2; }
-  src="$from/plugins/$arm"
+  src="$from/plugins/$base"
   [ -f "$src/.claude-plugin/plugin.json" ] || { echo "플러그인이 없다: $src" >&2; exit 2; }
 fi
 # 하네스 밖 팔은 제3자 플러그인에 격리 없는 Bash 를 주므로 넘기는 자격을 러너가 고른다 — 측정 자격 하나뿐이다
@@ -89,7 +101,7 @@ MAT=$(mktemp -d)
 trap 'rm -rf "$TMP" "$MAT"' EXIT
 plug="$TMP/$arm"
 if [ "$arm" = claude-security ]; then mat="$MAT"; else mat="$plug"; fi
-if [ "$arm" = none ]; then
+if [ "$base" = none ]; then
   # 플러그인 없음 — 하네스가 대상으로 받을 빈 플러그인. 에이전트 · 스킬 · 훅이 없다.
   mkdir -p "$plug/.claude-plugin"
   printf '{"name": "none", "version": "0.0.0", "description": "맞대기의 플러그인 없음 팔"}\n' > "$plug/.claude-plugin/plugin.json"
@@ -102,7 +114,7 @@ n=0
 while IFS=$'\t' read -r name source axis rival; do
   case "$name" in ''|'#'*) continue ;; esac
   # 경쟁 팔 칸은 쉼표로 여럿을 들 수 있다 — 한 케이스를 두 경쟁 팔이 돈다(조각 52 · ADR 0070).
-  [ "$arm" = vibe-audit ] || [ "$arm" = none ] || case ",$rival," in *",$arm,"*) ;; *) continue ;; esac
+  [ "$base" = vibe-audit ] || [ "$base" = none ] || case ",$rival," in *",$base,"*) ;; *) continue ;; esac
   for f in "compare/$name/case.yaml" "compare/$name/graders/found.md" "compare/prompts/$axis.md" "$source/fixture.sh"; do
     [ -f "$f" ] || { echo "재료가 없다: $f" >&2; exit 2; }
   done
@@ -110,11 +122,21 @@ while IFS=$'\t' read -r name source axis rival; do
   cp "compare/$name/case.yaml" "$mat/compare/$name/"
   cp -R "compare/$name/graders" "$mat/compare/$name/"
   # 요청 본문은 축의 것 그대로(② B). 플러그인 팔은 그 도구를 부르는 한 줄을 머리에 붙인다(compare/arms.tsv · ADR 0067).
-  call=$(awk -F'\t' -v a="$arm" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
-  if [ "$arm" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $arm · $axis 줄이 없다" >&2; exit 2; fi
+  call=$(awk -F'\t' -v a="$base" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
+  if [ "$base" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $base · $axis 줄이 없다" >&2; exit 2; fi
   awk -v call="$call" '{ print } /^---$/ && ++n == 2 && call != "" { print ""; print call }' \
     "compare/prompts/$axis.md" > "$mat/compare/$name/prompt.md"
   cp "$source/fixture.sh" "$mat/compare/$name/fixture.sh"
+  # 맥락 팔 — 픽스처가 다 선 뒤 CLAUDE.md 끝에 맥락 글을 더한다(없으면 만든다). 출처 픽스처는 고치지 않는다.
+  if [ "$ctx" = 1 ]; then
+    {
+      printf '\n# 맞대기 맥락 팔(조각 71) — CLAUDE.md 에 compare/context.md 를 더한다\n'
+      printf '[ -s CLAUDE.md ] && printf "\\n" >> CLAUDE.md\n'
+      printf "cat >> CLAUDE.md <<'__COMPARE_CONTEXT__'\n"
+      cat compare/context.md
+      printf '__COMPARE_CONTEXT__\n'
+    } >> "$mat/compare/$name/fixture.sh"
+  fi
   n=$((n + 1))
 done < compare/cases.tsv
 [ "$n" -gt 0 ] || { echo "$arm 팔의 케이스가 없다" >&2; exit 2; }
@@ -375,7 +397,7 @@ set -e
 
 # 회차마다 맞힘 · 떴는가 · 모델 · 비용을 트레이스에서 읽고, 최종 응답을 손 대조용으로 남긴다(② G · ⑤ 「심판」).
 scan=0
-ARM="$arm" python3 - "$OUT" <<'PY' || scan=$?
+ARM="$base" CTX="$ctx" python3 - "$OUT" <<'PY' || scan=$?
 import json, os, pathlib, re, shutil, stat, sys
 
 out = pathlib.Path(sys.argv[1])
@@ -419,6 +441,7 @@ rows = []
 for case in d.get("cases", []):
     for side, runs in (case.get("arms") or {}).items():
         label = "플러그인 없음" if (side != "with" or arm == "none") else arm
+        label += " + 맥락" if os.environ.get("CTX") == "1" and side == "with" else ""
         hits, fired_n, costs, models, ungraded = 0, 0, [], set(), 0
         for i, run in enumerate(runs, 1):
             tp = run.get("tracePath")
