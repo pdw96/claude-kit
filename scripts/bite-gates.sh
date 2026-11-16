@@ -1738,7 +1738,7 @@ vedit scripts/test-gates.py '변조 시험 다섯이 맨 뒤' '변조 시험 여
 vbite D1 "닻을 가진 끝 줄의 낱말을 틀리게"
 vback scripts/test-gates.py
 # D2 — 닻이 낡았다: 문장을 지움 · 문장을 겹쳐 적음 · 닻의 파일이 없음
-vedit INTENT.md '감사자 여섯 · ' '감사자들 · '
+vedit INTENT.md '감사자 둘 · ' '감사자들 · '
 vbite D2 "닻이 가리키는 문장을 지움"
 vback INTENT.md
 vedit CLAUDE.md '- **감사자의 `tools`** — 읽기 전용 셋.' '- **감사자의 `tools`** — 읽기 전용 셋. 읽기 전용 셋.'
@@ -1782,7 +1782,7 @@ vback scripts/verify-counts.py
 vedit scripts/verify-counts.py "    ('docs/procedure.md', r'{N} 검사는 \`vibe-slice\`', 1, '조각 문서 검사'),\\n" ""
 vbite U1 "NC-17 의 자리(procedure.md 머리)의 닻을 지움" 'docs/procedure\.md:[0-9]+ '
 vback scripts/verify-counts.py
-vedit CHECKLIST.md '\n## 플러그인의 파일을 고쳤다면' '\n감사자 여섯이 다 읽기 전용이다.\n\n## 플러그인의 파일을 고쳤다면'
+vedit CHECKLIST.md '\n## 플러그인의 파일을 고쳤다면' '\n감사자 둘이 다 읽기 전용이다.\n\n## 플러그인의 파일을 고쳤다면'
 vbite U1 "명사 뒤의 수를 닻 없이 더함" 'CHECKLIST\.md:[0-9]+ '
 vback CHECKLIST.md
 vedit docs/architecture.md '\n## 문서' '\n일곱 단계를 지난다.\n\n## 문서'
@@ -1811,7 +1811,7 @@ vback vibe-audit/scripts/verify-brief.py
 # (조각 55 설계 ② C · F — 아래 「브리핑 작업본을 심은 사본」 대조군만으로는 그 고리가 보이지 않는다). 저장소의 검사로 사본을 본다 —
 # 사본의 검사를 대면 검사 옆과 훑는 트리가 같은 사본이라 「검사 파일 옆에서 읽기」가 지나간다(감사 회차 33 NC-38)
 vedit vibe-audit/scripts/verify-brief.py ', ".claude/audit-brief.md")' ')'
-mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+mkdir -p "$VC/.claude"; printf '감사자 둘이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
 bit 1 '^FAIL \[U1\] \.claude/audit-brief\.md:[0-9]+ ' "첫 자리에서 브리핑 작업본을 뺌" python3 scripts/verify-counts.py "$VC"
 rm "$VC/.claude/audit-brief.md"
 vback vibe-audit/scripts/verify-brief.py
@@ -1829,12 +1829,12 @@ done
 # 대조군 — 고치지 않은 사본, 그리고 원천과 문장을 함께 바꾼 사본(판정 케이스 다섯을 더하고 그 수를 적은 문장을 합성 낱말로 고친다)
 keep "$VPASS" "고치지 않은 사본" python3 scripts/verify-counts.py "$VC"
 # 커밋하지 않는 브리핑 작업본에 같은 원천 문장이 있어도 지나간다 — 로컬과 CI 의 판정이 갈리지 않게(감사 회차 18 NC-18)
-mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+mkdir -p "$VC/.claude"; printf '감사자 둘이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
 keep "$VPASS" "브리핑 작업본을 심은 사본" python3 "$VC/scripts/verify-counts.py" "$VC"
 rm "$VC/.claude/audit-brief.md"
 for i in 1 2 3 4 5; do mkdir "$VC/vibe-audit/evals/zz-$i"; : > "$VC/vibe-audit/evals/zz-$i/case.yaml"; done
-vedit vibe-audit/README.md '케이스 스물일곱이' '케이스 서른둘이' '인자 없이 스물일곱을' '인자 없이 서른둘을' '| 판정 | 열일곱 |' '| 판정 | 스물둘 |'
-vedit .github/workflows/eval.yml '케이스 스물일곱이다' '케이스 서른둘이다'
+vedit vibe-audit/README.md '케이스 열셋이' '케이스 열여덟이' '인자 없이 열셋을' '인자 없이 열여덟을' '| 판정 | 열 |' '| 판정 | 열다섯 |'
+vedit .github/workflows/eval.yml '케이스 열셋이다' '케이스 열여덟이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
 sclose 29 3
