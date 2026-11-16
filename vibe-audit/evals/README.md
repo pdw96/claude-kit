@@ -94,7 +94,6 @@ PR 은 이 숫자와 견준다 — 같은 수트 모델 · 같은 `--runs` 일 �
 | 케이스 | 감사자 | 재는 것 | 어디서 |
 |---|---|---|---|
 | `gate-own-not-pushed` | `audit-data` | 담당인 것을 근거 주는 감사자에게 넘기지 않는다(관문의 오른쪽) | 3차 되먹임 · 2026-09-21 |
-| `gap-unowned` | `audit-internal` | 누구의 것도 아닌 발견을 버리거나 담당을 지어내지 않고 호출자에게 올린다 | 4차 되먹임 · 2026-09-22 |
 | `cycle-continuity` | `audit-internal` | 지난 회차의 NC 번호가 같은 결함을 가리킨다 — 유지 · 해소 · 범위 밖 · 새 결함 | 축 4 · 2026-09-22 |
 | `cycle-first` | `audit-internal` | 지난 회차 기록이 없을 때 없는 회차를 지어내지 않는다 — `cycle-continuity` 의 쌍 | 축 4 · 2026-09-22 |
 | `brief-used` | `audit-internal` | 브리핑(`.claude/audit-brief.md`)이 있으면 읽고 diff 로 판정한다 | 1차 되먹임의 구조적 한계 |
@@ -108,8 +107,9 @@ PR 은 이 숫자와 견준다 — 같은 수트 모델 · 같은 `--runs` 일 �
 | `route-quiet` | 아무도 | 감사와 무관한 말에 하나도 안 뜬다 | 구성 |
 | `route-unasked-data` | `audit-data` | 위험한 마이그레이션을 막 짜고 PR 제목을 물어도 뜬다 · `audit-internal` 은 안 뜬다 | 자기 트리거 · 2026-09-23 |
 
-브리핑 셋 · 회차 둘 · `gap-unowned` 은 처음에 `audit-secrets` 를 태웠고, 그 감사자가 은퇴해 `audit-internal` 로 옮겼다 — 브리핑 셋은 결함이 어기는 규칙을
-커밋하지 않은 `CLAUDE.md` 에 둔다. 은퇴한 감사자만 재던 케이스와 `gate-out-of-scope`(넘길 감사자 셋이 은퇴 전 명단에 기댄다)는 지웠다. 목록과 까닭은
+브리핑 셋 · 회차 둘은 처음에 `audit-secrets` 를 태웠고, 그 감사자가 은퇴해 `audit-internal` 로 옮겼다 — 브리핑 셋은 결함이 어기는 규칙을
+커밋하지 않은 `CLAUDE.md` 에 둔다. 은퇴한 감사자만 재던 케이스, `gate-out-of-scope`(넘길 감사자 셋이 은퇴 전 명단에 기댄다), `gap-unowned`(옮겨 쟀더니
+`audit-internal` 이 성능을 담당 없음으로 올리지 못했다 — 그 근거가 `audit-data` 의 「보지 않는 것」에만 있다)는 지웠다. 목록과 까닭은
 조각 「감사자 넷 은퇴」 설계 ③ 과 그 끝 날짜 항목.
 
 ## 재는 법

@@ -571,9 +571,9 @@ bit 1 "$PYF" "못 무는 그레이더" python3 scripts/verify-graders.py "$g/vib
 
 # verify-graders.py — pass.md 밖의 바른 기록(pass-*.md)에서 떨어지는 그레이더는 실패해야 한다.
 # pass.md 만 보던 판은 이것을 지나보냈다. 수트 안의 pass-*.md 에 기대지 않고 pass.md 를
-# 베껴 report.py 줄을 뺀다 — gate-escalated-perf 하나만 떨어진다(조각 21, ADR 0031).
+# 베껴 문자 발송을 든 줄을 뺀다 — real-nc-found 하나만 떨어진다(조각 21, ADR 0031 · 조각 72 에서 trap-slice-scope 로 옮김).
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
-grep -v 'report\.py' "$g/vibe-audit/evals/gap-unowned/samples/pass.md" > "$g/vibe-audit/evals/gap-unowned/samples/pass-bite.md"
+grep -viE 'sms|문자' "$g/vibe-audit/evals/trap-slice-scope/samples/pass.md" > "$g/vibe-audit/evals/trap-slice-scope/samples/pass-bite.md"
 bit 1 "$PYF" "pass-*.md 에서 떨어지는 그레이더" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
 sclose 6 0
 
@@ -1168,7 +1168,7 @@ sclose 13 4
 # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(무게 · arm · 대조군)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gap-unowned/graders/gate-no-fake-owner.md"
+sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gate-comment-owned/graders/gate-comment-owned.md"
 bit 1 "$PYF" "문턱을 못 넘기는 심판 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — auditor-fired 가 호출을 요구하지 않으면(min 0) 실패해야 한다(Codex 33차)
