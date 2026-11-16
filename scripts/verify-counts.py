@@ -316,7 +316,7 @@ ANCHORS = [
     ('.github/workflows/eval.yml', r'남기고 {N}만 돌린다', 1, '늘 도는 검사'),
     ('.github/workflows/eval.yml', r'{N} 스텝의 판정', 1, '적기 조건 스텝'),
     ('.github/workflows/eval.yml', r'`route-\*` {N} ×', 2, '트리거 케이스'),
-    ('.github/workflows/eval.yml', r'`route-\*` 열 × {N}회', 2, 'CI 회차'),
+    ('.github/workflows/eval.yml', r'`route-\*` \S+ × {N}회', 2, 'CI 회차'),
     ('.github/workflows/eval.yml', r'러너 기본 -j {N}', 2, '러너 동시성'),
     ('.github/workflows/eval.yml', r'케이스 {N}이다', 1, '케이스'),
     ('.github/workflows/eval.yml', r'route 는 문턱 {N} —', 1, 'route 문턱'),
@@ -339,7 +339,7 @@ ANCHORS = [
     ('vibe-audit/README.md', r'\| 트리거 \| {N} \|', 1, '트리거 케이스'),
     ('vibe-audit/README.md', r'인자 없이 {N}을 다', 1, '케이스'),
     ('vibe-audit/README.md', r'^{N}만 문턱', 1, '트리거 케이스'),
-    ('vibe-audit/README.md', r'^열만 문턱 {N} 으로', 1, 'route 문턱'),
+    ('vibe-audit/README.md', r'^\S+만 문턱 {N} 으로', 1, 'route 문턱'),
     ('vibe-audit/README.md', r'로 문턱 {N} 에서', 1, '전수 문턱'),
     ('vibe-audit/README.md', r'감사자 {N}종', 2, '감사자'),
     # vibe-audit/evals/README.md
@@ -448,6 +448,9 @@ SELF = "scripts/verify-counts.py"  # 원천 목록 · 명사 · 예외를 든 �
 # 예외 — 원천의 명사 옆에 지금 값과 같은 수가 있지만 그 원천을 든 문장이 아닌 자리. (파일, 꼴, 횟수, 까닭) — 꼴과 횟수는 닻과 같다.
 # 꼴이 적은 횟수만큼 나오지 않으면 U2 다(문장을 지우거나 고쳤으면 예외도 고친다).
 EXEMPT = [
+    # 다른 것을 센 같은 값 — 감사자 수(둘)와 우연히 같다(조각 72)
+    ('scripts/bite-gates.sh', r'감사자 {N}을 지목', 1, '변조본 이름 — 프롬프트가 감사자 둘을 부르는 꼴'),
+    ('scripts/test-compare-copies.py', r'감사자 {N}에', 2, '시험 픽스처가 세운 감사자 수'),
     # 지난 기록 — 그때의 값을 적었다. 원천이 바뀌어도 고치지 않는다
     ('feedback.json', r'{N} 감사자', 2, '대장의 판정 까닭 — 판정한 때의 감사자 수'),
     ('docs/master-plan.md', r'케이스 {N}이 셋을 잽니다', 1, '닫힌 조각 44 의 줄이 그때의 README 문장을 옮겨 적었다'),
