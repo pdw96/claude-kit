@@ -71,7 +71,7 @@ hash = "sha256:" + sha256("\n".join(줄들))
     {
       "id": "FB-1",
       "hash": "sha256:<64 hex>",
-      "seen": [{"repo": "erp", "files": ["audit-secrets.md"], "commit": "<40 hex>", "base": "<40 hex>"}],
+      "seen": [{"repo": "erp", "files": ["audit-data.md"], "commit": "<40 hex>", "base": "<40 hex>"}],
       "status": "defect",
       "reason": "다른 레포에서도 같은 말인 근거, 또는 이 레포에서만 참인 이유",
       "decided_at": "2026-10-05",
