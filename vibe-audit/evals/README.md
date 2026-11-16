@@ -1,6 +1,6 @@
 # 감사자를 감사한다
 
-`audit-quality` 가 남에게 요구하는 것 — 평가셋 · 회귀 판정 · 무는 게이트 — 을
+감사자가 남에게 요구하는 검사 — 평가셋 · 회귀 판정 · 무는 게이트 — 를
 이 플러그인이 자기 자신에게 적용한 자리다. 이 파일은 살아 있는 문서다 — 수트의
 지금 모양만 든다. 날짜를 박은 작업 기록은 `docs/eval-log/` 에 달마다 쌓는다(「기록」).
 
@@ -30,16 +30,15 @@
 판정 케이스가 감사자의 **판정**을 잰다면, `route-*` 는 프론트매터 `description` 의
 **반응**을 잰다. 감사자를 이름으로 지목하지 않은 자연스러운 말에 맞는 것이 뜨는가.
 
-- **청한 말** — `route-quality` · `route-contract` · `route-internal` · `route-ops`. 맞는 감사자가 뜨고,
-  헷갈리기 쉬운 이웃은 안 뜬다.
-- **청하지 않은 말**(자기 트리거) — `route-unasked-*`. 사용자는 다른 것을 묻는데 코드의 상태가
-  감사를 부를 만하다. `audit-secrets` · `audit-contract` · `audit-data` 는 이때 떠야 하고, `audit-ops` 는
-  배포 · 장애 · 관측 · 롤백을 말하지 않으면 안 떠야 한다(`route-unasked-ops`). `audit-internal` ·
-  `audit-quality` 의 자기 트리거는 재지 않는다(「재지 않는 것」).
+- **청한 말** — `route-internal`. 맞는 감사자가 뜨고, 헷갈리기 쉬운 이웃(`audit-data`)은 안 뜬다.
+- **청하지 않은 말**(자기 트리거) — `route-unasked-data`. 사용자는 다른 것을 묻는데 코드의 상태가
+  감사를 부를 만하다. `audit-data` 는 이때 떠야 한다. `audit-internal` 의 자기 트리거는 재지 않는다(「재지 않는 것」).
 - **무관한 말** — `route-quiet`. 아무도 안 뜬다.
 
+은퇴한 감사자 넷(조각 「감사자 넷 은퇴」)의 route 케이스는 그 조각이 지웠다.
+
 전부 `tool_used` 그레이더뿐이라 **심판 비용이 0** 이다. **음성 그레이더(`route-not-*`)가
-대조군 자리에 선다** — 없으면 여섯을 전부 띄우는 세션도 「맞는 감사자가 떴다」로 통과한다.
+대조군 자리에 선다** — 없으면 둘을 전부 띄우는 세션도 「맞는 감사자가 떴다」로 통과한다.
 이 문구들은 구성한 것이다 — 트리거는 입력을 만들지 않으면 잴 방법이 없다.
 
 ### 회수율
@@ -59,7 +58,7 @@
   관찰 · 확인불가 · 「안 본 것」에 적은 것은 세지 않는다. 대조군 `real-nc-found` 는 없다 — 심은 결함이 곧 진짜 결함이다.
   표본(`pass.md` · `fail*.md`)은 필수다.
 - **재지 않는 것** — 정밀도(엉뚱한 NC 를 함께 내도 떨어지지 않는다), 원래 저장소에서의 회수율(픽스처가 몇 파일이라 볼 것이
-  적다), 놓친 증거가 없는 감사자(`audit-secrets` · `audit-ops` · `audit-quality` · `audit-internal`).
+  적다), 놓친 증거가 없는 감사자(`audit-internal`).
 - **수트 모델이 바뀌면 다시 잰다** — `recall-commit-after-response` 의 남은 놓침은 수트 모델이 고정 판의 동작을 모르는 데서
   온다(아래 조각 40 B 뒤의 수). 감사자 문구로 풀지 않는다(ADR 0058). 수트 모델(`scripts/run-evals.sh` 의 `DEFAULT_MODEL=`)을
   바꾸는 PR 은 위 명령으로 다시 재고, 이 케이스는 `--eval-dir recall --case recall-commit-after-response --ablation none --runs 3`
@@ -71,8 +70,9 @@
 | `recall-expiry-from-processing` | `audit-data` | 만료일을 기준 데이터가 적은 날이 아니라 처리한 날에서 센다 |
 | `recall-inactive-code` | `audit-data` | 꺼진 공통코드로 새 기록이 선다 |
 | `recall-downgrade-equal-rows` | `audit-data` | 되돌리기가 리비전이 만들지 않은 같은 값의 줄을 지운다 |
-| `recall-blank-boundary` | `audit-contract` | 공백만인 값이 경계를 지나 데이터베이스 제약에서 500 |
-| `recall-nul-boundary` | `audit-contract` | NUL 글자가 경계를 지나 데이터베이스에서 500 |
+
+`audit-contract` 의 두 케이스(`recall-blank-boundary` · `recall-nul-boundary`)는 조각 「감사자 넷 은퇴」가 지웠고, 픽스처는 맞대기 재료로
+`compare/` 에 남았다. 아래 기준선의 수는 그 둘을 함께 잰 날의 것이다 — 남은 넷만 세면 10/12(`recall-commit-after-response` 1/3, 나머지 셋 3/3)다.
 
 **기준선**: 회수율 **16/18**(`claude-sonnet-5-5`, CLI 2.1.311, 2026-10-27) — `recall-commit-after-response` 1/3, 나머지 다섯 3/3.
 놓친 두 회차는 그 자리를 확인불가로 적었다. 측정과 그 뜻은 `docs/eval-log/2026-10.md` 「회수율 기준선」. 감사자 문구를 고친
@@ -93,33 +93,24 @@ PR 은 이 숫자와 견준다 — 같은 수트 모델 · 같은 `--runs` 일 �
 
 | 케이스 | 감사자 | 재는 것 | 어디서 |
 |---|---|---|---|
-| `trap-local-dev-password` | `audit-secrets` | 로컬 전용 개발 비밀번호를 시크릿으로 걸지 않는다 | 1차 되먹임 · 2026-09-16 |
-| `trap-liveness-probe` | `audit-ops` | 의존성을 안 보는 라이브니스 프로브(정상 설계)를 부적합으로 걸지 않는다 | 1차 되먹임 · 2026-09-16 |
-| `trap-rollback-unproven` | `audit-ops` | 저장소에 흔적이 없다고 롤백을 「안 해 봤다」로 단정하지 않고 확인불가로 둔다 | 1차 되먹임 · 2026-09-16 |
-| `gate-out-of-scope` | `audit-secrets` | 담당 밖 발견을 NC 로 적지 않는다(관문의 왼쪽) | 2차 되먹임 · 2026-09-20 |
 | `gate-own-not-pushed` | `audit-data` | 담당인 것을 근거 주는 감사자에게 넘기지 않는다(관문의 오른쪽) | 3차 되먹임 · 2026-09-21 |
-| `gap-unowned` | `audit-secrets` | 누구의 것도 아닌 발견을 버리거나 담당을 지어내지 않고 호출자에게 올린다 | 4차 되먹임 · 2026-09-22 |
-| `cycle-continuity` | `audit-secrets` | 지난 회차의 NC 번호가 같은 결함을 가리킨다 — 유지 · 해소 · 범위 밖 · 새 결함 | 축 4 · 2026-09-22 |
-| `cycle-first` | `audit-secrets` | 지난 회차 기록이 없을 때 없는 회차를 지어내지 않는다 — `cycle-continuity` 의 쌍 | 축 4 · 2026-09-22 |
-| `brief-used` | `audit-secrets` | 브리핑(`.claude/audit-brief.md`)이 있으면 읽고 diff 로 판정한다 | 1차 되먹임의 구조적 한계 |
-| `brief-absent` | `audit-secrets` | 브리핑이 없으면 「원래 없었다」로 단정하지 않고 확인불가로 둔다 — `brief-used` 의 대조 | 1차 되먹임의 구조적 한계 |
+| `gap-unowned` | `audit-internal` | 누구의 것도 아닌 발견을 버리거나 담당을 지어내지 않고 호출자에게 올린다 | 4차 되먹임 · 2026-09-22 |
+| `cycle-continuity` | `audit-internal` | 지난 회차의 NC 번호가 같은 결함을 가리킨다 — 유지 · 해소 · 범위 밖 · 새 결함 | 축 4 · 2026-09-22 |
+| `cycle-first` | `audit-internal` | 지난 회차 기록이 없을 때 없는 회차를 지어내지 않는다 — `cycle-continuity` 의 쌍 | 축 4 · 2026-09-22 |
+| `brief-used` | `audit-internal` | 브리핑(`.claude/audit-brief.md`)이 있으면 읽고 diff 로 판정한다 | 1차 되먹임의 구조적 한계 |
+| `brief-absent` | `audit-internal` | 브리핑이 없으면 「원래 없었다」로 단정하지 않고 확인불가로 둔다 — `brief-used` 의 대조 | 1차 되먹임의 구조적 한계 |
 | `gate-ddl-lock` | `audit-data` | 운영 중인 표를 잠그는 마이그레이션 — 엔진 · 판을 저장소에서 확인 못 하면 확인불가 | 사본 되먹임 · 2026-10-05 |
 | `gate-comment-owned` | `audit-internal` | 주석 · 독스트링에만 적힌 결정을 코드가 뒤집은 자리를 받는다 | 사본 되먹임 · 2026-10-05 |
-| `gate-catches-unproven` | `audit-quality` | 검사가 「무엇을 잡는가」를 읽어서 단정하지 않는다 — 어긋내 봐야 안다 | 사본 되먹임 · 2026-10-05 |
-| `gate-root-cause-auth` | `audit-secrets` | 밖에서 보이는 권한 실패를 `audit-data` 로 넘기지 않는다 | 사본 되먹임 · 2026-10-05 |
 | `trap-slice-scope` | `audit-internal` | 감사 대상 조각의 「하지 않을 일」로 판정한다 — 닫힌 조각의 제외와 마스터플랜이 가리키지 않는 옛 `PRD.md` 로는 부적합을 내지 않는다 | 조각 5 「틀 배포」 · 2026-10-07 |
-| `brief-audited-commit` | `audit-secrets` | 기록 머리의 「감사한 커밋」 줄에 브리핑 「대상」의 SHA 와, diff 가 커밋 안 된 변경을 담았으면 「· 커밋 안 된 변경 포함」을 적는다 | 사본 되먹임 FB-24 · 2026-10-13 |
+| `brief-audited-commit` | `audit-internal` | 기록 머리의 「감사한 커밋」 줄에 브리핑 「대상」의 SHA 와, diff 가 커밋 안 된 변경을 담았으면 「· 커밋 안 된 변경 포함」을 적는다 | 사본 되먹임 FB-24 · 2026-10-13 |
 | `gate-severity-scale` | `audit-internal` | 심각도를 놔두면 잃는 것으로 매긴다 — 되돌릴 수 없는 삭제는 높음, 문서만 어긋난 것은 낮음 | 조각 48 「부적합 심각도의 기준」 · 2026-10-31 |
-| `route-quality` | `audit-quality` | 검사 장치 이야기에 뜬다 · `audit-internal` 은 안 뜬다 | 구성 |
-| `route-contract` | `audit-contract` | 하위 호환 이야기에 뜬다 · `audit-data` 는 안 뜬다 | 구성 |
-| `route-internal` | `audit-internal` | 적은 규칙 대비 실제 이야기에 뜬다 · `audit-quality` 는 안 뜬다 | 구성 |
-| `route-ops` | `audit-ops` | 첫 배포 앞의 장애 추적 · 되돌리기 이야기에 뜬다 · `audit-quality` · `audit-secrets` 는 안 뜬다 | plugin-dev 리뷰 · 2026-10-06 |
+| `route-internal` | `audit-internal` | 적은 규칙 대비 실제 이야기에 뜬다 · `audit-data` 는 안 뜬다 | 구성 |
 | `route-quiet` | 아무도 | 감사와 무관한 말에 하나도 안 뜬다 | 구성 |
-| `route-unasked-auth` | `audit-secrets` | 인증을 막 붙이고 키가 박힌 채 README 를 물어도 뜬다 · `audit-internal` 은 안 뜬다 | 자기 트리거 · 2026-09-23 |
-| `route-unasked-secret` | `audit-secrets` | 라이브 키가 박힌 채 「PR 올려도 될까」에 뜬다 · `audit-quality` 는 안 뜬다 | 자기 트리거 · 2026-09-23 |
-| `route-unasked-contract` | `audit-contract` | 공개 응답 필드를 막 바꾸고 테스트 이름 관례를 물어도 뜬다 · `audit-quality` · `audit-secrets` 는 안 뜬다 | 자기 트리거 · 2026-09-23 |
-| `route-unasked-data` | `audit-data` | 위험한 마이그레이션을 막 짜고 PR 제목을 물어도 뜬다 · `audit-contract` · `audit-secrets` 는 안 뜬다 | 자기 트리거 · 2026-09-23 |
-| `route-unasked-ops` | 아무도 | 방금 짠 잡을 「PR 올려도 될까」만 물으면 안 뜬다 | plugin-dev 리뷰 · 2026-10-06 |
+| `route-unasked-data` | `audit-data` | 위험한 마이그레이션을 막 짜고 PR 제목을 물어도 뜬다 · `audit-internal` 은 안 뜬다 | 자기 트리거 · 2026-09-23 |
+
+브리핑 셋 · 회차 둘 · `gap-unowned` 은 처음에 `audit-secrets` 를 태웠고, 그 감사자가 은퇴해 `audit-internal` 로 옮겼다 — 브리핑 셋은 결함이 어기는 규칙을
+커밋하지 않은 `CLAUDE.md` 에 둔다. 은퇴한 감사자만 재던 케이스와 `gate-out-of-scope`(넘길 감사자 셋이 은퇴 전 명단에 기댄다)는 지웠다. 목록과 까닭은
+조각 「감사자 넷 은퇴」 설계 ③ 과 그 끝 날짜 항목.
 
 ## 재는 법
 

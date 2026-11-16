@@ -97,12 +97,12 @@ cat > CLAUDE.md <<'EOF'
 - **금지**: 코드에 박힌 시크릿, 권한 우회 임시 코드, 토큰·카드번호를 그대로 찍는 로그
 EOF
 
-cat > .claude/audits/audit-secrets-2026-08-18.md <<'EOF'
-# 감사 기록 — 시크릿 · 권한 경계
+cat > .claude/audits/audit-internal-2026-08-18.md <<'EOF'
+# 감사 기록 — 적은 규칙 대비 코드
 
 - 범위: 저장소 전체
 - 일시: 2026-08-18
-- 감사자: audit-secrets (읽기 전용)
+- 감사자: audit-internal (읽기 전용)
 
 ## 체크 항목
 | # | 항목 | 판정 | 근거 위치 |

@@ -118,12 +118,14 @@ while IFS=$'\t' read -r name source axis rival; do
   for f in "compare/$name/case.yaml" "compare/$name/graders/found.md" "compare/prompts/$axis.md" "$source/fixture.sh"; do
     [ -f "$f" ] || { echo "재료가 없다: $f" >&2; exit 2; }
   done
+  # 요청 본문은 축의 것 그대로(② B). 플러그인 팔은 그 도구를 부르는 한 줄을 머리에 붙인다(compare/arms.tsv · ADR 0067).
+  call=$(awk -F'\t' -v a="$base" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
+  # vibe-audit 팔은 감사자가 은퇴한 축(보안 · 계약)의 줄이 없다 — 그 케이스를 건너뛴다(조각 72 · ADR 0091 의 6).
+  if [ "$base" = vibe-audit ] && [ -z "$call" ]; then continue; fi
+  if [ "$base" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $base · $axis 줄이 없다" >&2; exit 2; fi
   mkdir -p "$mat/compare/$name"
   cp "compare/$name/case.yaml" "$mat/compare/$name/"
   cp -R "compare/$name/graders" "$mat/compare/$name/"
-  # 요청 본문은 축의 것 그대로(② B). 플러그인 팔은 그 도구를 부르는 한 줄을 머리에 붙인다(compare/arms.tsv · ADR 0067).
-  call=$(awk -F'\t' -v a="$base" -v x="$axis" '$1 == a && ($2 == x || $2 == "*") { print $3; exit }' compare/arms.tsv)
-  if [ "$base" != none ] && [ -z "$call" ]; then echo "compare/arms.tsv 에 $base · $axis 줄이 없다" >&2; exit 2; fi
   awk -v call="$call" '{ print } /^---$/ && ++n == 2 && call != "" { print ""; print call }' \
     "compare/prompts/$axis.md" > "$mat/compare/$name/prompt.md"
   cp "$source/fixture.sh" "$mat/compare/$name/fixture.sh"

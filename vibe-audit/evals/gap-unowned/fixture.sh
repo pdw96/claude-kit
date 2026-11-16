@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # 주인 없는 결함 둘과 담당인 결함 하나를 함께 둔다.
 #
-# (b) 여섯 어디에도 언급조차 없는 것 — 의존성 공급망
+# (b) 감사자 어디에도 언급조차 없는 것 — 의존성 공급망
 # (a) 「보지 않는 것」에 적혀 있으나 담당이 없는 것 — 성능
-# 대조군 — audit-secrets 담당인 무인증 라우트
+# 대조군 — CLAUDE.md 의 「권한 우회」 금지를 어긴 무인증 라우트(audit-internal 담당, 조각 72 에서 audit-secrets 로부터 옮김)
 #
 # CLAUDE.md 의 스택에 버전을 적지 않는다. 적으면 `python:latest` · `sqlalchemy>=1.4` 가
 # 문서와 어긋나 `audit-internal` 의 것이 된다 — 공급망이 주인 없는 자리가 아니게 된다.

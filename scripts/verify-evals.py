@@ -32,7 +32,7 @@
 트리거 케이스에서 같은 자리에 서는 것은 **음성 그레이더**(`route-not-*`)다.
 감사와 무관한 말에는 **아무도 뜨면 안 된다** — 그 모양은 `route-quiet` 하나로
 적고, 그때는 `route-correct` 를 두지 않는다.
-여섯을 전부 띄우는 세션도 「맞는 감사자가 떴다」로는 통과하기 때문이다.
+둘을 전부 띄우는 세션도 「맞는 감사자가 떴다」로는 통과하기 때문이다.
 
 트리거 케이스의 `prompt.md` 는 감사자를 **지목하면 안 된다.** 지목하면 재는
 것이 트리거가 아니라 복종이 된다.
@@ -365,7 +365,7 @@ def check(suite, agents_dir):
             if not route_negatives:
                 bad.append(
                     f"{name}: route-not-* 음성 그레이더가 없다 — "
-                    "여섯을 전부 띄우는 세션도 통과한다"
+                    "둘을 전부 띄우는 세션도 통과한다"
                 )
             for neg in route_negatives:
                 if neg == route_target:

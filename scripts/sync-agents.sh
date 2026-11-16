@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 감사자 여섯과 브리핑 커맨드 · 브리핑 검사기를 대상 레포의 .claude/ 에 심는다.
+# 감사자 둘과 브리핑 커맨드 · 브리핑 검사기를 대상 레포의 .claude/ 에 심는다.
 #
 # 특화가 있는 레포와 계정 동기화가 닿지 않는 세션은 파일이 레포에 있어야 그 레포의
 # 감사자가 뜬다(README 「설치」 ③). 이 스크립트는 그 사본을 만들고 머리에 출처를 박는다.
@@ -588,7 +588,7 @@ cat > "$DEST/README.md" <<EOF
 체크 항목을 이 레포에 맞게 좁히는 것이 사본을 두는 이유다 — 다만 **첫 감사를
 돌린 뒤에** 실제 발견에서 뽑는다. 미리 지어낸 항목은 재지 않고 단정한 것이다.
 
-여섯 다 \`tools: ["Read", "Grep", "Glob"]\` 이라 고칠 도구가 없다. 그 줄을 지우면
+둘 다 \`tools: ["Read", "Grep", "Glob"]\` 이라 고칠 도구가 없다. 그 줄을 지우면
 이것들은 감사자가 아니게 된다.
 EOF
 
@@ -630,5 +630,5 @@ echo
 echo "→ $DEST (감사자 심음 $copied · 건너뜀 $skipped)"
 echo "→ $CMDDEST (커맨드 심음 $cmds)"
 echo "→ $SCRIPTDEST (검사기 심음 $scripts)"
-echo "  호출: @audit-secrets · @audit-data · @audit-quality · @audit-ops · @audit-contract · @audit-internal"
+echo "  호출: @audit-data · @audit-internal"
 echo "  PR · 커밋 범위를 볼 때는 먼저: /audit-brief <기준> <감사자>"

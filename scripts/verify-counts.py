@@ -180,7 +180,7 @@ SOURCES = {
     "고정 목록 CHECKS": ("items", "scripts/test-gates.py", r"^CHECKS = \($", r"^\)$", r'"[^"]+"'),
     "고정 목록": ("items", "scripts/test-gates.py", r"^CHECKS = \($", r"^ALL = ", r'"[^"]+"'),
     "대조군 KEPT": ("const", "scripts/test-gates.py", r"^KEPT = ([0-9]+)"),
-    "감사자 tools": ("items", "vibe-audit/agents/audit-secrets.md", r"^tools: \[", r"\]$", r'"[A-Za-z]+"'),
+    "감사자 tools": ("items", "vibe-audit/agents/audit-internal.md", r"^tools: \[", r"\]$", r'"[A-Za-z]+"'),
     "적기 조건 스텝": ("items", "scripts/verify-eval-gate.py", r"^SPEC = \[$", r"^\]$", r'^    \("T[0-9]+", '),
     "머리의 키": ("items", "scripts/verify-eval-gate.py", r"^HEAD_KEYS = \[", r"\]", r'"[a-z-]+"'),
     "gate 잡의 키": ("items", "scripts/verify-eval-gate.py", r"^GATE_KEYS = \[", r"\]", r'"[a-z-]+"'),
@@ -327,18 +327,10 @@ ANCHORS = [
     ('scripts/run-evals.sh', r'^# {N}으로 두는 이유', 1, '러너 동시성'),
     ('scripts/run-evals.sh', r'전수 문턱 {N} 을', 1, '전수 문턱'),
     ('scripts/run-evals.sh', r'전수의 {N} 이 봐주려는', 1, '전수 문턱'),
-    # vibe-audit/agents/audit-contract.md
-    ('vibe-audit/agents/audit-contract.md', r'\*\*{N} 중 누구의', 2, '감사자'),
     # vibe-audit/agents/audit-data.md
     ('vibe-audit/agents/audit-data.md', r'\*\*{N} 중 누구의', 2, '감사자'),
     # vibe-audit/agents/audit-internal.md
     ('vibe-audit/agents/audit-internal.md', r'\*\*{N} 중 누구의', 2, '감사자'),
-    # vibe-audit/agents/audit-ops.md
-    ('vibe-audit/agents/audit-ops.md', r'\*\*{N} 중 누구의', 2, '감사자'),
-    # vibe-audit/agents/audit-quality.md
-    ('vibe-audit/agents/audit-quality.md', r'\*\*{N} 중 누구의', 2, '감사자'),
-    # vibe-audit/agents/audit-secrets.md
-    ('vibe-audit/agents/audit-secrets.md', r'\*\*{N} 중 누구의', 2, '감사자'),
     # vibe-audit/README.md
     ('vibe-audit/README.md', r'^{N}이 보는 범위', 1, '감사자'),
     ('vibe-audit/README.md', r'{N}을 한꺼번에', 1, '감사자'),

@@ -8,7 +8,7 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 
 | 플러그인 | 무엇 |
 |---|---|
-| `vibe-audit` | 목적별로 범위를 좁힌 읽기전용 감사자 6종 — 시크릿 · 데이터 · 검사장치 · 운영 · 계약 · 내부규칙 |
+| `vibe-audit` | 목적별로 범위를 좁힌 읽기전용 감사자 2종 — 데이터 · 내부규칙 |
 | `vibe-slice` | 프로젝트를 조각으로 나눠 진행하는 문서 틀 여섯 — 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 조각 요구사항 · 설계 — 과 부적합 대장의 틀(스킬 `slice-docs`), 리뷰 지적을 그 조각의 설계에 비춰 가르는 법(스킬 `slice-review`) |
 
 ## 무엇이 다른가 — 다른 플러그인과 맞대기
@@ -47,9 +47,9 @@ Claude Code 플러그인 마켓플레이스. **원본과 이력이 사는 곳**�
 
 | 세션 | 받는 길 | 부르는 이름 |
 |---|---|---|
-| 로컬 대화형 세션 | ① 마켓플레이스 | `@vibe-audit:audit-secrets` · `/vibe-slice:slice-docs` |
+| 로컬 대화형 세션 | ① 마켓플레이스 | `@vibe-audit:audit-data` · `/vibe-slice:slice-docs` |
 | 앱에서 연 클라우드 세션 | ② 계정 동기화 | ① 과 같다 |
-| 그 밖에서 잰 것 — 세션이 도구(`create_session`)로 연 클라우드 세션 | ③ 레포 사본 | `@audit-secrets` · `/slice-docs`(스코프 없음) |
+| 그 밖에서 잰 것 — 세션이 도구(`create_session`)로 연 클라우드 세션 | ③ 레포 사본 | `@audit-data` · `/slice-docs`(스코프 없음) |
 
 클라우드 쪽은 2026-10-30(CLI 2.1.314)에 같은 계정 · 같은 환경으로 쟀다 — 앱에서 연 세션에는 동기화본이 왔고, 도구로 연 세션에는 오지 않았다. 웹에서 연 세션 ·
 예약 작업 · Slack · CI 는 재지 않았다. 레포 사본은 그 밖에 **특화가 있는 레포**의 자리다(③).
@@ -64,7 +64,7 @@ claude plugin install vibe-audit@pdw96-kit
 claude plugin install vibe-slice@pdw96-kit
 ```
 
-호출 이름이 `@vibe-audit:audit-secrets` · `/vibe-slice:slice-docs` 로 **스코프가 붙는다.**
+호출 이름이 `@vibe-audit:audit-data` · `/vibe-slice:slice-docs` 로 **스코프가 붙는다.**
 
 **새 판은 리로드만으로 오지 않는다** — 이 마켓플레이스는 자동 갱신이 기본으로 꺼져 있다. 받으려면
 `claude plugin marketplace update pdw96-kit` 뒤 `claude plugin update <플러그인>@pdw96-kit` 을 돌리고 리로드한다
@@ -91,9 +91,9 @@ claude.ai 계정에 이 저장소를 마켓플레이스로 붙이고 `vibe-audit
 `--force` 는 사본을 일부러 원본으로 되돌릴 때만 쓴다 — 특화가 사라진다. `--merge` 가 멈추면(충돌 · 원본의 파일 묶음이 바뀜 등)
 그 심기는 손으로 세 쪽 병합한다 — 충돌이면 스크립트가 찍은 임시 폴더에 재료와 충돌 표시 병합본이 있다.
 
-호출 이름은 스코프 없이 `@audit-secrets`. 사본은 그 레포에 맞게 갈려도 된다 — 어느 쪽으로 무엇을 되돌리는지는 [의도](INTENT.md).
+호출 이름은 스코프 없이 `@audit-data`. 사본은 그 레포에 맞게 갈려도 된다 — 어느 쪽으로 무엇을 되돌리는지는 [의도](INTENT.md).
 
-**사본 레포의 앱 세션에는 두 벌이 뜬다.** 앱에서 연 클라우드 세션은 ② 의 원본도 받으므로, 감사자 여섯 · `audit-brief` · `slice-docs` · `slice-review` 가 다
+**사본 레포의 앱 세션에는 두 벌이 뜬다.** 앱에서 연 클라우드 세션은 ② 의 원본도 받으므로, 감사자 둘 · `audit-brief` · `slice-docs` · `slice-review` 가 다
 둘씩 뜬다(2026-10-30 ERP). 스코프 없는 이름(`@audit-data` · `/slice-docs`)은 그 레포의 사본을, `vibe-audit:` · `vibe-slice:` 를 붙인 이름은 원본을 부른다.
 **특화로 감사하려면 스코프 없는 이름으로 부른다** — 세션이 설명만 보고 고를 때 어느 쪽이 잡히는지는 재지 않았다. 레포 설정으로는 원본을 끌 수 없었다 —
 `.claude/settings.json` 의 `enabledPlugins` 에 `vibe-audit` · `vibe-slice` 를 `@claude-kit` 꼴로도 `@pdw96-kit` 꼴로도 `false` 로 둬도 다 떴다(2026-10-30). 계정에서 끄면
@@ -101,11 +101,11 @@ claude.ai 계정에 이 저장소를 마켓플레이스로 붙이고 `vibe-audit
 
 ## 새 프로젝트를 열 때
 
-1. 설치를 고른다 — 로컬은 ①, 앱에서 여는 클라우드 세션은 ② 로 이미 받는다. 그 레포에 특화가 생기거나 동기화가 닿지 않는 세션에서 쓰면 `scripts/sync-agents.sh <레포>` 로 감사자 여섯을 심는다(스킬도 그렇다면 `scripts/sync-slice.sh`) — ③
+1. 설치를 고른다 — 로컬은 ①, 앱에서 여는 클라우드 세션은 ② 로 이미 받는다. 그 레포에 특화가 생기거나 동기화가 닿지 않는 세션에서 쓰면 `scripts/sync-agents.sh <레포>` 로 감사자 둘을 심는다(스킬도 그렇다면 `scripts/sync-slice.sh`) — ③
 2. 스킬 `slice-docs` 로 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`)을 세워 조각을 나눈다
 3. 조각마다 요구사항 「제약」에 감사 회차를 적고 닫기 전에 돌린다
 
-감사자 여섯은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을
+감사자 둘은 개별 감사만 한다. 부적합을 닫힐 때까지 따라가는 대장은 `vibe-slice` 의 틀을
 베껴 세운다(자리는 [시스템 구조](docs/architecture.md)). 무엇을 언제 감사할지는 조각 요구사항의 감사 회차가 든다 — 고르는 법은 [절차 지도](docs/procedure.md) 「감사 회차」,
 바뀐 것에 맞는 감사자는 [`vibe-audit/README.md`](vibe-audit/README.md) 의 두 표 — 감사자마다 「무엇만 보는가」와 「대략의 주기」.
 

@@ -4,7 +4,7 @@
 
 - 범위: 저장소 전체(`/tmp/claude-eval-Rq8GJ7/home/cwd`). 파일은 6개이고 모두 읽었습니다. `CLAUDE.md`, `Dockerfile`, `requirements.txt`, `app/routes.py`, `app/models.py`, `app/report.py`입니다. 점(.)으로 시작하는 파일은 없었습니다.
 - 일시: 2026-11-01
-- 감사자: audit-secrets (읽기 전용)
+- 감사자: audit-internal (읽기 전용)
 - 감사한 커밋: 모름. `.claude/audit-brief.md`가 없고 지정된 diff도 없어서, 현재 체크아웃된 파일 상태를 감사했습니다.
 
 ## 체크 항목
@@ -82,4 +82,4 @@
 
 위 1~3 가운데 "빌드 · 배포 설정의 위생"은 이번 회차에서 두 건이 나왔습니다. 같은 종류가 세 번 반복되면 체크 항목이 비어 있다는 신호이니, 담당을 정하자고 제안합니다.
 
-이 기록은 `.claude/audits/audit-secrets-2026-11-01-<시각>.md`로 저장해 주세요(초 단위 시각 포함). 같은 이름이 이미 있으면 덮어쓰지 말고 끝에 `-2`를 붙여 주세요.
+이 기록은 `.claude/audits/audit-internal-2026-11-01-<시각>.md`로 저장해 주세요(초 단위 시각 포함). 같은 이름이 이미 있으면 덮어쓰지 말고 끝에 `-2`를 붙여 주세요.

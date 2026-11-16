@@ -20,7 +20,7 @@
 
 ## What
 
-- `vibe-audit` 플러그인 — 감사자 여섯 · `audit-brief` 커맨드 · `verify-brief.py`
+- `vibe-audit` 플러그인 — 감사자 둘(`audit-internal` · `audit-data`) · `audit-brief` 커맨드 · `verify-brief.py`
 - 배포 세 경로 — 마켓플레이스(로컬 대화형 세션) · 계정 동기화(앱에서 연 클라우드 세션) · 레포 사본(특화가 있는 레포와 동기화가 닿지 않는 세션)
 - 밖 사용자의 입구 — 영어 README 하나. 마켓플레이스 설치와 잰 차별점 · 그 한계를 든다
 - 사본 대장 · 비교기 · 되먹임 대장

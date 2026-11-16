@@ -26,7 +26,7 @@ import sys
 # 양쪽과 세 번째 자리가 한 항목으로 걸린다.
 #
 # 앞의 「담당이 아닌 것은 부적합이 아닙니다」 는 감사자마다 담당별 예시가
-# 들어가 여섯이 다르므로 글자 비교를 못 한다. 절의 존재와 순서만 ORDER 가 본다.
+# 들어가 둘이 다르므로 글자 비교를 못 한다. 절의 존재와 순서만 ORDER 가 본다.
 SHARED = [
     "## 판정은 넷이다",
     "### 담당인 것은 남에게 넘기지 않습니다",
@@ -89,13 +89,13 @@ def section(text, head):
 
 def check(src, dst):
     names = sorted(p.name for p in src.glob("audit-*.md"))
-    if len(names) != 6:
-        return [f"원본 {src} 에 감사자가 {len(names)}개다 — 6이어야 한다"]
+    if len(names) != 2:
+        return [f"원본 {src} 에 감사자가 {len(names)}개다 — 2이어야 한다"]
     # **원본 폴더의 다른 에이전트도 막는다.** `audit-*.md` 만 세면 `helper.md` 같은 파일은 이 검사 ·
     # 수트 · 예산을 다 비켜 가는데, 플러그인과 sync-agents.sh 는 폴더의 *.md 를 전부 싣는다 —
     # `Edit` · `Write` 를 가진 에이전트가 검사 없이 배포됐다(Codex 리뷰).
     # README.md 도 예외가 아니다 — 플러그인의 agents/ 에서는 *.md 가 다 에이전트 정의로 읽혀, 그 이름으로
-    # 머리말을 달면 검사 밖 에이전트가 된다(Codex 리뷰). 원본 폴더에는 감사자 여섯만 둔다.
+    # 머리말을 달면 검사 밖 에이전트가 된다(Codex 리뷰). 원본 폴더에는 감사자 둘만 둔다.
     extra = sorted(p.name for p in src.glob("*.md") if not p.name.startswith("audit-"))
     if extra:
         return [f"원본 {src} 에 감사자가 아닌 에이전트가 있다: {', '.join(extra)} — 검사 · 예산 밖에서 배포된다"]
@@ -110,7 +110,7 @@ def check(src, dst):
             return [f"원본 {name}: 머리말 name 이 {m.group(1) if m else '(없음)'} 다 — 파일 이름 {name[:-3]} 과 같아야 한다"]
 
     bad = []
-    # **원본 여섯끼리도 공통 절이 같아야 한다.** gates.sh 는 원본을 원본과 견주므로
+    # **원본 둘끼리도 공통 절이 같아야 한다.** gates.sh 는 원본을 원본과 견주므로
     # 파일마다 자기 자신과 비교해 늘 같다 — 한 감사자만 공통 규율을 고쳐도 PASS 였고,
     # sync 가 그 갈림을 사본으로 퍼뜨린다(Codex 리뷰). 첫 감사자를 기준으로 견준다.
     base = names[0]
@@ -198,7 +198,7 @@ def main(argv):
             print("FAIL " + line)
         print(f"\n{len(bad)}건. 원본: {src}")
         return 1
-    print(f"PASS 감사자 6개 — 공통 절이 원본과 글자 단위로 같고 순서도 맞다")
+    print(f"PASS 감사자 2개 — 공통 절이 원본과 글자 단위로 같고 순서도 맞다")
     print(f"     원본 {src}")
     return 0
 

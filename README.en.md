@@ -2,14 +2,14 @@
 
 [한국어](README.md) · English
 
-A Claude Code plugin marketplace with 2 plugins. The main one, `vibe-audit`, gives you 6 read-only auditors, each narrowed to one purpose.
+A Claude Code plugin marketplace with 2 plugins. The main one, `vibe-audit`, gives you 2 read-only auditors, each narrowed to one purpose.
 They report nonconformities and cannot fix anything — they have no tool that writes.
 
 ## What's inside
 
 | Plugin | What |
 |---|---|
-| `vibe-audit` | 6 read-only auditors and the `audit-brief` command |
+| `vibe-audit` | 2 read-only auditors and the `audit-brief` command |
 | `vibe-slice` | Document templates and a procedure for running a project in slices — written in Korean (below) |
 
 **`vibe-audit`.** Each auditor's frontmatter is `tools: ["Read", "Grep", "Glob"]` — no `Edit`, `Write` or `Bash`. Asking it to fix something does not work, by
@@ -17,12 +17,10 @@ construction: code an auditor fixed would be code nobody audited. Each auditor l
 
 | Auditor | Looks only at |
 |---|---|
-| `audit-secrets` | Secrets · credentials · environment separation · permission boundaries |
 | `audit-data` | Schema · migrations · transaction boundaries · whether a change can be rolled back |
-| `audit-quality` | The checking machinery itself — tests · CI gates · eval sets |
-| `audit-ops` | Logging · observability · alerting · rollback · incident paths |
-| `audit-contract` | Promises visible from outside — public API · response shape · error conventions · backward compatibility |
 | `audit-internal` | Rules the project wrote down for itself (`CLAUDE.md` · PRD · ADRs) against the actual code |
+
+Four more auditors (secrets · checking machinery · operations · public contract) were retired in 2026-11; their last form is tagged `v-archive-2026-11`.
 
 Each run returns numbered nonconformities (`NC-1`, `NC-2`, …) and a **"not looked at"** list — what the auditor did not check is part of the result.
 
@@ -97,8 +95,8 @@ Korean README, section "설치 — 경로가 셋인 이유".
 Call an auditor by its scoped name, one at a time — running all of them at once makes each one shallow.
 
 ```
-@vibe-audit:audit-secrets only under backend/app
 @vibe-audit:audit-data the migrations in this PR
+@vibe-audit:audit-internal the whole repository
 ```
 
 If you wrote the code in this same session, run the audit in a new session — otherwise it checks with the assumptions it just made. To compare against a base
@@ -106,11 +104,8 @@ If you wrote the code in this same session, run the audit in a new session — o
 
 | When | Run |
 |---|---|
-| A PR touching layers that are costly to undo (schema, credentials, permissions) | `audit-data`, `audit-secrets` |
-| A PR touching the public API | `audit-contract` |
-| Right before the first deploy | `audit-ops`, `audit-quality` |
+| A PR touching schema · migrations · transactions | `audit-data` |
 | After merging three or four slices | `audit-internal` |
-| After an incident | `audit-ops` → again `audit-ops` after the fix |
 
 Close a nonconformity only when the same auditor, run again, no longer finds it — "fixed" is not the same as "verified".
 

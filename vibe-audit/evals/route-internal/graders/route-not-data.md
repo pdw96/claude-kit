@@ -2,7 +2,7 @@
 type: tool_used
 weight: 3
 tool: Agent
-input_match: '"subagent_type":"vibe-audit:audit-secrets"'
+input_match: '"subagent_type":"vibe-audit:audit-data"'
 min: 0
 max: 0
 ---

@@ -133,10 +133,10 @@ PY
 
 # verify-copy.py — tools 를 변조한 사본은 실패해야 한다
 sopen "verify-copy.py(사본 · 원본 폴더)"
-keep '^PASS 감사자 6개' "고치지 않은 원본" python3 scripts/verify-copy.py vibe-audit/agents
+keep '^PASS 감사자 2개' "고치지 않은 원본" python3 scripts/verify-copy.py vibe-audit/agents
 cat "$BO"
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-secrets.md"
+sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-internal.md"
 bit 1 "$PYF" "tools 변조" python3 scripts/verify-copy.py "$t"
 # verify-copy.py — 원본 폴더에 감사자가 아닌 에이전트가 있으면 실패해야 한다(Codex 33차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
@@ -147,7 +147,7 @@ rm "$t/helper.md"; printf -- '---\nname: readme\ndescription: x\ntools: ["Read",
 bit 1 "$PYF" "README.md 로 숨긴 에이전트" python3 scripts/verify-copy.py "$t" "$t"
 # 원본 감사자의 머리말 name 이 파일 이름과 다르면 실패해야 한다(Codex 35차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i '0,/^name: .*/s//name: audit-opx/' "$t/audit-ops.md"
+sed -i '0,/^name: .*/s//name: audit-datx/' "$t/audit-data.md"
 bit 1 "$PYF" "name 이 파일 이름과 다른 원본 감사자" python3 scripts/verify-copy.py "$t" "$t"
 sclose 4 1
 
@@ -384,7 +384,7 @@ mrefuse merge:many-ledger-rows "T7f 대상 자리를 가리키는 줄이 둘"
 mfix t7i; mB; python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); open(p,"w").write(json.dumps(d, ensure_ascii=False, indent=4)+"\n")' "$S/copies.json"
 mrefuse merge:ledger-not-canonical "T7i 대장이 이 스크립트의 꼴이 아님"
 # P5 — 지금 스크립트의 앞 검사를 --merge 로
-mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-ops.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
+mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-data.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
 mfix t11b; mB; echo 'vibe-audit/commands/local.md' >> "$S/.git/info/exclude"; printf -- '---\ndescription: x\n---\n' > "$S/vibe-audit/commands/local.md"
 mrefuse merge:src-untracked "T11b HEAD 에 없는 원본 파일"
 mfix t11g; mB; echo '#' >> "$S/scripts/verify-copy.py"; mrefuse merge:tool-dirty "T11g 병합을 하는 원본 도구(verify-copy.py)에 커밋 안 된 변경"
@@ -392,18 +392,18 @@ mfix t11h; mB; echo '#' >> "$S/scripts/sync-agents.sh"; mrefuse merge:tool-dirty
 mfix t11c; mB; mledger 'd["copies"].append({"repo": "svc", "agents_path": "~/elsewhere/svc/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"})'
 mrefuse merge:name-clash "T11c 대장의 같은 이름 다른 자리"
 mfix t11d; mB; git -C "$V" rm -rq .claude/scripts; : > "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-not-dir "T11d 폴더 자리에 파일"
-mfix t11e; mB; git -C "$V" rm -q .claude/agents/audit-ops.md; mkdir "$V/.claude/agents/audit-ops.md"; : > "$V/.claude/agents/audit-ops.md/x"; msvc
+mfix t11e; mB; git -C "$V" rm -q .claude/agents/audit-data.md; mkdir "$V/.claude/agents/audit-data.md"; : > "$V/.claude/agents/audit-data.md/x"; msvc
 mrefuse merge:file-slot-dir "T11e 파일 자리에 폴더"
 mfix t11f; mB; mkdir -p "$F/outside"; git -C "$V" rm -rq --cached .claude/scripts; mv "$V/.claude/scripts/verify-brief.py" "$F/outside/"
 rmdir "$V/.claude/scripts"; ln -s "$F/outside" "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-link "T11f 폴더 자리가 링크"
 # P6 — 사본 레포
 mfix t9a; mB; git clone -q "$F/remote.git" "$F/other"; echo x > "$F/other/x"; git -C "$F/other" add x; mg -C "$F/other" commit -qm ahead
 mg -C "$F/other" push -q origin main 2>/dev/null; mrefuse merge:copy-behind "T9a 원격이 앞섬"
-mfix t9b; mB; echo x >> "$V/.claude/agents/audit-ops.md"; mrefuse merge:copy-dirty "T9b 추적된 파일에 커밋 안 된 고침"
+mfix t9b; mB; echo x >> "$V/.claude/agents/audit-data.md"; mrefuse merge:copy-dirty "T9b 추적된 파일에 커밋 안 된 고침"
 mfix t9h; mB; echo x > "$V/.claude/commands/new.md"; mrefuse merge:copy-dirty "T9h 사본 자리에 추적 안 된 새 파일"
 mfix t9c; mB; git -C "$V" rm -q --cached .claude/agents/README.md; echo .claude/agents/README.md >> "$V/.git/info/exclude"; msvc
 mrefuse merge:copy-not-tracked "T9c 무시된 README"
-mfix t9i; mB; git -C "$V" rm -q --cached .claude/agents/audit-ops.md; echo .claude/agents/audit-ops.md >> "$V/.git/info/exclude"; msvc
+mfix t9i; mB; git -C "$V" rm -q --cached .claude/agents/audit-data.md; echo .claude/agents/audit-data.md >> "$V/.git/info/exclude"; msvc
 mrefuse merge:copy-not-tracked "T9i 무시된 감사자"
 mfix t9d; mB; git -C "$V" remote remove origin; mrefuse merge:remote-unknown "T9d 원격 없음"
 mfix t9g; mB; rm -f "$V/.git/FETCH_HEAD"; mkdir "$V/.git/FETCH_HEAD"; mrefuse merge:fetch-failed "T9g 기본 가지는 읽히는데 받기가 실패"
@@ -498,7 +498,7 @@ mrefuse merge:readme-source-mismatch "T4d 사본 README 의 출처가 밑 SHA �
 mfix t4-copy-other; mB; msubst "$V/.claude/agents/README.md" "pdw96/claude-kit@$as" "pdw96/claude-kit@1234567"; msvc
 mrefuse merge:readme-source-mismatch "T4h 사본 README 의 출처가 밑과 다름"
 # M5
-mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-ops.md"; msvc
+mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-data.md"; msvc
 mrefuse merge:verify-copy-failed "T6 사본이 감사자 하나의 tools 를 바꿈"
 # T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 c56e571 의 스크립트와 이 스크립트가 같은
 # 자리에 심은 결과 · 출력 · 대장이 같다. 그 길을 일부러 바꾸면 이 핀을 그 커밋으로 옮긴다.
@@ -510,7 +510,7 @@ for v in pin cur; do
   { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o1" 2>&1 || true
   { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o2" 2>&1 || true   # 있으면 건너뛰는 길
   cp -a "$F/t8/.claude" "$F/r.$v/plain"; cp -p "$S/copies.json" "$F/r.$v/l1"
-  echo "- 특화" >> "$F/t8/.claude/agents/audit-ops.md"
+  echo "- 특화" >> "$F/t8/.claude/agents/audit-data.md"
   { HOME="$F" "$sc" "$F/t8" --force; echo "rc=$?"; } >"$F/r.$v/o3" 2>&1 || true
   cp -a "$F/t8/.claude" "$F/r.$v/force"; cp -p "$S/copies.json" "$F/r.$v/l2"
 done
@@ -555,7 +555,7 @@ for mut in \
   "s/^input_match: .*/input_match: audit-data/" \
   "s/\"subagent_type\":\"/\"subagent_type\": \"/"; do
   s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-  sed -i "$mut" "$s/vibe-audit/evals/route-contract/graders/route-not-data.md"
+  sed -i "$mut" "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
   bit 1 "$PYF" "subagent_type 에 안 걸린 input_match ($mut)" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 done
 
@@ -594,7 +594,7 @@ rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령  $4=그 조건의 
 }
 rbite evals   "이름이 recall- 가 아님(M1)"          'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml' '이름은 recall- 로 시작한다'
 rbite evals   "감사자를 지목하지 않음(M1)"           'sed -i "s/audit-data/감사자/" $C/prompt.md' '지목해야 한다 — 지금 없음'
-rbite evals   "감사자 둘을 지목(M1)"                 'echo "audit-secrets 도 함께" >> $C/prompt.md' "지금 ['audit-data', 'audit-secrets']"
+rbite evals   "감사자 둘을 지목(M1)"                 'echo "audit-internal 도 함께" >> $C/prompt.md' "지금 ['audit-data', 'audit-internal']"
 rbite evals   "recall-found 없음(M2)"                'rm $C/graders/recall-found.md' 'recall-found 가 없다'
 rbite evals   "recall-found 가 심판(M2)"             'sed -i "s/^type: regex/type: llm/" $C/graders/recall-found.md' 'recall-found: type 이 regex 여야'
 rbite evals   "recall-found 를 뒤집음(M2)"           'sed -i "s/^type: regex/type: regex\nmatch: not_contains/" $C/graders/recall-found.md' 'match: not_contains'
@@ -650,7 +650,7 @@ sopen "verify-budget.py · verify-manifest.py"
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
 python3 -c "
 import pathlib
-p = pathlib.Path('$u/vibe-audit/agents/audit-secrets.md')
+p = pathlib.Path('$u/vibe-audit/agents/audit-internal.md')
 p.write_text(p.read_text() + '\n' + '규칙을 더 붙인다. ' * 200)
 "
 bit 1 "$PYF" "자란 문구" python3 "$u/scripts/verify-budget.py"
@@ -716,10 +716,10 @@ PY
 keep '^PASS 사본 [0-9]+개' "그 커밋에서 그대로 심은 사본(체크아웃이 얕으면 떨어진다)" python3 scripts/verify-copies.py
 cat "$BO"
 # 감사자의 머리말 name 을 바꾼 사본도 실패해야 한다 — 문서가 적은 이름으로 안 불린다
-cp "$c/.claude/agents/audit-secrets.md" "$c/keep.md"
-sed -i '0,/^name: .*/s//name: renamed-secrets/' "$c/.claude/agents/audit-secrets.md"
+cp "$c/.claude/agents/audit-internal.md" "$c/keep.md"
+sed -i '0,/^name: .*/s//name: renamed-internal/' "$c/.claude/agents/audit-internal.md"
 bit 1 "$PYF" "name 을 바꾼 감사자 사본" python3 scripts/verify-copies.py
-mv "$c/keep.md" "$c/.claude/agents/audit-secrets.md"
+mv "$c/keep.md" "$c/.claude/agents/audit-internal.md"
 rm "$c/.claude/commands/audit-brief.md"
 bit 1 "$PYF" "/audit-brief 가 빠진 사본" python3 scripts/verify-copies.py
 # 검사기가 빠진 사본도 실패해야 한다. 적는 커밋은 검사기를 가진 것으로 골랐다 —
@@ -1030,24 +1030,24 @@ python3 - "$f/ra.json" <<'PY'
 import json, os, pathlib, sys
 # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
 tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
-rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
-        if p.stem not in ("auditor-fired", "trap-not-an-nc")]
+rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-slice-scope/graders").glob("*.md"))
+        if p.stem not in ("auditor-fired", "trap-closed-slice")]
 runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
          "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
                       "withOnly": True, "passed": i != 1},
-                     {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
+                     {"name": "trap-closed-slice", "weight": 3, "scored": True, "passed": True}]
                     + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
         for i in range(3)]
 # 두 팔(러너의 기본)이므로 without 팔도 회차 수대로 둔다 — 없으면 3 으로 먼저 끝난다
 base = [{"score": 0.0, "passed": False, "tracePath": str(tr),
          "graders": [{"name": g, "weight": 1, "scored": True, "passed": False}
-                     for g in ["trap-not-an-nc"] + rest]} for i in range(3)]
-json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": base},
+                     for g in ["trap-closed-slice"] + rest]} for i in range(3)]
+json.dump({"cases": [{"name": "trap-slice-scope", "arms": {"with": runs, "without": base},
                       "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
-                                  {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
+                                  {"name": "trap-closed-slice", "type": "regex", "weight": 3}],
                       "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
 PY
-bit 5 "$RVF" "감사자가 안 뜬 두 팔 회차" env FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe
+bit 5 "$RVF" "감사자가 안 뜬 두 팔 회차" env FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope
 sclose 1 0
 
 # verify-evals.py — 실행 비트가 빠진 픽스처는 실패해야 한다
@@ -1183,31 +1183,31 @@ bit 1 "$PYF" "arm 붙은 route-correct" python3 scripts/verify-evals.py "$s/vibe
 
 # verify-evals.py — 떨어져도 문턱을 못 넘기는 가벼운 음성 그레이더는 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-secrets.md"
+sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "문턱 아래로 못 끌어내리는 음성 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-graders.py — 무엇에나 맞는 대조군은 실패해야 한다(무는 fail 표본이 있어야)
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
-sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-local-dev-password/graders/real-nc-found.md"
+sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-slice-scope/graders/real-nc-found.md"
 bit 1 "$PYF" "무엇에나 맞는 대조군" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
 sclose 5 0
 
-# verify-copy.py — 원본 여섯 가운데 하나만 공통 절이 갈리면 실패해야 한다
+# verify-copy.py — 원본 둘 가운데 하나만 공통 절이 갈리면 실패해야 한다
 sopen "verify-copy.py(공통 절 · tools · 출력 형식)"
 # (gates.sh 는 원본을 원본과 견주므로 파일마다 자기 자신과 같다)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-secrets.md"
+sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-internal.md"
 bit 1 "$PYF" "원본끼리 갈린 공통 절" python3 scripts/verify-copy.py "$t" "$t"
 
 # verify-copy.py — 머리말에 Edit 를 넣고 본문에 원형 tools 줄을 적어 두면 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-ops.md"
-printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
+sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-data.md"
+printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-data.md"
 bit 1 "$PYF" "본문의 원형 줄에 속아 쓰기 도구" python3 scripts/verify-copy.py "$t"
 
 # verify-copy.py — 출력 형식에서 `## 지난 회차` 를 빼고 파일 끝에 딴 절로 붙인 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-python3 - "$t/audit-secrets.md" <<'PY'
+python3 - "$t/audit-internal.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 지난 회차\n", t.find("## 출력 형식"))
@@ -1217,7 +1217,7 @@ bit 1 "$PYF" "출력 형식 밖의 「지난 회차」에 속았다" python3 scr
 
 # verify-copy.py — 출력 형식의 `## 안 본 것` 머리만 지우고 자리표시를 남긴 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-python3 - "$t/audit-secrets.md" <<'PY'
+python3 - "$t/audit-internal.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 안 본 것\n", t.find("## 출력 형식"))
@@ -1229,11 +1229,11 @@ sclose 4 0
 # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다
 sopen "verify-evals.py · verify-manifest.py(선언)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-rm "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+rm "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "route-not-others 없는 route 케이스" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
-  "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+  "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "허용 선언과 어긋난 route-not-others" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — scaffold_script 선언이 빠진 케이스는 실패해야 한다
@@ -1270,7 +1270,7 @@ keyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
 keyed same vibe-audit/evals/README.md                     'echo x >> vibe-audit/evals/README.md'
 keyed same vibe-audit/README.md                           'echo x >> vibe-audit/README.md'
 keyed same vibe-audit/evals/budget.txt                    'echo x >> vibe-audit/evals/budget.txt'
-keyed same vibe-audit/evals/trap-liveness-probe/prompt.md 'echo x >> vibe-audit/evals/trap-liveness-probe/prompt.md'
+keyed same vibe-audit/evals/trap-slice-scope/prompt.md   'echo x >> vibe-audit/evals/trap-slice-scope/prompt.md'
 keyed diff vibe-audit/agents/audit-data.md                'echo x >> vibe-audit/agents/audit-data.md'
 keyed diff vibe-audit/evals/route-quiet/prompt.md         'echo x >> vibe-audit/evals/route-quiet/prompt.md'
 keyed diff scripts/verify-graders.py                      "echo '#' >> scripts/verify-graders.py"
