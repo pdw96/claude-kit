@@ -959,32 +959,32 @@ out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
 for i in range(3):
     (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
     (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
-gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
+gs = [("trap-closed-slice", "regex", 3), ("trap-stale-prd", "regex", 1), ("real-nc-found", "regex", 2)]
 # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
-gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
+gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/trap-slice-scope/graders").glob("*.md"))
        if p.stem not in {g for g, _, _ in gs}]
 runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True,
          "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
          "graders": [{"name": g, "weight": w, "scored": True,
-                      "passed": not (i < fails and g == "handoff-named")} for g, _, w in gs]}
+                      "passed": not (i < fails and g == "trap-stale-prd")} for g, _, w in gs]}
         for i in range(3)]
-json.dump({"cases": [{"name": "gate-out-of-scope", "arms": {"with": runs},
+json.dump({"cases": [{"name": "trap-slice-scope", "arms": {"with": runs},
                       "graders": [{"name": g, "type": t, "weight": w} for g, t, w in gs],
                       "aggregates": {"score": sum(r["score"] for r in runs) / 3}}]},
           open(out, "w"))
 PY
 done
-bit 5 "$RVF" "매번 떨어진 결정론 그레이더" env FAKE_RESULT="$f/r3.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+bit 5 "$RVF" "매번 떨어진 결정론 그레이더" env FAKE_RESULT="$f/r3.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 if [ "$(grep -c '실패 기록 남김' "$BO")" != 3 ]; then
   echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$BO"; exit 1
 fi
-keep "$RVOK" "한 회차만 떨어진 흔들림" env FAKE_RESULT="$f/r1.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+keep "$RVOK" "한 회차만 떨어진 흔들림" env FAKE_RESULT="$f/r1.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 # 케이스 머리의 graders 가 빈 결과도 매번 떨어진 그레이더를 잡아야 한다 — 종류는 디스크에서
 python3 -c "
 import json, sys
 d = json.load(open('$f/r3.json')); d['cases'][0]['graders'] = []
 json.dump(d, open('$f/r3e.json', 'w'))"
-bit 5 "$RVF" "케이스 머리 없는 결과의 매번 떨어진 그레이더" env FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+bit 5 "$RVF" "케이스 머리 없는 결과의 매번 떨어진 그레이더" env FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 sclose 2 1
 
 # run-evals.sh --eval-dir recall — 회수율은 재기만 한다(조각 39 설계 ② N · 끝 「PR D 에서 정한 것」). 진짜 하네스처럼
