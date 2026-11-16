@@ -1232,7 +1232,7 @@ s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
 rm "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "route-not-others 없는 route 케이스" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
+sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: audit-internal/' \
   "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "허용 선언과 어긋난 route-not-others" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
