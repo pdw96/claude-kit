@@ -13,7 +13,7 @@
 - 위치: `api/debug.py:5`
 
 ## 지난 회차
-- 지난 기록: `.claude/audits/audit-secrets-2026-08-18.md` (2026-08-18)
+- 지난 기록: `.claude/audits/audit-internal-2026-08-18.md` (2026-08-18)
 
 | 이전 | 이번 | 근거 위치 |
 |---|---|---|

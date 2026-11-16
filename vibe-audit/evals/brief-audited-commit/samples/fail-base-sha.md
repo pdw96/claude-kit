@@ -5,7 +5,7 @@
 
 - 범위: 저장소 전체 — 브리핑(`.claude/audit-brief.md`)의 diff 와 작업트리 몫
 - 일시: 2026-10-13
-- 감사자: audit-secrets (읽기 전용)
+- 감사자: audit-internal (읽기 전용)
 - 감사한 커밋: `3e17f24` · 커밋 안 된 변경 포함
 
 ## 체크 항목

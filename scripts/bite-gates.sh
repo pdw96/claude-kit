@@ -133,10 +133,10 @@ PY
 
 # verify-copy.py — tools 를 변조한 사본은 실패해야 한다
 sopen "verify-copy.py(사본 · 원본 폴더)"
-keep '^PASS 감사자 6개' "고치지 않은 원본" python3 scripts/verify-copy.py vibe-audit/agents
+keep '^PASS 감사자 2개' "고치지 않은 원본" python3 scripts/verify-copy.py vibe-audit/agents
 cat "$BO"
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-secrets.md"
+sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-internal.md"
 bit 1 "$PYF" "tools 변조" python3 scripts/verify-copy.py "$t"
 # verify-copy.py — 원본 폴더에 감사자가 아닌 에이전트가 있으면 실패해야 한다(Codex 33차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
@@ -147,7 +147,7 @@ rm "$t/helper.md"; printf -- '---\nname: readme\ndescription: x\ntools: ["Read",
 bit 1 "$PYF" "README.md 로 숨긴 에이전트" python3 scripts/verify-copy.py "$t" "$t"
 # 원본 감사자의 머리말 name 이 파일 이름과 다르면 실패해야 한다(Codex 35차)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i '0,/^name: .*/s//name: audit-opx/' "$t/audit-ops.md"
+sed -i '0,/^name: .*/s//name: audit-datx/' "$t/audit-data.md"
 bit 1 "$PYF" "name 이 파일 이름과 다른 원본 감사자" python3 scripts/verify-copy.py "$t" "$t"
 sclose 4 1
 
@@ -384,7 +384,7 @@ mrefuse merge:many-ledger-rows "T7f 대상 자리를 가리키는 줄이 둘"
 mfix t7i; mB; python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); open(p,"w").write(json.dumps(d, ensure_ascii=False, indent=4)+"\n")' "$S/copies.json"
 mrefuse merge:ledger-not-canonical "T7i 대장이 이 스크립트의 꼴이 아님"
 # P5 — 지금 스크립트의 앞 검사를 --merge 로
-mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-ops.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
+mfix t11a; mB; echo x >> "$S/vibe-audit/agents/audit-data.md"; mrefuse merge:src-dirty "T11a 원본에 커밋 안 된 변경"
 mfix t11b; mB; echo 'vibe-audit/commands/local.md' >> "$S/.git/info/exclude"; printf -- '---\ndescription: x\n---\n' > "$S/vibe-audit/commands/local.md"
 mrefuse merge:src-untracked "T11b HEAD 에 없는 원본 파일"
 mfix t11g; mB; echo '#' >> "$S/scripts/verify-copy.py"; mrefuse merge:tool-dirty "T11g 병합을 하는 원본 도구(verify-copy.py)에 커밋 안 된 변경"
@@ -392,18 +392,18 @@ mfix t11h; mB; echo '#' >> "$S/scripts/sync-agents.sh"; mrefuse merge:tool-dirty
 mfix t11c; mB; mledger 'd["copies"].append({"repo": "svc", "agents_path": "~/elsewhere/svc/.claude/agents", "synced_commit": d["copies"][0]["synced_commit"], "synced_at": "2026-10-19"})'
 mrefuse merge:name-clash "T11c 대장의 같은 이름 다른 자리"
 mfix t11d; mB; git -C "$V" rm -rq .claude/scripts; : > "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-not-dir "T11d 폴더 자리에 파일"
-mfix t11e; mB; git -C "$V" rm -q .claude/agents/audit-ops.md; mkdir "$V/.claude/agents/audit-ops.md"; : > "$V/.claude/agents/audit-ops.md/x"; msvc
+mfix t11e; mB; git -C "$V" rm -q .claude/agents/audit-data.md; mkdir "$V/.claude/agents/audit-data.md"; : > "$V/.claude/agents/audit-data.md/x"; msvc
 mrefuse merge:file-slot-dir "T11e 파일 자리에 폴더"
 mfix t11f; mB; mkdir -p "$F/outside"; git -C "$V" rm -rq --cached .claude/scripts; mv "$V/.claude/scripts/verify-brief.py" "$F/outside/"
 rmdir "$V/.claude/scripts"; ln -s "$F/outside" "$V/.claude/scripts"; msvc; mrefuse merge:dir-slot-link "T11f 폴더 자리가 링크"
 # P6 — 사본 레포
 mfix t9a; mB; git clone -q "$F/remote.git" "$F/other"; echo x > "$F/other/x"; git -C "$F/other" add x; mg -C "$F/other" commit -qm ahead
 mg -C "$F/other" push -q origin main 2>/dev/null; mrefuse merge:copy-behind "T9a 원격이 앞섬"
-mfix t9b; mB; echo x >> "$V/.claude/agents/audit-ops.md"; mrefuse merge:copy-dirty "T9b 추적된 파일에 커밋 안 된 고침"
+mfix t9b; mB; echo x >> "$V/.claude/agents/audit-data.md"; mrefuse merge:copy-dirty "T9b 추적된 파일에 커밋 안 된 고침"
 mfix t9h; mB; echo x > "$V/.claude/commands/new.md"; mrefuse merge:copy-dirty "T9h 사본 자리에 추적 안 된 새 파일"
 mfix t9c; mB; git -C "$V" rm -q --cached .claude/agents/README.md; echo .claude/agents/README.md >> "$V/.git/info/exclude"; msvc
 mrefuse merge:copy-not-tracked "T9c 무시된 README"
-mfix t9i; mB; git -C "$V" rm -q --cached .claude/agents/audit-ops.md; echo .claude/agents/audit-ops.md >> "$V/.git/info/exclude"; msvc
+mfix t9i; mB; git -C "$V" rm -q --cached .claude/agents/audit-data.md; echo .claude/agents/audit-data.md >> "$V/.git/info/exclude"; msvc
 mrefuse merge:copy-not-tracked "T9i 무시된 감사자"
 mfix t9d; mB; git -C "$V" remote remove origin; mrefuse merge:remote-unknown "T9d 원격 없음"
 mfix t9g; mB; rm -f "$V/.git/FETCH_HEAD"; mkdir "$V/.git/FETCH_HEAD"; mrefuse merge:fetch-failed "T9g 기본 가지는 읽히는데 받기가 실패"
@@ -498,11 +498,11 @@ mrefuse merge:readme-source-mismatch "T4d 사본 README 의 출처가 밑 SHA �
 mfix t4-copy-other; mB; msubst "$V/.claude/agents/README.md" "pdw96/claude-kit@$as" "pdw96/claude-kit@1234567"; msvc
 mrefuse merge:readme-source-mismatch "T4h 사본 README 의 출처가 밑과 다름"
 # M5
-mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-ops.md"; msvc
+mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-data.md"; msvc
 mrefuse merge:verify-copy-failed "T6 사본이 감사자 하나의 tools 를 바꿈"
-# T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 c56e571 의 스크립트와 이 스크립트가 같은
+# T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 577810a 의(조각 72 — 안내 문구의 감사자 수) 스크립트와 이 스크립트가 같은
 # 자리에 심은 결과 · 출력 · 대장이 같다. 그 길을 일부러 바꾸면 이 핀을 그 커밋으로 옮긴다.
-mfix t8; git -C "$S" show c56e571:scripts/sync-agents.sh > "$S/scripts/sync-agents.pin.sh"; chmod +x "$S/scripts/sync-agents.pin.sh"
+mfix t8; git -C "$S" show 577810a:scripts/sync-agents.sh > "$S/scripts/sync-agents.pin.sh"; chmod +x "$S/scripts/sync-agents.pin.sh"
 cp -p "$S/copies.json" "$F/l0"
 for v in pin cur; do
   if [ "$v" = pin ]; then sc="$S/scripts/sync-agents.pin.sh"; else sc="$S/scripts/sync-agents.sh"; fi
@@ -510,12 +510,12 @@ for v in pin cur; do
   { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o1" 2>&1 || true
   { HOME="$F" "$sc" "$F/t8"; echo "rc=$?"; } >"$F/r.$v/o2" 2>&1 || true   # 있으면 건너뛰는 길
   cp -a "$F/t8/.claude" "$F/r.$v/plain"; cp -p "$S/copies.json" "$F/r.$v/l1"
-  echo "- 특화" >> "$F/t8/.claude/agents/audit-ops.md"
+  echo "- 특화" >> "$F/t8/.claude/agents/audit-data.md"
   { HOME="$F" "$sc" "$F/t8" --force; echo "rc=$?"; } >"$F/r.$v/o3" 2>&1 || true
   cp -a "$F/t8/.claude" "$F/r.$v/force"; cp -p "$S/copies.json" "$F/r.$v/l2"
 done
 cp -p "$F/l0" "$S/copies.json"
-if diff -r "$F/r.pin" "$F/r.cur" >"$F/out" 2>&1; then mpass=$((mpass + 1)); else mfail "T8 인자 없는 길 · --force 가 c56e571 과 다르다"; fi
+if diff -r "$F/r.pin" "$F/r.cur" >"$F/out" 2>&1; then mpass=$((mpass + 1)); else mfail "T8 인자 없는 길 · --force 가 577810a 과 다르다"; fi
 
 # V5 — `merge:` 이유 코드마다 그것을 기대하는 시험(mrefuse · mkeep)이 이 절에 있다. 변조본: 시험 하나를 지운 절은 떨어진다.
 mcodes() {  # $1=sync-agents.sh $2=시험 파일 — 시험이 없는 코드를 찍는다
@@ -540,7 +540,7 @@ if [ "$mpass" != $((MFIXED + MPER * mn)) ]; then
   echo "::error::sync-agents.sh --merge 의 꼴이 $mpass 돌았다 — $((MFIXED + MPER * mn))(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 이어야 한다"; exit 1
 fi
 NSEC=$((NSEC + 1))
-echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
+echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 577810a 과 같음, 이유 코드마다 시험"
 
 # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(수트)"
@@ -555,7 +555,7 @@ for mut in \
   "s/^input_match: .*/input_match: audit-data/" \
   "s/\"subagent_type\":\"/\"subagent_type\": \"/"; do
   s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-  sed -i "$mut" "$s/vibe-audit/evals/route-contract/graders/route-not-data.md"
+  sed -i "$mut" "$s/vibe-audit/evals/route-unasked-data/graders/route-correct.md"
   bit 1 "$PYF" "subagent_type 에 안 걸린 input_match ($mut)" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 done
 
@@ -571,9 +571,9 @@ bit 1 "$PYF" "못 무는 그레이더" python3 scripts/verify-graders.py "$g/vib
 
 # verify-graders.py — pass.md 밖의 바른 기록(pass-*.md)에서 떨어지는 그레이더는 실패해야 한다.
 # pass.md 만 보던 판은 이것을 지나보냈다. 수트 안의 pass-*.md 에 기대지 않고 pass.md 를
-# 베껴 report.py 줄을 뺀다 — gate-escalated-perf 하나만 떨어진다(조각 21, ADR 0031).
+# 베껴 문자 발송을 든 줄을 뺀다 — real-nc-found 하나만 떨어진다(조각 21, ADR 0031 · 조각 72 에서 trap-slice-scope 로 옮김).
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
-grep -v 'report\.py' "$g/vibe-audit/evals/gap-unowned/samples/pass.md" > "$g/vibe-audit/evals/gap-unowned/samples/pass-bite.md"
+grep -viE 'sms|문자' "$g/vibe-audit/evals/trap-slice-scope/samples/pass.md" > "$g/vibe-audit/evals/trap-slice-scope/samples/pass-bite.md"
 bit 1 "$PYF" "pass-*.md 에서 떨어지는 그레이더" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
 sclose 6 0
 
@@ -594,7 +594,7 @@ rbite() {  # $1=evals|graders  $2=무엇  $3=흔드는 명령  $4=그 조건의 
 }
 rbite evals   "이름이 recall- 가 아님(M1)"          'mv $C x-commit && sed -i "s/^name: .*/name: x-commit/" x-commit/case.yaml' '이름은 recall- 로 시작한다'
 rbite evals   "감사자를 지목하지 않음(M1)"           'sed -i "s/audit-data/감사자/" $C/prompt.md' '지목해야 한다 — 지금 없음'
-rbite evals   "감사자 둘을 지목(M1)"                 'echo "audit-secrets 도 함께" >> $C/prompt.md' "지금 ['audit-data', 'audit-secrets']"
+rbite evals   "감사자 둘을 지목(M1)"                 'echo "audit-internal 도 함께" >> $C/prompt.md' "지금 ['audit-data', 'audit-internal']"
 rbite evals   "recall-found 없음(M2)"                'rm $C/graders/recall-found.md' 'recall-found 가 없다'
 rbite evals   "recall-found 가 심판(M2)"             'sed -i "s/^type: regex/type: llm/" $C/graders/recall-found.md' 'recall-found: type 이 regex 여야'
 rbite evals   "recall-found 를 뒤집음(M2)"           'sed -i "s/^type: regex/type: regex\nmatch: not_contains/" $C/graders/recall-found.md' 'match: not_contains'
@@ -636,7 +636,7 @@ done
 # 대조군 — 고치지 않은 회수율 사본은 두 검사를 종료 0 과 PASS 줄로 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
 for chk in evals graders; do
-  keep '^PASS 회수율 케이스 6개' "verify-$chk.py 에 고치지 않은 회수율 사본" python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall"
+  keep '^PASS 회수율 케이스 4개' "verify-$chk.py 에 고치지 않은 회수율 사본" python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall"
 done
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"; rm -rf "$u/vibe-audit/recall"
 for chk in evals graders; do
@@ -650,7 +650,7 @@ sopen "verify-budget.py · verify-manifest.py"
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"
 python3 -c "
 import pathlib
-p = pathlib.Path('$u/vibe-audit/agents/audit-secrets.md')
+p = pathlib.Path('$u/vibe-audit/agents/audit-internal.md')
 p.write_text(p.read_text() + '\n' + '규칙을 더 붙인다. ' * 200)
 "
 bit 1 "$PYF" "자란 문구" python3 "$u/scripts/verify-budget.py"
@@ -716,10 +716,10 @@ PY
 keep '^PASS 사본 [0-9]+개' "그 커밋에서 그대로 심은 사본(체크아웃이 얕으면 떨어진다)" python3 scripts/verify-copies.py
 cat "$BO"
 # 감사자의 머리말 name 을 바꾼 사본도 실패해야 한다 — 문서가 적은 이름으로 안 불린다
-cp "$c/.claude/agents/audit-secrets.md" "$c/keep.md"
-sed -i '0,/^name: .*/s//name: renamed-secrets/' "$c/.claude/agents/audit-secrets.md"
+cp "$c/.claude/agents/audit-internal.md" "$c/keep.md"
+sed -i '0,/^name: .*/s//name: renamed-internal/' "$c/.claude/agents/audit-internal.md"
 bit 1 "$PYF" "name 을 바꾼 감사자 사본" python3 scripts/verify-copies.py
-mv "$c/keep.md" "$c/.claude/agents/audit-secrets.md"
+mv "$c/keep.md" "$c/.claude/agents/audit-internal.md"
 rm "$c/.claude/commands/audit-brief.md"
 bit 1 "$PYF" "/audit-brief 가 빠진 사본" python3 scripts/verify-copies.py
 # 검사기가 빠진 사본도 실패해야 한다. 적는 커밋은 검사기를 가진 것으로 골랐다 —
@@ -959,32 +959,32 @@ out, fails, tr = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
 for i in range(3):
     (tr / f"r{i}").mkdir(parents=True, exist_ok=True)
     (tr / f"r{i}" / "trace.jsonl").write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
-gs = [("gate-holds", "regex", 3), ("handoff-named", "regex", 1), ("real-nc-found", "regex", 2)]
+gs = [("trap-closed-slice", "regex", 3), ("trap-stale-prd", "regex", 1), ("real-nc-found", "regex", 2)]
 # 러너는 디스크에 적힌 그레이더가 다 채점됐는지도 보므로 나머지는 통과로 채운다
-gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/gate-out-of-scope/graders").glob("*.md"))
+gs += [(p.stem, "llm", 1) for p in sorted(pathlib.Path("vibe-audit/evals/trap-slice-scope/graders").glob("*.md"))
        if p.stem not in {g for g, _, _ in gs}]
 runs = [{"score": 5 / 6 if i < fails else 1.0, "passed": True,
          "tracePath": str(tr / f"r{i}" / "trace.jsonl"),
          "graders": [{"name": g, "weight": w, "scored": True,
-                      "passed": not (i < fails and g == "handoff-named")} for g, _, w in gs]}
+                      "passed": not (i < fails and g == "trap-stale-prd")} for g, _, w in gs]}
         for i in range(3)]
-json.dump({"cases": [{"name": "gate-out-of-scope", "arms": {"with": runs},
+json.dump({"cases": [{"name": "trap-slice-scope", "arms": {"with": runs},
                       "graders": [{"name": g, "type": t, "weight": w} for g, t, w in gs],
                       "aggregates": {"score": sum(r["score"] for r in runs) / 3}}]},
           open(out, "w"))
 PY
 done
-bit 5 "$RVF" "매번 떨어진 결정론 그레이더" env FAKE_RESULT="$f/r3.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+bit 5 "$RVF" "매번 떨어진 결정론 그레이더" env FAKE_RESULT="$f/r3.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 if [ "$(grep -c '실패 기록 남김' "$BO")" != 3 ]; then
   echo "::error::run-evals.sh 가 매번 떨어진 회차의 트레이스를 안 남겼다"; cat "$BO"; exit 1
 fi
-keep "$RVOK" "한 회차만 떨어진 흔들림" env FAKE_RESULT="$f/r1.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+keep "$RVOK" "한 회차만 떨어진 흔들림" env FAKE_RESULT="$f/r1.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 # 케이스 머리의 graders 가 빈 결과도 매번 떨어진 그레이더를 잡아야 한다 — 종류는 디스크에서
 python3 -c "
 import json, sys
 d = json.load(open('$f/r3.json')); d['cases'][0]['graders'] = []
 json.dump(d, open('$f/r3e.json', 'w'))"
-bit 5 "$RVF" "케이스 머리 없는 결과의 매번 떨어진 그레이더" env FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case gate-out-of-scope --ablation none
+bit 5 "$RVF" "케이스 머리 없는 결과의 매번 떨어진 그레이더" env FAKE_RESULT="$f/r3e.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope --ablation none
 sclose 2 1
 
 # run-evals.sh --eval-dir recall — 회수율은 재기만 한다(조각 39 설계 ② N · 끝 「PR D 에서 정한 것」). 진짜 하네스처럼
@@ -1030,24 +1030,24 @@ python3 - "$f/ra.json" <<'PY'
 import json, os, pathlib, sys
 # 러너는 트레이스 없는 회차를 무효로 보므로 회차마다 트레이스를 둔다
 tr = pathlib.Path(sys.argv[1]).parent / "ok.jsonl"; tr.write_text('{"type":"result","result":"ok","modelUsage":{"%s":{}}}\n' % os.environ["BITE_MODEL"])
-rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-liveness-probe/graders").glob("*.md"))
-        if p.stem not in ("auditor-fired", "trap-not-an-nc")]
+rest = [p.stem for p in sorted(pathlib.Path("vibe-audit/evals/trap-slice-scope/graders").glob("*.md"))
+        if p.stem not in ("auditor-fired", "trap-closed-slice")]
 runs = [{"score": 1.0, "passed": True, "tracePath": str(tr),
          "graders": [{"name": "auditor-fired", "weight": 1, "scored": False,
                       "withOnly": True, "passed": i != 1},
-                     {"name": "trap-not-an-nc", "weight": 3, "scored": True, "passed": True}]
+                     {"name": "trap-closed-slice", "weight": 3, "scored": True, "passed": True}]
                     + [{"name": g, "weight": 1, "scored": True, "passed": True} for g in rest]}
         for i in range(3)]
 # 두 팔(러너의 기본)이므로 without 팔도 회차 수대로 둔다 — 없으면 3 으로 먼저 끝난다
 base = [{"score": 0.0, "passed": False, "tracePath": str(tr),
          "graders": [{"name": g, "weight": 1, "scored": True, "passed": False}
-                     for g in ["trap-not-an-nc"] + rest]} for i in range(3)]
-json.dump({"cases": [{"name": "trap-liveness-probe", "arms": {"with": runs, "without": base},
+                     for g in ["trap-closed-slice"] + rest]} for i in range(3)]
+json.dump({"cases": [{"name": "trap-slice-scope", "arms": {"with": runs, "without": base},
                       "graders": [{"name": "auditor-fired", "type": "tool_used", "weight": 1},
-                                  {"name": "trap-not-an-nc", "type": "regex", "weight": 3}],
+                                  {"name": "trap-closed-slice", "type": "regex", "weight": 3}],
                       "aggregates": {"score": 1.0}}]}, open(sys.argv[1], "w"))
 PY
-bit 5 "$RVF" "감사자가 안 뜬 두 팔 회차" env FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-liveness-probe
+bit 5 "$RVF" "감사자가 안 뜬 두 팔 회차" env FAKE_RESULT="$f/ra.json" PATH="$f:$PATH" ./scripts/run-evals.sh --case trap-slice-scope
 sclose 1 0
 
 # verify-evals.py — 실행 비트가 빠진 픽스처는 실패해야 한다
@@ -1168,7 +1168,7 @@ sclose 13 4
 # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(무게 · arm · 대조군)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gap-unowned/graders/gate-no-fake-owner.md"
+sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/gate-comment-owned/graders/gate-comment-owned.md"
 bit 1 "$PYF" "문턱을 못 넘기는 심판 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — auditor-fired 가 호출을 요구하지 않으면(min 0) 실패해야 한다(Codex 33차)
@@ -1183,31 +1183,31 @@ bit 1 "$PYF" "arm 붙은 route-correct" python3 scripts/verify-evals.py "$s/vibe
 
 # verify-evals.py — 떨어져도 문턱을 못 넘기는 가벼운 음성 그레이더는 실패해야 한다
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-secrets.md"
+sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "문턱 아래로 못 끌어내리는 음성 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-graders.py — 무엇에나 맞는 대조군은 실패해야 한다(무는 fail 표본이 있어야)
 g=$(mktemp -d); cp -r vibe-audit "$g/"; rm -rf "$g/vibe-audit/evals/results"
-sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-local-dev-password/graders/real-nc-found.md"
+sed -i 's/^pattern: .*/pattern: "."/' "$g/vibe-audit/evals/trap-slice-scope/graders/real-nc-found.md"
 bit 1 "$PYF" "무엇에나 맞는 대조군" python3 scripts/verify-graders.py "$g/vibe-audit/evals"
 sclose 5 0
 
-# verify-copy.py — 원본 여섯 가운데 하나만 공통 절이 갈리면 실패해야 한다
+# verify-copy.py — 원본 둘 가운데 하나만 공통 절이 갈리면 실패해야 한다
 sopen "verify-copy.py(공통 절 · tools · 출력 형식)"
 # (gates.sh 는 원본을 원본과 견주므로 파일마다 자기 자신과 같다)
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-secrets.md"
+sed -i '/^## 판정은 넷이다$/{n;s/$/ 갈림/}' "$t/audit-internal.md"
 bit 1 "$PYF" "원본끼리 갈린 공통 절" python3 scripts/verify-copy.py "$t" "$t"
 
 # verify-copy.py — 머리말에 Edit 를 넣고 본문에 원형 tools 줄을 적어 두면 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-ops.md"
-printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-ops.md"
+sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$t/audit-data.md"
+printf '\n예시:\ntools: ["Read", "Grep", "Glob"]\n' >> "$t/audit-data.md"
 bit 1 "$PYF" "본문의 원형 줄에 속아 쓰기 도구" python3 scripts/verify-copy.py "$t"
 
 # verify-copy.py — 출력 형식에서 `## 지난 회차` 를 빼고 파일 끝에 딴 절로 붙인 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-python3 - "$t/audit-secrets.md" <<'PY'
+python3 - "$t/audit-internal.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 지난 회차\n", t.find("## 출력 형식"))
@@ -1217,7 +1217,7 @@ bit 1 "$PYF" "출력 형식 밖의 「지난 회차」에 속았다" python3 scr
 
 # verify-copy.py — 출력 형식의 `## 안 본 것` 머리만 지우고 자리표시를 남긴 사본은 실패해야 한다
 t=$(mktemp -d); cp vibe-audit/agents/*.md "$t/"
-python3 - "$t/audit-secrets.md" <<'PY'
+python3 - "$t/audit-internal.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1]); t = p.read_text()
 j = t.find("## 안 본 것\n", t.find("## 출력 형식"))
@@ -1229,11 +1229,11 @@ sclose 4 0
 # verify-evals.py — route-not-others 가 없거나 허용 선언과 어긋나면 실패해야 한다
 sopen "verify-evals.py · verify-manifest.py(선언)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-rm "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+rm "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "route-not-others 없는 route 케이스" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: 없음/' \
-  "$s/vibe-audit/evals/route-unasked-secret/graders/route-not-others.md"
+sed -i 's/^같이 떠도 되는 감사자: .*/같이 떠도 되는 감사자: audit-internal/' \
+  "$s/vibe-audit/evals/route-unasked-data/graders/route-not-others.md"
 bit 1 "$PYF" "허용 선언과 어긋난 route-not-others" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — scaffold_script 선언이 빠진 케이스는 실패해야 한다
@@ -1270,7 +1270,7 @@ keyed() {  # $1=same|diff  $2=파일  $3=흔드는 명령
 keyed same vibe-audit/evals/README.md                     'echo x >> vibe-audit/evals/README.md'
 keyed same vibe-audit/README.md                           'echo x >> vibe-audit/README.md'
 keyed same vibe-audit/evals/budget.txt                    'echo x >> vibe-audit/evals/budget.txt'
-keyed same vibe-audit/evals/trap-liveness-probe/prompt.md 'echo x >> vibe-audit/evals/trap-liveness-probe/prompt.md'
+keyed same vibe-audit/evals/trap-slice-scope/prompt.md   'echo x >> vibe-audit/evals/trap-slice-scope/prompt.md'
 keyed diff vibe-audit/agents/audit-data.md                'echo x >> vibe-audit/agents/audit-data.md'
 keyed diff vibe-audit/evals/route-quiet/prompt.md         'echo x >> vibe-audit/evals/route-quiet/prompt.md'
 keyed diff scripts/verify-graders.py                      "echo '#' >> scripts/verify-graders.py"
@@ -1738,7 +1738,7 @@ vedit scripts/test-gates.py '변조 시험 다섯이 맨 뒤' '변조 시험 여
 vbite D1 "닻을 가진 끝 줄의 낱말을 틀리게"
 vback scripts/test-gates.py
 # D2 — 닻이 낡았다: 문장을 지움 · 문장을 겹쳐 적음 · 닻의 파일이 없음
-vedit INTENT.md '감사자 여섯 · ' '감사자들 · '
+vedit INTENT.md '감사자 둘 · ' '감사자들 · '
 vbite D2 "닻이 가리키는 문장을 지움"
 vback INTENT.md
 vedit CLAUDE.md '- **감사자의 `tools`** — 읽기 전용 셋.' '- **감사자의 `tools`** — 읽기 전용 셋. 읽기 전용 셋.'
@@ -1782,7 +1782,7 @@ vback scripts/verify-counts.py
 vedit scripts/verify-counts.py "    ('docs/procedure.md', r'{N} 검사는 \`vibe-slice\`', 1, '조각 문서 검사'),\\n" ""
 vbite U1 "NC-17 의 자리(procedure.md 머리)의 닻을 지움" 'docs/procedure\.md:[0-9]+ '
 vback scripts/verify-counts.py
-vedit CHECKLIST.md '\n## 플러그인의 파일을 고쳤다면' '\n감사자 여섯이 다 읽기 전용이다.\n\n## 플러그인의 파일을 고쳤다면'
+vedit CHECKLIST.md '\n## 플러그인의 파일을 고쳤다면' '\n감사자 둘이 다 읽기 전용이다.\n\n## 플러그인의 파일을 고쳤다면'
 vbite U1 "명사 뒤의 수를 닻 없이 더함" 'CHECKLIST\.md:[0-9]+ '
 vback CHECKLIST.md
 vedit docs/architecture.md '\n## 문서' '\n일곱 단계를 지난다.\n\n## 문서'
@@ -1811,7 +1811,7 @@ vback vibe-audit/scripts/verify-brief.py
 # (조각 55 설계 ② C · F — 아래 「브리핑 작업본을 심은 사본」 대조군만으로는 그 고리가 보이지 않는다). 저장소의 검사로 사본을 본다 —
 # 사본의 검사를 대면 검사 옆과 훑는 트리가 같은 사본이라 「검사 파일 옆에서 읽기」가 지나간다(감사 회차 33 NC-38)
 vedit vibe-audit/scripts/verify-brief.py ', ".claude/audit-brief.md")' ')'
-mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+mkdir -p "$VC/.claude"; printf '감사자 둘이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
 bit 1 '^FAIL \[U1\] \.claude/audit-brief\.md:[0-9]+ ' "첫 자리에서 브리핑 작업본을 뺌" python3 scripts/verify-counts.py "$VC"
 rm "$VC/.claude/audit-brief.md"
 vback vibe-audit/scripts/verify-brief.py
@@ -1829,12 +1829,12 @@ done
 # 대조군 — 고치지 않은 사본, 그리고 원천과 문장을 함께 바꾼 사본(판정 케이스 다섯을 더하고 그 수를 적은 문장을 합성 낱말로 고친다)
 keep "$VPASS" "고치지 않은 사본" python3 scripts/verify-counts.py "$VC"
 # 커밋하지 않는 브리핑 작업본에 같은 원천 문장이 있어도 지나간다 — 로컬과 CI 의 판정이 갈리지 않게(감사 회차 18 NC-18)
-mkdir -p "$VC/.claude"; printf '감사자 여섯이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
+mkdir -p "$VC/.claude"; printf '감사자 둘이 다 읽기 전용이다.\n' > "$VC/.claude/audit-brief.md"
 keep "$VPASS" "브리핑 작업본을 심은 사본" python3 "$VC/scripts/verify-counts.py" "$VC"
 rm "$VC/.claude/audit-brief.md"
 for i in 1 2 3 4 5; do mkdir "$VC/vibe-audit/evals/zz-$i"; : > "$VC/vibe-audit/evals/zz-$i/case.yaml"; done
-vedit vibe-audit/README.md '케이스 스물일곱이' '케이스 서른둘이' '인자 없이 스물일곱을' '인자 없이 서른둘을' '| 판정 | 열일곱 |' '| 판정 | 스물둘 |'
-vedit .github/workflows/eval.yml '케이스 스물일곱이다' '케이스 서른둘이다'
+vedit vibe-audit/README.md '케이스 열셋이' '케이스 열여덟이' '인자 없이 열셋을' '인자 없이 열여덟을' '| 판정 | 열 |' '| 판정 | 열다섯 |'
+vedit .github/workflows/eval.yml '케이스 열셋이다' '케이스 열여덟이다'
 keep "$VPASS" "원천과 문장을 함께 바꾼 사본" python3 scripts/verify-counts.py "$VC"
 vback vibe-audit/evals/zz-1 vibe-audit/evals/zz-2 vibe-audit/evals/zz-3 vibe-audit/evals/zz-4 vibe-audit/evals/zz-5 vibe-audit/README.md .github/workflows/eval.yml
 sclose 29 3

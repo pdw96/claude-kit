@@ -3,7 +3,7 @@
 
   python3 scripts/budget-breakdown.py [감사자 이름 ...]
 
-이름을 안 주면 여섯 전부. **게이트가 아니라 보는 도구다** — 실패하지 않는다.
+이름을 안 주면 둘 전부. **게이트가 아니라 보는 도구다** — 실패하지 않는다.
 
 `verify-budget.py` 는 총액에 벽을 세운다. 이것은 그 총액이 **어디로 갔는지**를
 연다. 왜 절 단위인가 — 되먹임을 메울 때마다 자란 것은 언제나 **공통 규율**
@@ -77,7 +77,7 @@ def main(argv):
         print(f"  {'— 머리말(상시)':<26} {head:>6} {'':>5} {head / whole * 100:>6.1f}%")
 
     if len(names) > 1 and shares:
-        print(f"\n여섯의 폭\n  {'절':<26} {'최소':>7} {'최대':>7}")
+        print(f"\n둘의 폭\n  {'절':<26} {'최소':>7} {'최대':>7}")
         for label, vs in sorted(shares.items(), key=lambda kv: -sum(kv[1]) / len(kv[1])):
             if len(vs) == len(names):
                 print(f"  {label:<26} {min(vs):>6.1f}% {max(vs):>6.1f}%")

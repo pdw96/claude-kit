@@ -7,7 +7,7 @@
 
 | 부품 | 사는 곳 | 하는 일 |
 |---|---|---|
-| 원본 감사자 여섯 | `vibe-audit/agents/` | 목적별로 좁힌 읽기 전용 감사자. 공통 절은 여섯이 글자 그대로 같다 |
+| 원본 감사자 둘 | `vibe-audit/agents/` | 목적별로 좁힌 읽기 전용 감사자. 공통 절은 둘이 글자 그대로 같다 |
 | 브리핑 커맨드 · 검사기 | `vibe-audit/commands/audit-brief.md` · `vibe-audit/scripts/verify-brief.py` | 부르는 세션이 diff 를 브리핑으로 싣고, 검사기가 그것을 git 과 대조한 뒤 감사자를 부른다 |
 | 조각 문서 스킬 | `vibe-slice/skills/slice-docs/` | 의도 · 마스터플랜 · 작업 규칙(`CLAUDE.md`) · 프로필(`Profile.md`) · 요구사항 · 설계 틀 여섯(`templates/`)과 쓰는 법, 부적합 대장의 틀 둘(`templates/nc-ledger*.md` — 레포가 처음 한 번 베껴 세운다. 사본 대장에 적지 않고 견주지 않는다), 그리고 검사 셋(`scripts/` — 문서 대조 검사 `verify-docs.py` · 설계 → 구현 관문 `verify-slice-gate.py` · 부적합 대장 검사 `verify-ledger.py`). 절차는 `docs/procedure.md` 를 가리키기만 한다 |
 | 리뷰 가르기 스킬 | `vibe-slice/skills/slice-review/` | 리뷰 지적을 그 조각의 기준에 비춰 가르는 규칙과 답글 · 회차 표의 꼴. 틀은 옆의 `slice-docs` 에서 읽는다 |
@@ -32,7 +32,7 @@ agents    copy(-ies)  feedback   감사자     <케이스>/   · CI
           copies
 ```
 
-**심기.** `scripts/sync-agents.sh <레포>` 가 감사자 여섯 · 브리핑 커맨드 · 검사기를 그 레포의 `.claude/` 에 심고,
+**심기.** `scripts/sync-agents.sh <레포>` 가 감사자 둘 · 브리핑 커맨드 · 검사기를 그 레포의 `.claude/` 에 심고,
 감사자 · 커맨드 파일 머리에 출처 커밋을 박고, `copies.json` 에 한 줄을 적는다. 검사기(`.py`)는 바이트 그대로 옮기고
 그 출처는 대장만 든다. 커밋 안 된 원본은 심지 않는다. 사본이 이미 있으면
 덮어쓰지 않는다 — 사본의 특화가 사라진다. 다시 심기는 `--merge` 다 — 대장의 `synced_commit` 을 그 커밋의 스크립트로 빈 자리에
