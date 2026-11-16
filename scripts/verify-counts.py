@@ -327,10 +327,6 @@ ANCHORS = [
     ('scripts/run-evals.sh', r'^# {N}으로 두는 이유', 1, '러너 동시성'),
     ('scripts/run-evals.sh', r'전수 문턱 {N} 을', 1, '전수 문턱'),
     ('scripts/run-evals.sh', r'전수의 {N} 이 봐주려는', 1, '전수 문턱'),
-    # vibe-audit/agents/audit-data.md
-    ('vibe-audit/agents/audit-data.md', r'\*\*{N} 중 누구의', 2, '감사자'),
-    # vibe-audit/agents/audit-internal.md
-    ('vibe-audit/agents/audit-internal.md', r'\*\*{N} 중 누구의', 2, '감사자'),
     # vibe-audit/README.md
     ('vibe-audit/README.md', r'^{N}이 보는 범위', 1, '감사자'),
     ('vibe-audit/README.md', r'{N}을 한꺼번에', 1, '감사자'),

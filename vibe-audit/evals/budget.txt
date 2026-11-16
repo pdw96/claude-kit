@@ -6,8 +6,8 @@
 # 호출시 파일 전체. 그 감사자가 뜰 때마다 내고, 감사 대상 코드와 같은 창을 쓴다
 
 [vibe-audit]
-agent  audit-data          816   11052
-agent  audit-internal      804   11041
+agent  audit-data          816   11079
+agent  audit-internal      804   11077
 skill  audit-brief         312    4493
        — 상시 합계            1932
 
