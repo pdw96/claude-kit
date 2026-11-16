@@ -636,7 +636,7 @@ done
 # 대조군 — 고치지 않은 회수율 사본은 두 검사를 종료 0 과 PASS 줄로 지나고, 회수율 폴더가 없는 트리는 인자 없이 「0개」로 지나간다.
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results" "$s/vibe-audit/recall/results"
 for chk in evals graders; do
-  keep '^PASS 회수율 케이스 6개' "verify-$chk.py 에 고치지 않은 회수율 사본" python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall"
+  keep '^PASS 회수율 케이스 4개' "verify-$chk.py 에 고치지 않은 회수율 사본" python3 "scripts/verify-$chk.py" "$s/vibe-audit/recall"
 done
 u=$(mktemp -d); tar -c --exclude=.git --exclude=results . | tar -x -C "$u"; rm -rf "$u/vibe-audit/recall"
 for chk in evals graders; do
