@@ -500,9 +500,9 @@ mrefuse merge:readme-source-mismatch "T4h 사본 README 의 출처가 밑과 다
 # M5
 mfix t6; mB; sed -i 's/^tools: .*/tools: ["Read", "Grep", "Glob", "Edit"]/' "$V/.claude/agents/audit-data.md"; msvc
 mrefuse merge:verify-copy-failed "T6 사본이 감사자 하나의 tools 를 바꿈"
-# T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 c56e571 의 스크립트와 이 스크립트가 같은
+# T8 — 지금 길(요구사항 성공 기준 5). 인자 없는 길 · --force 를 마지막으로 바꾼 커밋 577810a 의(조각 72 — 안내 문구의 감사자 수) 스크립트와 이 스크립트가 같은
 # 자리에 심은 결과 · 출력 · 대장이 같다. 그 길을 일부러 바꾸면 이 핀을 그 커밋으로 옮긴다.
-mfix t8; git -C "$S" show c56e571:scripts/sync-agents.sh > "$S/scripts/sync-agents.pin.sh"; chmod +x "$S/scripts/sync-agents.pin.sh"
+mfix t8; git -C "$S" show 577810a:scripts/sync-agents.sh > "$S/scripts/sync-agents.pin.sh"; chmod +x "$S/scripts/sync-agents.pin.sh"
 cp -p "$S/copies.json" "$F/l0"
 for v in pin cur; do
   if [ "$v" = pin ]; then sc="$S/scripts/sync-agents.pin.sh"; else sc="$S/scripts/sync-agents.sh"; fi
@@ -515,7 +515,7 @@ for v in pin cur; do
   cp -a "$F/t8/.claude" "$F/r.$v/force"; cp -p "$S/copies.json" "$F/r.$v/l2"
 done
 cp -p "$F/l0" "$S/copies.json"
-if diff -r "$F/r.pin" "$F/r.cur" >"$F/out" 2>&1; then mpass=$((mpass + 1)); else mfail "T8 인자 없는 길 · --force 가 c56e571 과 다르다"; fi
+if diff -r "$F/r.pin" "$F/r.cur" >"$F/out" 2>&1; then mpass=$((mpass + 1)); else mfail "T8 인자 없는 길 · --force 가 577810a 과 다르다"; fi
 
 # V5 — `merge:` 이유 코드마다 그것을 기대하는 시험(mrefuse · mkeep)이 이 절에 있다. 변조본: 시험 하나를 지운 절은 떨어진다.
 mcodes() {  # $1=sync-agents.sh $2=시험 파일 — 시험이 없는 코드를 찍는다
@@ -540,7 +540,7 @@ if [ "$mpass" != $((MFIXED + MPER * mn)) ]; then
   echo "::error::sync-agents.sh --merge 의 꼴이 $mpass 돌았다 — $((MFIXED + MPER * mn))(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 이어야 한다"; exit 1
 fi
 NSEC=$((NSEC + 1))
-echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 c56e571 과 같음, 이유 코드마다 시험"
+echo "sync-agents.sh --merge: 꼴 $mpass(고정 $MFIXED · 사본 파일 $mn 마다 $MPER) 다 지나감 — 거절은 그 종료 · 이유 코드 · 그대로, 성공은 기대본 · 대장 · 표, 지금 길은 577810a 과 같음, 이유 코드마다 시험"
 
 # verify-evals.py — 대조군을 뺀 수트는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(수트)"
