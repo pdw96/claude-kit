@@ -36,35 +36,30 @@ request has not been measured — the trigger suite and the comparison below use
 
 ## What's different — head-to-head with other plugins
 
-`vibe-audit` **tells which of a repository's own rules are still in force** — it does not report as a defect to fix something the repository has scoped out: a
-closed slice's "won't do", a superseded old document, a value used only for local development. Below are the passing runs on two trap cases, with the same
-material, the same request body and the same judge for every arm. A run passes when it reports the defect it should find and does not report the trap as a defect.
+`vibe-audit`'s `audit-internal` **tells which of a repository's own rules are still in force** — it does not report as a defect something the repository has
+scoped out: a closed slice's "won't do", a superseded old document. Below are the passing runs on a trap case, with the same material, the same request body and
+the same judge for every arm (2026-11-15, CLI 2.1.325, suite model `claude-sonnet-5-5`). A run passes when it reports the defect it should find and does not
+report the trap as a defect.
 
-| Trap case | Reporting this as a defect is wrong | `vibe-audit` | No plugin | `pr-review-toolkit` |
-|---|---|---|---|---|
-| `trap-slice-scope` | A closed slice's "don't build CSV export" · an old `PRD.md`'s "email sending" | 3/3 | 0/3 | 0/3 |
-| `trap-local-dev-password` | A development DB password in a `docker-compose.yml` bound only to `127.0.0.1` | 2/3 | 0/3 | 1/3 |
+| Trap case | Reporting this as a defect is wrong | `vibe-audit` | `pr-review-toolkit` | `pr-review-toolkit` + context | No plugin + context |
+|---|---|---|---|---|---|
+| `trap-slice-scope` | A closed slice's "don't build CSV export" · an old `PRD.md`'s "email sending" | 3/3 | 1/3 | 2/3 | 2/3 |
 
-**Where it was even.** On six cases built from defects the owning auditor had missed before (data · contract), `vibe-audit` scored 17/18, no plugin 18/18 and
-`pr-review-toolkit` 18/18 — that set showed nothing only this plugin catches. On the security axis `claude-security` also got both cases (6/6, trap included —
-re-measured without handing it the answer key).
+**One line of context closes most of the gap.** The "+ context" arms put two lines in the repository's `CLAUDE.md`: read `INTENT.md`'s Not and closed slices'
+"won't do" before a review, and do not report what they list or local-only values as defects. On the local-dev-password trap (`trap-local-dev-password`) both
+context arms scored 3/3. So the four auditors for security · contract · quality · operations were retired; `audit-internal` (this difference) and `audit-data`
+(where most feedback came from) remain — ADR 0090 · 0091 (Korean).
 
-**Limits.**
+**Where it was even.** On six cases built from defects the owning auditor had missed before (four data · two contract), `vibe-audit` scored 17/18 (earlier
+measurement), no plugin 18/18, `pr-review-toolkit` 18/18 and both context arms 18/18. That set is at the ceiling even without context, so it shows only that the
+context lines did not hide real defects.
 
-- The evidence is two trap cases · 6 runs.
-- In `trap-local-dev-password`, `vibe-audit` reported the password in all three runs as **unverifiable** — "looks local-only, but the repository alone cannot
-  tell whether it matches the deployed environment". It did not report it as a defect, and it did not close it as "local-only, so not a defect" either. The failing
-  run is the one that also wrote the auditors' rule that unverifiable items count like nonconformities for pass/fail.
-- In the same case, `pr-review-toolkit`'s 1/3 includes one borderline run (it put the password under a "note" heading as advice). In those three runs the plugin's
-  review skill was called but did not launch its review agents — the main session read the files itself — at $0.145 per run.
-- These numbers hold only for this material (`ba1f955`), this suite model (`claude-sonnet-5-5`) and this competitor commit (`anthropics/claude-plugins-official`
-  `a7ba5b9`). Other material, models or versions need a new measurement.
-- The plugin arms were called by name at the top of the request. Whether the auditor is picked when it is only installed is measured separately by the trigger
-  suite; whether an installed-only auditor also tells the trap apart was not measured in one run.
-- Raw cost per run: `vibe-audit` $0.21 · no plugin $0.13 · `pr-review-toolkit` $0.48 (the earlier 24-run measurement) · `claude-security` $0.65.
+**Limits.** One trap case · 3 runs — one run can flip a verdict. These numbers hold only for this material, this suite model and this competitor commit
+(`anthropics/claude-plugins-official` `a7ba5b9`). The security and checking-machinery auditors were retired without a missed-defect set for their areas. The
+plugin arms were called by name at the top of the request; whether an installed-only plugin also tells the trap apart was not measured. Raw cost per run on the
+trap: `vibe-audit` $0.198 · `pr-review-toolkit` $0.271 · no plugin + context $0.126.
 
-Tables, judging rules and raw output (Korean): `docs/eval-log/2026-11.md` — "다른 플러그인과 맞대기 — 조각 51 PR C" · "`claude-security` 다시 재기 — 조각 52 PR C" ·
-"`pr-review-toolkit` 의 빈 칸 — 조각 52 PR C" — and ADR 0066 · 0069 · 0070.
+Tables, judging rules and raw output (Korean): `docs/eval-log/2026-11.md` — "2026-11-15 · 맥락 한 줄 팔 — 조각 71" · "다른 플러그인과 맞대기 — 조각 51 PR C".
 
 ## Install
 
