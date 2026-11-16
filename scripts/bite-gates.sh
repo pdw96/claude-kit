@@ -1168,7 +1168,7 @@ sclose 13 4
 # verify-evals.py — 매번 떨어져도 문턱을 못 넘기는 가벼운 심판 그레이더는 실패해야 한다
 sopen "verify-evals.py · verify-graders.py(무게 · arm · 대조군)"
 s=$(mktemp -d); cp -r vibe-audit "$s/"; rm -rf "$s/vibe-audit/evals/results"
-sed -i 's/^weight: .*/weight: 2/' "$s/vibe-audit/evals/gate-comment-owned/graders/gate-comment-owned.md"
+sed -i 's/^weight: .*/weight: 1/' "$s/vibe-audit/evals/gate-comment-owned/graders/gate-comment-owned.md"
 bit 1 "$PYF" "문턱을 못 넘기는 심판 그레이더" python3 scripts/verify-evals.py "$s/vibe-audit/evals"
 
 # verify-evals.py — auditor-fired 가 호출을 요구하지 않으면(min 0) 실패해야 한다(Codex 33차)
