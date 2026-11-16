@@ -116,3 +116,21 @@
 - (2) NC-39(반박)의 담당을 `audit-internal` 로 옮겼다(대장, PR A).
 
 **PR B 로 넘긴 것.** 감사자 글은 「배포 전 체크리스트(`vibe-audit` README)」를 가리키는데, 그 절은 PR B 가 쓴다 — A 와 B 사이에 그 자리가 빈다.
+
+## 2026-11-16 · 회차 53 이 짚은 것 — 옮김 측정의 판(NC-58)과 재지 않는 관문(NC-56 · 57)
+
+**옮김 측정의 판.** 위 항목의 옮김 측정은 작업트리가 `577810a` 의 감사자 문구 · 픽스처와 같을 때 돌았다(글자 예산을 줄인 뒤, 그 상태를 그 커밋으로 남겼다 —
+`gap-unowned` 을 지우기 전이다). CLI 2.1.325, 수트 모델 `claude-sonnet-5-5`, 심판 `sonnet`(하네스 기본 별칭), 플러그인 팔 하나(`--ablation none`), 문턱 0.8, 이 세션의 자격.
+결과 폴더는 `vibe-audit/evals/results/2026-11-16T07-40-35Z` · `T07-42-58Z` · `T07-44-58Z` 이고 `.gitignore` 라 저장소에 남지 않는다 — 회차마다의 점수를 여기 옮긴다.
+
+| 케이스 | 회차 1 · 2 · 3 | 떨어진 그레이더 |
+|---|---|---|
+| `brief-absent` | 1.00 · 1.00 · 0.75 | 회차 3 `gate-undecidable-declared` |
+| `brief-audited-commit` · `brief-used` · `cycle-continuity` · `cycle-first` | 다 1.00 | 없음 |
+| `gap-unowned` | 0.69 · 0.08 · 0.69 | 세 회차 다 `gate-escalated-perf` · `gate-not-an-nc`, 회차 2 는 `gate-escalated` · `gate-no-fake-owner` · `real-nc-found` 도 |
+
+`gap-unowned` 회차 2 의 응답은 N+1 쿼리를 `audit-data` 몫으로 넘기고 「담당 없음: 없음」으로 적었고, `/admin/export` 를 「권한 자체는 이 감사의 담당이 아니므로」 NC 로 세지
+않았다 — 회차 53 은 이것을 픽스처만이 아니라 `audit-internal` 이 공통 절에서 떨어진 것으로 읽었다(NC-56).
+
+**재지 않는 관문.** 공통 절의 「담당이 없으면 호출자에게 올립니다」 · 「담당이 아닌 것은 부적합이 아닙니다」를 재는 케이스가 남지 않는다. 저자가 「적어 두고 등록」을 골랐다(2026-11-16) —
+`vibe-audit/evals/README.md` 「재지 않는 것」에 두 줄을 두고, 다시 세우는 일은 새어 나간 결함이 드러날 때다. 이것도 ADR 0091 의 1 의 대가에 든다.

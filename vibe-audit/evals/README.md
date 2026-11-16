@@ -178,11 +178,14 @@ CI(`.github/workflows/eval.yml`)는 PR 과 `main` push 에서 **`route-*` 만** 
 
 ### 재지 않는 것
 
-- **정규식이 없는 케이스가 실제 트레이스에서 옳게 세는가** — `route-*` 는 그레이더가 전부 `tool_used`,
-  `trap-rollback-unproven` 은 전부 심판이다. `verify-evals.py` 는 모양을 물지만 표본이 없다.
-- **`audit-internal` · `audit-quality` 의 자기 트리거** — 위 「트리거 정확도」.
-- **`audit-contract` 의 판정** — 판정 케이스가 없다. 되먹임에 기록된 거짓 판정이 그 감사자에서는
-  안 나왔다. 나오면 그때 붙인다.
+- **정규식이 없는 케이스가 실제 트레이스에서 옳게 세는가** — `route-*` 는 그레이더가 전부 `tool_used` 다.
+  `verify-evals.py` 는 모양을 물지만 표본이 없다.
+- **`audit-internal` 의 자기 트리거** — 위 「트리거 정확도」.
+- **공통 절 「담당이 없으면 호출자에게 올립니다」의 행동** — 그 케이스(`gap-unowned`)를 조각 「감사자 넷 은퇴」가 지웠다.
+  옮겨 잰 마지막 측정에서 `audit-internal` 이 담당 없는 성능 발견을 `audit-data` 몫으로 넘겨 떨어졌다(대장 NC-56). 새어 나간
+  결함이 드러나면 그때 다시 세운다(`CLAUDE.md` 「새 장치는 새어 나간 결함에만」).
+- **공통 절 「담당이 아닌 것은 부적합이 아닙니다」(관문의 왼쪽)의 행동** — 그 케이스(`gate-out-of-scope` · `gate-root-cause-auth`)를
+  같은 조각이 지웠다(대장 NC-57). 남은 관문 케이스 둘(`gate-own-not-pushed` · `gate-comment-owned`)은 오른쪽만 본다.
 - **커맨드 `audit-brief`** — 케이스가 커맨드를 부르지 않는다(`brief-used` · `brief-absent` 는 브리핑을 픽스처가 놓는다).
   eval 세션은 don't-ask 모드라 커맨드가 브리핑을 쓰는 자리 `.claude/` 에 쓰기가 늘 거부되어, 커맨드를 부른 케이스는
   브리핑을 못 쓰고 멈춘다(ADR 0024). 커맨드의 동작은 판을 올린 뒤 대화형 세션에서 저자가 본다.
